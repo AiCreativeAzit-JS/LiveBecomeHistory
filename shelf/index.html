@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>서가 — 인물대백과사</title>
+<meta name="description" content="누구나 자기 삶을 쓰고, 그 책이 오르는 대도서관. 인물대백과사의 서가입니다.">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Pretendard:wght@400;500;600;700;800&display=swap');
+  :root{
+    --ivory:#F2EEE2; --ivory-light:#FAF8F2; --green:#0B3324; --ink:#23261F;
+    --gray-1:#4C4A40; --gray-2:#6F6D63; --gold:#D4AF37; --gold-deep:#8A6E22;
+    --line:#CFC8AE; --line-2:#E4DDCB; --danger:#9b2c2c;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--ivory);color:var(--ink);font-family:'Pretendard',-apple-system,sans-serif;font-size:18px;line-height:1.7;word-break:keep-all;-webkit-font-smoothing:antialiased}
+  h1,h2,h3,.serif{font-family:'Noto Serif KR',serif}
+  :focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+  header.top{position:sticky;top:0;z-index:20;background:rgba(242,238,226,.95);backdrop-filter:blur(6px);border-bottom:1px solid var(--line-2)}
+  .top-in{max-width:1000px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .brand{font-family:'Noto Serif KR',serif;font-weight:700;color:var(--green);font-size:18px;text-decoration:none}
+  .brand span{color:var(--gold-deep)}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 20px 80px}
+  .hero{background:var(--green);color:var(--ivory-light);padding:56px 20px 48px;text-align:center}
+  .hero h1{font-size:clamp(26px,4.4vw,38px);margin:0 0 12px;color:var(--ivory-light)}
+  .hero p{margin:0 auto;max-width:560px;color:rgba(250,248,242,.82)}
+  .hero em{color:var(--gold);font-style:normal}
+  button,.btn{font:inherit;font-weight:700;font-size:16px;border:none;border-radius:999px;padding:11px 20px;cursor:pointer;background:var(--green);color:var(--ivory-light);min-height:44px;text-decoration:none;display:inline-block}
+  button:hover,.btn:hover{background:#0f4531}
+  button.gold{background:var(--gold);color:var(--green)}
+  button.gold:hover{background:#e0bd4f}
+  button.ghost,.btn.ghost{background:transparent;color:var(--green);border:1.5px solid var(--green)}
+  button.ghost:hover{background:rgba(11,51,36,.07)}
+  button.small{font-size:14px;padding:7px 14px;min-height:36px}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .searchbar{display:flex;gap:10px;margin:-26px auto 0;max-width:640px;padding:0 20px;position:relative;z-index:2}
+  .searchbar input{flex:1;font:inherit;font-size:18px;padding:14px 18px;border:1.5px solid var(--gold);border-radius:999px;background:#fff;min-width:0}
+  .books{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:18px;margin-top:34px}
+  .book{background:var(--green);color:var(--ivory-light);border-radius:8px;padding:26px 20px;cursor:pointer;display:flex;flex-direction:column;gap:8px;min-height:200px;border:1px solid var(--gold);text-decoration:none;position:relative}
+  .book::before{content:"";position:absolute;inset:7px;border:1px solid rgba(212,175,55,.4);border-radius:4px;pointer-events:none}
+  .book:hover{transform:translateY(-2px)}
+  .book h3{margin:0;font-size:20px;line-height:1.45;color:var(--ivory-light)}
+  .book .sub{font-size:14.5px;color:rgba(250,248,242,.78)}
+  .book .au{margin-top:auto;color:var(--gold);font-family:'Noto Serif KR',serif;letter-spacing:.06em}
+  .book .dt{font-size:12.5px;color:rgba(250,248,242,.6)}
+  .note{color:var(--gray-2);font-size:15px}
+  .empty{text-align:center;padding:60px 10px;color:var(--gray-1)}
+  .more{text-align:center;margin-top:28px}
+  .msg{margin-top:14px;padding:12px 14px;border-radius:8px;font-size:15.5px}
+  .msg.err{background:#fbeaea;color:var(--danger)}
+  .msg.ok{background:#e6f1e9;color:var(--green)}
+  /* 책 읽기 */
+  .cover{background:var(--green);color:var(--ivory-light);text-align:center;padding:64px 24px;border-radius:0 0 10px 10px}
+  .cover h1{font-size:clamp(26px,4.4vw,36px);margin:0 0 10px;color:var(--ivory-light)}
+  .cover .sub{color:var(--gold);margin:4px 0}
+  .reader{max-width:720px;margin:0 auto;padding:26px 6px 0}
+  .toc{background:var(--ivory-light);border:1px solid var(--line-2);border-radius:8px;padding:14px 20px 14px 40px;margin:26px 0}
+  .toc a{color:var(--green)}
+  .ch{margin-top:54px}
+  .ch h2{color:var(--green);border-bottom:2px solid var(--gold);padding-bottom:8px;font-size:24px}
+  .body{font-family:'Noto Serif KR',serif;font-size:19px;line-height:2}
+  .body img,.body video{max-width:100%;border-radius:6px;margin:10px 0;display:block}
+  .body audio{width:100%;margin:10px 0;display:block}
+  .body blockquote{margin:14px 0;padding:4px 18px;border-left:4px solid var(--gold);color:var(--gray-1)}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:36px 0 10px}
+  dialog{border:none;border-radius:12px;padding:24px;max-width:460px;width:calc(100% - 32px);background:var(--ivory-light);color:var(--ink)}
+  dialog::backdrop{background:rgba(0,0,0,.45)}
+  dialog textarea{width:100%;font:inherit;font-size:17px;padding:12px;border:1.5px solid var(--line);border-radius:8px;min-height:110px}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--gold);color:var(--green);font-weight:800;padding:12px 22px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.25);z-index:99;opacity:0;pointer-events:none;transition:opacity .25s}
+  .toast.show{opacity:1}
+  footer{background:#071f16;color:rgba(250,248,242,.6);text-align:center;font-size:13.5px;padding:22px 18px}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in">
+  <a class="brand" href="./">인물대백과사 <span>· 서가</span></a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn ghost small" href="../editor/">✍️ 내 책 쓰기</a></div>
+</div></header>
+<div id="app"></div>
+<footer>인물대백과사 · 이름난 사람만 책을 남기던 시대는 지났습니다.</footer>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+'use strict';
+const SUPABASE_URL = 'https://qsucbnvicaviatdpnfxx.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_DR6vaBdtzLjicYQ8X-u9bA_6U8mzJuY'; // 공개용 키: 보안은 DB 규칙(RLS)이 담당
+const BUCKET = 'book-media';
+const PAGE = 12;
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $app = document.getElementById('app');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(t){ const el=document.getElementById('toast'); el.textContent=t; el.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('show'),2400); }
+const fmt = d => d ? new Date(d).toLocaleDateString('ko-KR') : '';
+
+/* 본문 정제(에디터와 동일한 허용 목록) */
+const ALLOWED = new Set(['P','BR','STRONG','B','EM','I','U','H2','H3','BLOCKQUOTE','UL','OL','LI','IMG','AUDIO','VIDEO','DIV','SPAN']);
+function sanitize(html){
+  const doc = new DOMParser().parseFromString('<body>'+html+'</body>','text/html');
+  (function walk(node){
+    [...node.childNodes].forEach(ch=>{
+      if(ch.nodeType===3) return;
+      if(ch.nodeType!==1){ ch.remove(); return; }
+      if(!ALLOWED.has(ch.tagName)){
+        if(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED'].includes(ch.tagName)){ ch.remove(); return; }
+        walk(ch); ch.replaceWith(...ch.childNodes); return;
+      }
+      const media = ch.getAttribute('data-media');
+      [...ch.attributes].forEach(a=>ch.removeAttribute(a.name));
+      if(['IMG','AUDIO','VIDEO'].includes(ch.tagName)){
+        if(media && /^[0-9a-f-]{36}$/.test(media)) ch.setAttribute('data-media',media); else { ch.remove(); return; }
+      }
+      walk(ch);
+    });
+  })(doc.body);
+  return doc.body.innerHTML;
+}
+
+/* 라우팅: #/book/<id> 또는 목록 */
+let query = '', page = 0;
+window.addEventListener('hashchange', route);
+route();
+function route(){
+  const m = location.hash.match(/^#\/book\/([0-9a-f-]{36})$/);
+  window.scrollTo(0,0);
+  m ? viewBook(m[1]) : viewList();
+}
+
+/* ───────── 목록 ───────── */
+function viewList(){
+  document.title = '서가 — 인물대백과사';
+  $app.innerHTML = `
+    <section class="hero"><h1 class="serif">누구나 자기 삶을 쓰고,<br>그 책이 <em>대도서관</em>에 오릅니다</h1>
+      <p>작가들이 서가에 공개한 이야기예요. 한 권 골라 천천히 읽어 보세요.</p></section>
+    <form class="searchbar" id="sf" role="search">
+      <input id="q" type="search" placeholder="책 제목이나 지은이로 찾기" aria-label="검색" value="${esc(query)}">
+      <button class="gold" type="submit">찾기</button></form>
+    <div class="wrap"><div class="books" id="list" aria-live="polite">불러오는 중…</div><div class="more" id="more"></div></div>`;
+  document.getElementById('sf').onsubmit = e=>{ e.preventDefault(); query=document.getElementById('q').value.trim(); page=0; loadPage(true); };
+  page = 0; loadPage(true);
+}
+async function loadPage(reset){
+  const list=document.getElementById('list'), more=document.getElementById('more');
+  let qb = sb.from('shelf_books').select('id,title,subtitle,author_name,published_at').order('published_at',{ascending:false}).range(page*PAGE, page*PAGE+PAGE-1);
+  const safe = query.replace(/[%_,()*\\]/g,' ').trim();
+  if(safe) qb = qb.or(`title.ilike.%${safe}%,author_name.ilike.%${safe}%`);
+  const { data, error } = await qb;
+  if(error){ list.innerHTML='<div class="msg err">서가를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</div>'; return; }
+  const html = data.map(b=>`<a class="book" href="#/book/${b.id}">
+      <h3>${esc(b.title)}</h3>${b.subtitle?`<div class="sub">${esc(b.subtitle)}</div>`:''}
+      <div class="au">${esc(b.author_name||'이름 없는 작가')} 지음</div><div class="dt">${fmt(b.published_at)} 공개</div></a>`).join('');
+  if(reset) list.innerHTML = html || `<div class="empty" style="grid-column:1/-1">${safe?'찾는 책이 아직 없어요.':'아직 공개된 책이 없어요. 첫 번째 책의 주인공이 되어 보세요!'}</div>`;
+  else list.insertAdjacentHTML('beforeend', html);
+  more.innerHTML = data.length===PAGE ? '<button class="ghost" id="mb">더 보기</button>' : '';
+  const mb=document.getElementById('mb'); if(mb) mb.onclick=()=>{ page++; loadPage(false); };
+}
+
+/* ───────── 책 읽기 ───────── */
+async function viewBook(id){
+  $app.innerHTML = '<div class="wrap"><p class="note" style="padding-top:30px">책을 펴는 중…</p></div>';
+  const [b,c,m] = await Promise.all([
+    sb.from('shelf_books').select('id,title,subtitle,author_name,published_at').eq('id',id).maybeSingle(),
+    sb.from('chapters').select('id,position,title,content').eq('book_id',id).order('position'),
+    sb.from('media').select('id,storage_path').eq('book_id',id)
+  ]);
+  if(b.error||c.error){ $app.innerHTML='<div class="wrap"><div class="msg err" style="margin-top:30px">책을 불러오지 못했어요.</div><p><a href="#/">← 서가로</a></p></div>'; return; }
+  if(!b.data){ $app.innerHTML='<div class="wrap"><div class="empty">이 책은 비공개이거나 없는 책이에요.<br><a href="#/">← 서가로 돌아가기</a></div></div>'; return; }
+  const book=b.data, chapters=c.data||[], paths={}; (m.data||[]).forEach(x=>paths[x.id]=x.storage_path);
+  document.title = `${book.title} — 인물대백과사`;
+  $app.innerHTML = `
+    <div class="cover"><h1 class="serif">${esc(book.title)}</h1>${book.subtitle?`<p class="sub">${esc(book.subtitle)}</p>`:''}
+      <p class="sub">${esc(book.author_name||'이름 없는 작가')} 지음</p></div>
+    <div class="wrap"><article class="reader">
+      ${chapters.length>1?`<ol class="toc" aria-label="목차">${chapters.map((x,i)=>`<li><a href="#" data-goto="c${i}">${esc(x.title||'(제목 없음)')}</a></li>`).join('')}</ol>`:''}
+      ${chapters.map((x,i)=>`<section class="ch" id="c${i}"><h2 class="serif">${esc(x.title)}</h2><div class="body">${sanitize(x.content||'')}</div></section>`).join('')}
+      <div class="actions"><a class="btn ghost" href="#/">← 서가로</a>
+        <button class="ghost" id="share">🔗 주소 복사</button>
+        <button class="ghost" id="rep">🚩 신고하기</button></div>
+    </article></div>
+    <dialog id="dlg"><form method="dialog" id="rf"><h2 class="serif" style="margin-top:0">이 책을 신고할게요</h2>
+      <p class="note">어떤 점이 문제인지 알려 주세요. 운영자가 확인해요.</p>
+      <textarea id="reason" maxlength="1000" required aria-label="신고 사유"></textarea>
+      <div id="rmsg"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px"><button type="button" class="ghost" id="rc">닫기</button><button type="submit" class="gold" id="rs">신고 보내기</button></div>
+    </form></dialog>`;
+  // 목차 이동
+  $app.querySelectorAll('[data-goto]').forEach(a=>a.onclick=e=>{ e.preventDefault(); document.getElementById(a.dataset.goto).scrollIntoView({behavior:'smooth'}); });
+  hydrateMedia($app, paths);
+  document.getElementById('share').onclick=async()=>{ try{ await navigator.clipboard.writeText(location.href); toast('주소를 복사했어요'); }catch{ toast('주소창의 주소를 복사해 주세요'); } };
+  const dlg=document.getElementById('dlg');
+  document.getElementById('rep').onclick=async()=>{
+    const { data } = await sb.auth.getSession();
+    if(!data.session){ toast('신고는 로그인 후 할 수 있어요'); setTimeout(()=>location.href='../editor/',1400); return; }
+    document.getElementById('rmsg').innerHTML=''; dlg.showModal(); document.getElementById('reason').focus();
+  };
+  document.getElementById('rc').onclick=()=>dlg.close();
+  document.getElementById('rf').onsubmit=async e=>{
+    e.preventDefault();
+    const reason=document.getElementById('reason').value.trim(), out=document.getElementById('rmsg'), btn=document.getElementById('rs');
+    if(!reason) return; btn.disabled=true;
+    const { data:s } = await sb.auth.getSession();
+    const { error } = await sb.from('reports').insert({ book_id:book.id, reporter_id:s.session.user.id, reason });
+    btn.disabled=false;
+    if(error){ out.innerHTML=`<div class="msg err">${error.code==='23505'?'이미 이 책을 신고하셨어요.':'신고를 보내지 못했어요. 잠시 후 다시 시도해 주세요.'}</div>`; return; }
+    dlg.close(); document.getElementById('reason').value=''; toast('신고를 접수했어요. 확인할게요.');
+  };
+}
+async function hydrateMedia(root, paths){
+  await Promise.all([...root.querySelectorAll('[data-media]')].map(async n=>{
+    const p=paths[n.getAttribute('data-media')]; if(!p){ n.remove(); return; }
+    const { data } = await sb.storage.from(BUCKET).createSignedUrl(p, 3600);
+    if(data?.signedUrl){ n.src=data.signedUrl; if(n.tagName!=='IMG') n.controls=true; if(n.tagName==='IMG') n.loading='lazy'; } else n.remove();
+  }));
+}
+</script>
+</body>
+</html>
