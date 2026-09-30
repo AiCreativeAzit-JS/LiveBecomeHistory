@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>관리자 — 인물대백과사</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Pretendard:wght@400;500;600;700;800&display=swap');
+  :root{
+    --ivory:#F2EEE2; --ivory-light:#FAF8F2; --green:#0B3324; --ink:#23261F;
+    --gray-1:#4C4A40; --gray-2:#6F6D63; --gold:#D4AF37; --gold-deep:#8A6E22;
+    --line:#CFC8AE; --line-2:#E4DDCB; --danger:#9b2c2c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ivory);color:var(--ink);font-family:'Pretendard',-apple-system,sans-serif;font-size:17px;line-height:1.6;word-break:keep-all;-webkit-font-smoothing:antialiased}
+  h1,h2,h3,.serif{font-family:'Noto Serif KR',serif}
+  :focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+  header.top{position:sticky;top:0;z-index:20;background:rgba(242,238,226,.95);backdrop-filter:blur(6px);border-bottom:1px solid var(--line-2)}
+  .top-in{max-width:1100px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .brand{font-family:'Noto Serif KR',serif;font-weight:700;color:var(--green);font-size:18px}
+  .brand span{color:var(--gold-deep)}
+  .wrap{max-width:1100px;margin:0 auto;padding:26px 20px 80px}
+  .narrow{max-width:440px;margin:40px auto}
+  .card{background:var(--ivory-light);border:1px solid var(--line-2);border-radius:10px;padding:22px}
+  h1{font-size:26px;color:var(--green);margin:0 0 6px}
+  p.sub{color:var(--gray-1);margin:0 0 18px}
+  label{display:block;font-weight:700;font-size:15px;margin:12px 0 6px;color:var(--green)}
+  input[type=email],input[type=password],input[type=text]{width:100%;font:inherit;padding:11px 13px;border:1.5px solid var(--line);border-radius:8px;background:#fff}
+  button,.btn{font:inherit;font-weight:700;font-size:15px;border:none;border-radius:999px;padding:9px 18px;cursor:pointer;background:var(--green);color:var(--ivory-light);min-height:40px;text-decoration:none;display:inline-block}
+  button:hover{background:#0f4531}
+  button.gold{background:var(--gold);color:var(--green)}
+  button.ghost,.btn.ghost{background:transparent;color:var(--green);border:1.5px solid var(--green)}
+  button.danger{background:transparent;color:var(--danger);border:1.5px solid var(--danger)}
+  button.small,.btn.small{font-size:13.5px;padding:6px 13px;min-height:34px}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:18px 0 24px}
+  .stat{background:var(--ivory-light);border:1px solid var(--line-2);border-radius:10px;padding:14px 16px}
+  .stat b{display:block;font-family:'Noto Serif KR',serif;font-size:30px;color:var(--green);line-height:1.2}
+  .stat span{font-size:14px;color:var(--gray-2)}
+  .stat.alert b{color:var(--danger)}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:2px solid var(--line-2);margin-bottom:18px}
+  .tab{background:none;color:var(--gray-1);border-radius:8px 8px 0 0;padding:10px 18px;border-bottom:3px solid transparent;margin-bottom:-2px}
+  .tab.on{color:var(--green);border-bottom-color:var(--gold)}
+  .tab:hover{background:rgba(11,51,36,.06)}
+  .item{background:var(--ivory-light);border:1px solid var(--line-2);border-radius:10px;padding:16px 18px;margin-bottom:12px}
+  .item h3{margin:0 0 4px;font-size:18px;color:var(--green)}
+  .meta{font-size:14px;color:var(--gray-2)}
+  .reason{background:#fff;border-left:4px solid var(--gold);padding:8px 12px;margin:10px 0;white-space:pre-wrap;word-break:break-word}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .badge{display:inline-block;font-size:12px;font-weight:800;padding:2px 10px;border-radius:999px;background:var(--gold);color:var(--green);margin-right:6px}
+  .badge.off{background:transparent;color:var(--gray-1);border:1px solid var(--line)}
+  .badge.warn{background:var(--danger);color:#fff}
+  .badge.ok{background:#e6f1e9;color:var(--green)}
+  select{font:inherit;padding:8px 12px;border:1.5px solid var(--line);border-radius:8px;background:#fff}
+  .msg{margin-top:12px;padding:11px 14px;border-radius:8px;font-size:15px}
+  .msg.err{background:#fbeaea;color:var(--danger)}
+  .empty{text-align:center;padding:36px 10px;color:var(--gray-2)}
+  .privacy{font-size:14px;color:var(--gray-2);margin-top:26px}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--gold);color:var(--green);font-weight:800;padding:12px 22px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.25);z-index:99;opacity:0;pointer-events:none;transition:opacity .25s}
+  .toast.show{opacity:1}
+  label.showpw{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;margin:12px 0 0;cursor:pointer}
+  label.showpw input{width:20px;height:20px;accent-color:var(--green)}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in">
+  <div class="brand">인물대백과사 <span>· 관리자</span></div>
+  <div class="row" id="topRight"></div>
+</div></header>
+<main class="wrap" id="app"></main>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+'use strict';
+const SUPABASE_URL = 'https://qsucbnvicaviatdpnfxx.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_DR6vaBdtzLjicYQ8X-u9bA_6U8mzJuY'; // 공개용 키. 관리자 권한은 DB 규칙(RLS)이 확인한다.
+const $app = document.getElementById('app'), $top = document.getElementById('topRight');
+if(!window.supabase){
+  $app.innerHTML = '<div class="narrow card"><h1 class="serif">화면을 불러오지 못했어요</h1><p class="sub">인터넷 연결이나 차단 프로그램을 확인한 뒤 새로고침해 주세요.</p></div>';
+  throw new Error('supabase-js not loaded');
+}
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = d => d ? new Date(d).toLocaleString('ko-KR',{dateStyle:'medium',timeStyle:'short'}) : '';
+function toast(t){ const el=document.getElementById('toast'); el.textContent=t; el.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('show'),2400); }
+
+let tab = 'reports', repFilter = 'open', bookFilter = 'all';
+let data = { reports:[], books:[], profiles:[], notes:{}, stats:{} };
+
+init();
+async function init(){
+  const { data:s } = await sb.auth.getSession();
+  if(!s.session){ viewLogin(); return; }
+  const { data:isAdmin, error } = await sb.rpc('am_i_admin');
+  if(error || isAdmin !== true){ viewDenied(s.session.user.email); return; }
+  $top.innerHTML = `<span class="meta">${esc(s.session.user.email)}</span><button class="ghost small" id="lo">로그아웃</button>`;
+  document.getElementById('lo').onclick = async()=>{ await sb.auth.signOut(); location.reload(); };
+  await loadAll(); render();
+}
+
+/* ───────── 로그인 / 접근 거부 ───────── */
+function viewLogin(){
+  $top.innerHTML='';
+  $app.innerHTML = `<div class="narrow card"><h1 class="serif">관리자 로그인</h1><p class="sub">관리자 계정으로 로그인해 주세요.</p>
+    <form id="f"><label for="em">이메일</label><input id="em" type="email" autocomplete="email" required>
+    <label for="pw">비밀번호</label><input id="pw" type="password" autocomplete="current-password" required>
+    <label class="showpw"><input type="checkbox" id="showpw"> 비밀번호 보이기</label>
+    <div style="margin-top:18px"><button class="gold" type="submit" id="go">로그인</button></div><div id="out"></div></form></div>`;
+  document.getElementById('showpw').onchange=e=>{ document.getElementById('pw').type=e.target.checked?'text':'password'; };
+  document.getElementById('f').onsubmit=async e=>{
+    e.preventDefault(); const out=document.getElementById('out'), go=document.getElementById('go'); go.disabled=true; out.innerHTML='';
+    const { error } = await sb.auth.signInWithPassword({ email:document.getElementById('em').value.trim(), password:document.getElementById('pw').value });
+    if(error){ out.innerHTML=`<div class="msg err">이메일 또는 비밀번호가 맞지 않아요.</div>`; go.disabled=false; return; }
+    init();
+  };
+}
+function viewDenied(email){
+  $top.innerHTML = `<button class="ghost small" id="lo">로그아웃</button>`;
+  document.getElementById('lo').onclick = async()=>{ await sb.auth.signOut(); location.reload(); };
+  $app.innerHTML = `<div class="narrow card"><h1 class="serif">관리자만 볼 수 있어요</h1>
+    <p class="sub">${esc(email)} 계정은 관리자 권한이 없어요.</p><a class="btn ghost" href="../shelf/">서가로 가기</a></div>`;
+}
+
+/* ───────── 데이터 ───────── */
+async function loadAll(){
+  const [reports, books, profiles, notes] = await Promise.all([
+    sb.from('reports').select('id,book_id,reporter_id,reason,status,created_at').order('created_at',{ascending:false}),
+    sb.from('books').select('id,owner_id,title,author_name,is_public,admin_hidden,deleted_at,published_at,created_at').order('created_at',{ascending:false}),
+    sb.from('profiles').select('id,display_name,created_at').order('created_at',{ascending:false}),
+    sb.from('book_admin_notes').select('book_id,note')
+  ]);
+  const bad = [reports,books,profiles,notes].find(r=>r.error);
+  if(bad){ $app.innerHTML=`<div class="msg err">데이터를 불러오지 못했어요. 새로고침해 주세요.</div>`; throw bad.error; }
+  data.reports=reports.data; data.books=books.data; data.profiles=profiles.data;
+  data.notes={}; notes.data.forEach(n=>data.notes[n.book_id]=n.note);
+}
+const bookById = id => data.books.find(b=>b.id===id);
+const visible = b => b.is_public && !b.admin_hidden && !b.deleted_at;
+
+/* ───────── 화면 ───────── */
+function render(){
+  const live = data.books.filter(b=>!b.deleted_at);
+  const openReports = data.reports.filter(r=>r.status==='open').length;
+  $app.innerHTML = `
+    <h1 class="serif">관리자 대시보드</h1><p class="sub">서가를 안전하게 지키는 곳이에요.</p>
+    <div class="stats">
+      <div class="stat"><b>${data.profiles.length}</b><span>회원</span></div>
+      <div class="stat"><b>${live.length}</b><span>전체 책</span></div>
+      <div class="stat"><b>${data.books.filter(visible).length}</b><span>서가에 공개 중</span></div>
+      <div class="stat"><b>${live.filter(b=>b.admin_hidden).length}</b><span>관리자 숨김</span></div>
+      <div class="stat ${openReports?'alert':''}"><b>${openReports}</b><span>처리할 신고</span></div>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab ${tab==='reports'?'on':''}" data-t="reports" role="tab">신고 ${openReports?`(${openReports})`:''}</button>
+      <button class="tab ${tab==='books'?'on':''}" data-t="books" role="tab">책</button>
+      <button class="tab ${tab==='members'?'on':''}" data-t="members" role="tab">회원</button>
+    </div>
+    <div id="pane"></div>
+    <p class="privacy">🔒 <b>비공개(나만 보기)</b> 책의 내용은 이 화면에서 열지 않아요. 관리자는 제목·지은이 같은 기본 정보와 공개된 책만 다뤄요.</p>`;
+  $app.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{ tab=b.dataset.t; render(); });
+  ({reports:paneReports, books:paneBooks, members:paneMembers})[tab]();
+}
+
+function paneReports(){
+  const pane=document.getElementById('pane');
+  const list = data.reports.filter(r=>repFilter==='all'||r.status===repFilter);
+  pane.innerHTML = `<div class="row" style="margin-bottom:14px"><label style="margin:0" for="rf">보기</label>
+    <select id="rf"><option value="open">처리할 신고</option><option value="resolved">처리 완료</option><option value="dismissed">문제없음</option><option value="all">전체</option></select></div>
+    ${list.length? list.map(r=>{ const b=bookById(r.book_id);
+      const st = {open:'<span class="badge warn">처리 대기</span>',resolved:'<span class="badge ok">처리 완료</span>',dismissed:'<span class="badge off">문제없음</span>'}[r.status];
+      return `<div class="item" data-r="${r.id}">
+        <div>${st}<span class="meta">${fmt(r.created_at)} · 신고자 ${esc(r.reporter_id.slice(0,8))}</span></div>
+        <h3>${esc(b?.title||'(삭제된 책)')} <span class="meta">— ${esc(b?.author_name||'')}</span></h3>
+        <div class="reason">${esc(r.reason)}</div>
+        <div class="meta">${b?.admin_hidden?'현재 <b>숨김</b> 상태':visible(b||{})?'현재 서가에 공개 중':'현재 서가에 없음'}</div>
+        <div class="row" style="margin-top:10px">
+          ${b&&visible(b)?`<a class="btn ghost small" target="_blank" rel="noopener" href="../shelf/#/book/${b.id}">책 열어 보기</a>`:''}
+          ${r.status==='open'?`
+            ${b&&!b.admin_hidden?`<button class="danger small" data-act="hide">책 숨기고 처리 완료</button>`:''}
+            <button class="small" data-act="resolved">처리 완료</button>
+            <button class="ghost small" data-act="dismissed">문제없음</button>`:`<button class="ghost small" data-act="open">다시 열기</button>`}
+        </div></div>`; }).join('') : '<div class="empty">해당하는 신고가 없어요.</div>'}`;
+  const sel=document.getElementById('rf'); sel.value=repFilter; sel.onchange=()=>{ repFilter=sel.value; render(); };
+  pane.onclick=async e=>{
+    const btn=e.target.closest('[data-act]'); if(!btn) return;
+    const item=btn.closest('[data-r]'); const r=data.reports.find(x=>x.id===item.dataset.r); if(!r) return;
+    btn.disabled=true;
+    try{
+      if(btn.dataset.act==='hide'){
+        const note = prompt('숨기는 이유를 간단히 적어 주세요 (관리자만 볼 수 있어요)', '신고 접수 후 숨김'); if(note===null){ btn.disabled=false; return; }
+        await rpcHide(r.book_id, true, note);
+        await setReport(r.id,'resolved');
+        // 같은 책의 다른 대기 신고도 함께 처리
+        for(const o of data.reports.filter(x=>x.book_id===r.book_id&&x.status==='open'&&x.id!==r.id)) await setReport(o.id,'resolved');
+      } else await setReport(r.id, btn.dataset.act);
+      await loadAll(); render(); toast('처리했어요');
+    }catch(err){ console.error(err); toast('처리하지 못했어요'); btn.disabled=false; }
+  };
+}
+async function setReport(id,status){ const { error } = await sb.from('reports').update({status}).eq('id',id); if(error) throw error; }
+async function rpcHide(bookId,hidden,note){ const { error } = await sb.rpc('admin_set_hidden',{ b:bookId, hidden, note }); if(error) throw error; }
+
+function paneBooks(){
+  const pane=document.getElementById('pane');
+  const f = {
+    all: b=>!b.deleted_at, public: b=>visible(b), hidden: b=>b.admin_hidden&&!b.deleted_at,
+    private: b=>!b.is_public&&!b.deleted_at, deleted: b=>!!b.deleted_at }[bookFilter];
+  const list=data.books.filter(f);
+  const nameOf = id => data.profiles.find(p=>p.id===id)?.display_name || '';
+  pane.innerHTML = `<div class="row" style="margin-bottom:14px"><label style="margin:0" for="bf">보기</label>
+    <select id="bf"><option value="all">전체(삭제 제외)</option><option value="public">서가에 공개 중</option><option value="hidden">관리자 숨김</option><option value="private">나만 보기</option><option value="deleted">삭제된 책</option></select>
+    <span class="meta">${list.length}권</span></div>
+    ${list.length? list.map(b=>`<div class="item" data-b="${b.id}">
+      <div>${b.deleted_at?'<span class="badge off">삭제됨</span>':b.admin_hidden?'<span class="badge warn">관리자 숨김</span>':b.is_public?'<span class="badge">공개 중</span>':'<span class="badge off">나만 보기</span>'}
+      <span class="meta">${fmt(b.created_at)} 작성 · 회원 ${esc(nameOf(b.owner_id)||b.owner_id.slice(0,8))}</span></div>
+      <h3>${esc(b.title)} <span class="meta">— ${esc(b.author_name)}</span></h3>
+      ${data.notes[b.id]?`<div class="meta">📝 관리자 메모: ${esc(data.notes[b.id])}</div>`:''}
+      <div class="row" style="margin-top:10px">
+        ${visible(b)?`<a class="btn ghost small" target="_blank" rel="noopener" href="../shelf/#/book/${b.id}">책 열어 보기</a>`:''}
+        ${b.deleted_at?'':b.admin_hidden?`<button class="small" data-act="unhide">숨김 해제</button>`:(b.is_public?`<button class="danger small" data-act="hide">서가에서 숨기기</button>`:'')}
+      </div></div>`).join('') : '<div class="empty">해당하는 책이 없어요.</div>'}`;
+  const sel=document.getElementById('bf'); sel.value=bookFilter; sel.onchange=()=>{ bookFilter=sel.value; render(); };
+  pane.onclick=async e=>{
+    const btn=e.target.closest('[data-act]'); if(!btn) return;
+    const id=btn.closest('[data-b]').dataset.b, b=bookById(id); btn.disabled=true;
+    try{
+      if(btn.dataset.act==='hide'){
+        const note=prompt('숨기는 이유를 간단히 적어 주세요 (관리자만 볼 수 있어요)',''); if(note===null){ btn.disabled=false; return; }
+        await rpcHide(id,true,note);
+      } else {
+        if(!confirm(`“${b.title}” 책의 숨김을 해제할까요?\n서가에 다시 보이게 돼요.`)){ btn.disabled=false; return; }
+        await rpcHide(id,false,'숨김 해제');
+      }
+      await loadAll(); render(); toast('처리했어요');
+    }catch(err){ console.error(err); toast('처리하지 못했어요'); btn.disabled=false; }
+  };
+}
+
+function paneMembers(){
+  const pane=document.getElementById('pane');
+  const n = id => data.books.filter(b=>b.owner_id===id&&!b.deleted_at).length;
+  pane.innerHTML = data.profiles.length ? data.profiles.map(p=>`<div class="item">
+      <h3>${esc(p.display_name||'(이름 없음)')}</h3>
+      <div class="meta">가입 ${fmt(p.created_at)} · 책 ${n(p.id)}권 · 회원 번호 ${esc(p.id.slice(0,8))}</div></div>`).join('')
+    : '<div class="empty">아직 회원이 없어요.</div>';
+}
+</script>
+</body>
+</html>
