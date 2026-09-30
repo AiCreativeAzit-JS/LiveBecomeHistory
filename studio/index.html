@@ -28,6 +28,7 @@
   .logo i svg{width:17px;height:17px}
   .titlein{font:inherit;font-weight:600;font-size:15px;border:1.5px solid transparent;border-radius:8px;padding:7px 10px;min-width:0;width:min(280px,30vw);background:transparent;color:var(--ink)}
   .titlein:hover{background:var(--bg)} .titlein:focus{background:#fff;border-color:var(--brand);outline:none}
+  .homebtn{padding:8px 10px;color:var(--ink);text-decoration:none}.homebtn svg{margin:0}
   .save{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px;white-space:nowrap}
   .sp{flex:1}
   .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:10px;font-weight:600;font-size:14px;border:1px solid var(--line);background:#fff;white-space:nowrap}
@@ -207,10 +208,12 @@
 <body>
 <div class="app" id="app">
   <header class="top">
+    <a class="btn homebtn" id="home" href="https://archive4everyone.com/" title="인물대백과사 홈으로" aria-label="인물대백과사 홈으로"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></a>
     <button class="btn" id="back" title="내 서재로"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>내 책</button>
     <div class="logo"><i><svg viewBox="0 0 24 24"><path d="M2 5h6a4 4 0 014 4v11a3 3 0 00-3-3H2z"/><path d="M22 5h-6a4 4 0 00-4 4v11a3 3 0 013-3h7z"/></svg></i>인물대백과사</div>
     <input class="titlein" id="title" aria-label="책 제목" maxlength="60" spellcheck="false">
     <span class="save" id="save"></span>
+    <button class="btn" id="btnSave" hidden title="지금 내용을 내 서재에 보관해요">임시저장</button>
     <span class="sp"></span>
     <span class="demo">시안 · 저장되지 않아요</span>
     <button class="btn" id="btnPreview"><svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>미리보기</button>
@@ -851,7 +854,7 @@ $('title').addEventListener('input',()=>{ state.title=$('title').value; });
 $('pPrev').onclick=()=>goPage(state.cur-1); $('pNext').onclick=()=>goPage(state.cur+1);
 $('zIn').onclick=()=>{ state.zoom=Math.min(1.6,state.zoom+.1); renderCanvas(); }; $('zOut').onclick=()=>{ state.zoom=Math.max(.4,state.zoom-.1); renderCanvas(); };
 $('uUndo').onclick=undo; $('uRedo').onclick=redo;
-$('back').onclick=async()=>{ if(!ONLINE) return toast('시안이라 내 서재로는 이동하지 않아요'); endEdit(); await saveNow(true); location.href='../editor/'; };
+$('back').onclick=async()=>{ if(!ONLINE) return toast('시안이라 내 서재로는 이동하지 않아요'); endEdit(); await saveNow(); location.href='../editor/'; };
 $('btnPublish').onclick=()=>ONLINE ? togglePublic() : toast('시안이라 공개는 동작하지 않아요. 실제 에디터에서는 서가에 올라가요');
 document.addEventListener('keydown',ev=>{
   const typing = state.editing || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
@@ -926,19 +929,37 @@ footer{text-align:center;color:#7B8A83;font:13px sans-serif;padding:8px 0 40px}@
 $('btnExport').onclick=openExport;
 
 /* ═══════════════ 실제 저장 (로그인한 내 책: ?book=책번호) ═══════════════ */
-const BOOK = new URLSearchParams(location.search).get('book');
-const ONLINE = !!BOOK && /^[0-9a-f-]{36}$/i.test(BOOK);
+const QS = new URLSearchParams(location.search);
+let BOOK = QS.get('book');
+// ?new=1: 아직 책을 만들지 않은 새 책. 처음 저장(글쓰기·사진 올리기·임시저장)할 때 비로소 책이 만들어진다.
+const NEW = !BOOK && QS.get('new')==='1';
+const ONLINE = (!!BOOK && /^[0-9a-f-]{36}$/i.test(BOOK)) || NEW;
 const SUPABASE_URL='https://qsucbnvicaviatdpnfxx.supabase.co', SUPABASE_KEY='sb_publishable_DR6vaBdtzLjicYQ8X-u9bA_6U8mzJuY', BUCKET='book-media'; // 공개용 키: 권한은 DB 규칙이 지킨다
 let sb=null, user=null, bookRow=null, mediaInfo={}, lastSaved=null, saving=false;
-function setSave(k){ const m={saving:'저장 중…',ok:'✓ 모든 변경사항 저장됨',err:'⚠ 저장 실패 · 인터넷 연결을 확인해 주세요',demo:'시안(저장 안 됨)',load:'불러오는 중…'}; $('save').textContent=m[k]; $('save').dataset.state=k; }
+function setSave(k){ const m={fresh:'아직 저장 전 · 쓰기 시작하면 저장돼요',saving:'저장 중…',ok:'✓ 모든 변경사항 저장됨',err:'⚠ 저장 실패 · 인터넷 연결을 확인해 주세요',demo:'시안(저장 안 됨)',load:'불러오는 중…'}; $('save').textContent=m[k]; $('save').dataset.state=k; }
 function fatal(title,msg,link){ $('center').innerHTML=`<div class="fatal"><h2>${esc(title)}</h2><p>${esc(msg)}</p>${link?`<a class="btn primary" href="${link[1]}">${esc(link[0])}</a>`:''}</div>`; }
 const cleanEl = e => e.type==='slot' ? {id:e.id,type:'slot',kind:e.kind||'image',x:e.x,y:e.y,w:e.w,h:e.h}
   : e.type==='text'
   ? {id:e.id,type:'text',x:e.x,y:e.y,w:e.w,h:e.h,html:sanitizeText(e.html),fs:e.fs,align:e.align,color:e.color,font:e.font,b:!!e.b,i:!!e.i,u:!!e.u,...(e.ph?{ph:String(e.ph).slice(0,200)}:{})}
   : {id:e.id,type:e.type,x:e.x,y:e.y,w:e.w,h:e.h,name:e.name||'',media_id:e.media_id};
 function serialize(){ return JSON.stringify({title:state.title,pages:state.pages.map((p,i)=>({id:p.id,position:i,name:String(p.name||'').slice(0,60),bg:/^#[0-9a-f]{6}$/i.test(p.bg)?p.bg:'#FFFFFF',flow_from:p.flowFrom||null,els:p.els.filter(e=>e.type==='text'||e.type==='slot'||e.media_id).map(cleanEl)}))}); }
-async function saveNow(){
-  if(!ONLINE||!bookRow||saving) return; const cur=serialize(); if(cur===lastSaved) return;
+// 새 책: 처음 저장할 때 books 행을 만든다(들어왔다 그냥 나가면 아무것도 생기지 않음)
+let creating=null;
+function ensureBook(){
+  if(BOOK) return Promise.resolve(true);
+  if(!creating) creating=(async()=>{
+    const t=(state.title||'').trim().slice(0,120)||'제목 없는 책';
+    const {data,error}=await sb.from('books').insert({owner_id:user.id,author_name:bookRow.author_name||'',format:'pages',title:t}).select('id,owner_id,title,author_name,format,is_public,published_at,deleted_at').single();
+    if(error){ console.error(error); creating=null; return false; }
+    BOOK=data.id; bookRow=data; history_replace(); return true;
+  })();
+  return creating;
+}
+function history_replace(){ try{ window.history.replaceState(null,'','?book='+encodeURIComponent(BOOK)); }catch{} }
+async function saveNow(force){
+  if(!ONLINE||!bookRow||saving) return; let cur=serialize();
+  if(!BOOK){ if(!force && cur===lastSaved) return; if(!(await ensureBook())){ setSave('err'); return; } lastSaved=null; cur=serialize(); }
+  if(cur===lastSaved) return;
   saving=true; setSave('saving');
   try{
     const o=JSON.parse(cur), rows=o.pages.map(p=>({...p,book_id:BOOK}));
@@ -954,6 +975,7 @@ async function signAll(list){ const urls={}; const withPath=list.filter(m=>m.sto
   const {data}=await sb.storage.from(BUCKET).createSignedUrls(withPath.map(m=>m.storage_path),21600);
   (data||[]).forEach((d,i)=>{ if(d&&d.signedUrl) urls[withPath[i].id]=d.signedUrl; }); return urls; }
 async function uploadMedia(f,kind){
+  if(!(await ensureBook())) throw new Error('no book');
   const used=Object.values(mediaInfo).reduce((n,m)=>n+(m.size_bytes||0),0); if(used+f.size>200*1048576) throw new Error('quota');
   const ext=(f.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,8)||'bin';
   const path=`${user.id}/${BOOK}/${uid()}.${ext}`;
@@ -1036,7 +1058,7 @@ function renderShare(){
     ${pubDirty()?`<div class="exwarn">링크를 만든 뒤 고친 내용이 있어요. 받는 분은 아직 이전 내용을 봐요.</div><button class="btn" id="shRefresh" style="width:100%;justify-content:center;margin-bottom:8px">지금 내용으로 새로 고침</button>`:''}
     <div class="row" style="justify-content:space-between"><button class="btn" id="shRotate" title="예전 링크는 더 이상 열리지 않아요">새 링크로 바꾸기</button><button class="btn" id="shCut" style="color:var(--danger)">링크 끊기</button></div>`;
 }
-async function openShare(){ if(!ONLINE) return toast('시안이라 비밀 링크는 만들 수 없어요'); endEdit(); await saveNow(); renderShare(); $('shDlg').hidden=false; }
+async function openShare(){ if(!ONLINE) return toast('시안이라 비밀 링크는 만들 수 없어요'); endEdit(); await saveNow(true); renderShare(); $('shDlg').hidden=false; }
 $('btnShare').onclick=openShare;
 $('shDlg').addEventListener('click',async ev=>{
   if(ev.target.id==='shDlg'||ev.target.id==='shClose'){ $('shDlg').hidden=true; return; }
@@ -1053,7 +1075,7 @@ $('shDlg').addEventListener('click',async ev=>{
   renderShare(); updPublish();
 });
 async function togglePublic(){ // 「발행하기 / 다시 발행」
-  endEdit(); await saveNow(); if(serialize()!==lastSaved){ toast('저장이 끝나면 다시 눌러 주세요'); return; }
+  endEdit(); await saveNow(true); if(serialize()!==lastSaved){ toast('저장이 끝나면 다시 눌러 주세요'); return; }
   const first=!bookRow.is_public; if(!first && !pubDirty()){ toast('이미 최신 발행본이 서가에 있어요'); return; }
   if(!confirm(first ? '이 책을 서가에 발행할까요?\n다른 회원들이 읽을 수 있게 돼요.\n\n발행한 뒤에 고친 내용은 「다시 발행」을 눌러야 서가에 반영돼요.' : '고친 내용을 서가에 다시 발행할까요?\n지금 서가의 발행본이 새 내용으로 바뀌어요.')) return;
   const now=new Date().toISOString(); if(!(await writeSnapshot())){ toast('발행하지 못했어요. 다시 시도해 주세요'); return; }
@@ -1074,6 +1096,18 @@ async function boot(){
   sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
   const {data:ss}=await sb.auth.getSession(); user=ss.session&&ss.session.user;
   if(!user){ fatal('로그인이 필요해요','내 책은 로그인한 뒤에 열 수 있어요.',['로그인하러 가기','../editor/']); return; }
+  $('btnSave').hidden=false;
+  $('btnSave').onclick=async()=>{ endEdit(); await saveNow(true); if(BOOK && serialize()===lastSaved) toast('임시저장했어요 · 내 서재에 보관돼요'); else toast('저장하지 못했어요. 인터넷 연결을 확인해 주세요'); };
+  if(NEW){ // 아직 DB에 없는 새 책: 견본만 보여 주고, 저장은 처음 고칠 때
+    const {data:prof}=await sb.from('profiles').select('display_name').eq('id',user.id).maybeSingle();
+    bookRow={id:null,owner_id:user.id,title:'제목 없는 책',author_name:(prof&&prof.display_name)||'',format:'pages',is_public:false,published_at:null};
+    state.title=bookRow.title; state.pages=templatePages(); state.cur=0; state.sel=null; history=[]; future=[];
+    renderAll(); updPublish(); lastSaved=serialize(); setSave('fresh');
+    setInterval(saveNow,1500);
+    document.addEventListener('visibilitychange',()=>{ if(document.hidden) saveNow(); });
+    window.addEventListener('beforeunload',ev=>{ if(serialize()!==lastSaved){ saveNow(); ev.preventDefault(); ev.returnValue=''; } });
+    return;
+  }
   const b=await sb.from('books').select('id,owner_id,title,author_name,format,is_public,published_at,deleted_at').eq('id',BOOK).maybeSingle();
   if(b.error||!b.data||b.data.owner_id!==user.id||b.data.deleted_at){ fatal('이 책을 열 수 없어요','없는 책이거나 내 책이 아니에요.',['내 서재로','../editor/']); return; }
   bookRow=b.data; state.title=bookRow.title;

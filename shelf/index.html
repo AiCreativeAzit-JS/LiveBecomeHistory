@@ -76,11 +76,17 @@
   .copynote{max-width:620px;margin:14px auto 0;text-align:center;font-size:13px;color:var(--gray-2)}
   .oldap{container-type:inline-size;width:100%;max-width:560px;height:72px;margin:10px 0}
   footer{background:#071f16;color:rgba(250,248,242,.6);text-align:center;font-size:13.5px;padding:22px 18px}
+  .homeico{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line);background:#fff;color:var(--green);flex:none;margin-right:10px;vertical-align:middle}
+  .homeico svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .homeico:hover{background:var(--green);color:#fff}
+  .brandwrap{display:flex;align-items:center;min-width:0}
+  .brandwrap .brand{white-space:nowrap}
+  @media (max-width:420px){.brandwrap .brand span{display:none}}
 </style>
 </head>
 <body>
 <header class="top"><div class="top-in">
-  <a class="brand" href="./">인물대백과사 <span>· 서가</span></a>
+  <div class="brandwrap"><a class="homeico" href="https://archive4everyone.com/" title="인물대백과사 홈으로" aria-label="인물대백과사 홈으로"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></a><a class="brand" href="./">인물대백과사 <span>· 서가</span></a></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn ghost small" href="../editor/">✍️ 내 책 쓰기</a></div>
 </div></header>
 <div id="app"></div>
