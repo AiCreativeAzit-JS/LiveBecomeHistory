@@ -14,6 +14,7 @@
     --sans:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif; --serif:'Noto Serif KR','Batang',serif;
   }
   *{box-sizing:border-box}
+  [hidden]{display:none!important}
   html,body{height:100%}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow:hidden}
   button{font:inherit;color:inherit;cursor:pointer;border:none;background:none}
@@ -171,6 +172,17 @@
   .pv .pg .el video{object-fit:cover}
   .toast{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:999px;font-size:14px;font-weight:500;opacity:0;pointer-events:none;transition:opacity .2s;z-index:99;max-width:90vw}
   .toast.show{opacity:1}
+  .pubstate{font-size:12.5px;font-weight:600;padding:5px 11px;border-radius:999px;white-space:nowrap;background:var(--bg);color:var(--muted)}
+  .pubstate.live{background:var(--brand-soft);color:var(--brand-2)} .pubstate.dirty{background:#FFF3DC;color:#8A5A00}
+  .modal{position:fixed;inset:0;background:rgba(20,30,26,.4);z-index:90;display:grid;place-items:center;padding:16px}
+  .modal[hidden]{display:none}
+  .mbox{background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.25);padding:24px;max-width:460px;width:100%}
+  .mbox h3{margin:0 0 14px;font-family:var(--serif);color:var(--brand-2);font-size:19px}
+  .opt{display:block;width:100%;text-align:left;border:1.5px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;background:#fff}
+  .opt:hover{border-color:var(--brand);background:var(--brand-soft)}
+  .opt b{display:block;font-size:15.5px;margin-bottom:4px} .opt span{font-size:13.5px;color:var(--muted);line-height:1.5}
+  .exwarn{font-size:13.5px;background:#FFF3DC;color:#7A5B0C;border-radius:10px;padding:10px 12px;margin:4px 0 12px}
+  .exwarn:empty{display:none}
   .fatal{max-width:420px;margin:60px auto;background:#fff;border:1px solid var(--line);border-radius:14px;padding:28px 26px;text-align:center;box-shadow:var(--shadow)}
   .fatal h2{font-family:var(--serif);color:var(--brand-2);margin:0 0 8px;font-size:20px}.fatal p{color:var(--muted);margin:0 0 18px}
   .save[data-state=err]{color:var(--danger);font-weight:600}.save[data-state=saving]{color:var(--gold)}
@@ -197,6 +209,8 @@
     <span class="demo">시안 · 저장되지 않아요</span>
     <button class="btn" id="btnPreview"><svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>미리보기</button>
     <button class="btn" id="btnExport"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>내려받기</button>
+    <span class="pubstate" id="pubState" hidden></span>
+    <button class="btn" id="btnUnpub" hidden>서가에서 내리기</button>
     <button class="btn primary" id="btnPublish"><svg viewBox="0 0 24 24"><path d="M2 5h6a4 4 0 014 4v11a3 3 0 00-3-3H2z"/><path d="M22 5h-6a4 4 0 00-4 4v11a3 3 0 013-3h7z"/></svg>서가에 공개</button>
   </header>
 
@@ -248,6 +262,13 @@
   <span class="sep"></span>
   <button data-m="clear" title="꾸밈 지우기"><svg viewBox="0 0 24 24"><path d="M4 7V5h16v2M10 5l-3 14M14 19l6-6M20 19l-6-6"/></svg></button>
 </div>
+<div class="modal" id="exDlg" hidden role="dialog" aria-modal="true" aria-labelledby="exT"><div class="mbox">
+  <h3 id="exT">어떻게 내려받을까요?</h3>
+  <button class="opt" data-ex="screen"><b>📱 화면용 전자책 (HTML)</b><span>컴퓨터·휴대폰에서 열어 보는 책이에요. 사진·영상·노래가 파일 안에 담겨 바로 재생돼요.</span></button>
+  <button class="opt" data-ex="print"><b>🖨 인쇄용 전자책 (신국판 · QR 코드)</b><span>종이로 뽑는 책이에요. 영상·노래 자리에 <b style="display:inline">QR 코드가 자동으로</b> 들어가서, 휴대폰으로 찍으면 서가에서 재생돼요. 파일을 열고 Ctrl+P → 「PDF로 저장」.</span></button>
+  <div class="exwarn" id="exWarn"></div>
+  <div style="text-align:right"><button class="btn" id="exClose">닫기</button></div>
+</div></div>
 <div class="ctx" id="ctx" hidden role="menu" aria-label="페이지 메뉴">
   <button data-c="newAfter" role="menuitem">＋ 새 페이지 (뒤에)</button>
   <button data-c="newBefore" role="menuitem">＋ 새 페이지 (앞에)</button>
@@ -263,6 +284,7 @@
 <div class="toast" id="toast" role="status"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../lib/qrcode.js"></script>
 <script>
 'use strict';
 /* ═══════════════ 기본 값 ═══════════════
@@ -325,7 +347,14 @@ function txStyle(e){
   return `font-size:${(e.fs*PT_CQW).toFixed(3)}cqw;line-height:${e.fs>=20?1.3:e.fs>=15?1.55:1.85};text-align:${e.align};color:${e.color};font-weight:${e.b?700:400};font-style:${e.i?'italic':'normal'};text-decoration:${e.u?'underline':'none'}`;
 }
 function bars(){ let s=''; for(let i=0;i<34;i++){ s+=`<b style="height:${20+Math.abs(Math.sin(i*1.7))*80}%"></b>`; } return s; }
-function elHTML(e, mode){ // mode: edit | thumb | view
+// 인쇄용: 영상·노래 자리에 QR 코드(휴대폰으로 찍으면 서가의 그 영상·노래로)
+const PUBLIC_SHELF = new URL('../shelf/', location.href).href; // 운영 도메인이 정해지면 https://archive4everyone.com/... 로 바꾼다
+function mediaLink(e){ return typeof BOOK!=='undefined' && BOOK ? `${PUBLIC_SHELF}#/book/${BOOK}/m/${e.media_id||''}` : PUBLIC_SHELF; }
+function qrSVG(text){ try{ const q=qrcode(0,'M'); q.addData(text); q.make(); return q.createSvgTag({cellSize:4,margin:4,scalable:true}); }catch(err){ console.error(err); return ''; } }
+function qrBlock(e){ const what=e.type==='video'?'영상':'노래';
+  return `<div class="qr">${qrSVG(mediaLink(e))}<div class="qrt"><b>${esc(e.name||what)}</b><br>휴대폰 카메라로 찍으면<br>${what}이 재생돼요</div></div>`; }
+function elHTML(e, mode){ // mode: edit | thumb | view | print
+  if(mode==='print'){ if(e.type==='video'||e.type==='audio') return `<div class="el m" style="${elStyle(e)}">${qrBlock(e)}</div>`; mode='view'; }
   const ed = mode==='edit', view = mode==='view';
   let inner='';
   if(e.type==='slot'){ if(view) return ''; inner = `<div class="slot">${e.kind==='video'?ICON.video:e.kind==='audio'?ICON.music:ICON.image}${mode==='edit'?`<span>눌러서 ${e.kind==='image'?'사진':e.kind==='audio'?'노래':'영상'} 넣기</span>`:''}</div>`; }
@@ -738,27 +767,37 @@ function openPV(){ endEdit(); $('pvBody').innerHTML=state.pages.map(p=>pageHTML(
 function closePV(){ $('pv').hidden=true; $('pvBody').innerHTML=''; }
 $('btnPreview').onclick=openPV; $('pvClose').onclick=closePV;
 const blobToDataURL = b => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(b); });
-async function exportPages(){
+async function exportPages(forPrint=false){
   const copy=JSON.parse(JSON.stringify(state.pages)); if(!ONLINE) return copy;
-  for(const p of copy) for(const e of p.els){ if(!e.media_id) continue; const info=mediaInfo[e.media_id]; if(!info) continue;
+  for(const p of copy) for(const e of p.els){ if(!e.media_id) continue; if(forPrint&&e.type!=='image') continue; const info=mediaInfo[e.media_id]; if(!info) continue;
     try{ if(info.size_bytes<=15*1048576){ const r=await sb.storage.from(BUCKET).download(info.storage_path); if(r.data) e.src=await blobToDataURL(r.data); }
          else { const u=await sb.storage.from(BUCKET).createSignedUrl(info.storage_path,604800); if(u.data) e.src=u.data.signedUrl; } }catch(err){ console.error(err); } }
   return copy;
 }
-async function exportHTML(){
-  endEdit(); if(ONLINE) toast('책을 묶는 중…');
-  const pages=(await exportPages()).map((p,i)=>`<section class="sheet" id="p${i+1}" aria-label="${i+1}쪽">${pageHTML(p,'view')}</section>`).join('\n');
+function openExport(){
+  endEdit(); let w='';
+  if(ONLINE && !bookRow.is_public) w='⚠ 아직 발행하지 않은 책이에요. 인쇄용의 QR 코드는 책을 발행해야 열려요.';
+  else if(ONLINE && pubDirty()) w='ℹ QR 코드는 서가의 발행본을 보여줘요. 발행 뒤에 새로 넣은 영상·노래는 「다시 발행」해야 QR로 열려요.';
+  $('exWarn').textContent=w; $('exDlg').hidden=false; $('exDlg').querySelector('.opt').focus();
+}
+$('exDlg').addEventListener('click',ev=>{ if(ev.target.id==='exDlg'||ev.target.id==='exClose'){ $('exDlg').hidden=true; return; }
+  const o=ev.target.closest('[data-ex]'); if(o){ $('exDlg').hidden=true; exportHTML(o.dataset.ex); } });
+async function exportHTML(kind='screen'){
+  endEdit(); const print=kind==='print'; if(ONLINE) toast('책을 묶는 중…');
+  const pages=(await exportPages(print)).map((p,i)=>`<section class="sheet" id="p${i+1}" aria-label="${i+1}쪽">${pageHTML(p,print?'print':'view')}</section>`).join('\n');
   const html=`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(state.title)}</title>
 <style>@page{size:152mm 225mm;margin:0}*{box-sizing:border-box}body{margin:0;background:#EEF1EE;font-family:'Noto Serif KR','Batang',serif;color:#1B2B25}
 .wrapbook{padding:28px 12px}.sheet{width:min(152mm,96vw);margin:0 auto 26px;box-shadow:0 8px 28px rgba(20,40,32,.12)}
 .pg{position:relative;aspect-ratio:152/225;container-type:inline-size;overflow:hidden}.el{position:absolute}.el .tx{width:100%;height:100%;overflow:hidden;line-height:1.85;word-break:keep-all;overflow-wrap:anywhere;white-space:pre-wrap}
 .el .tx.sans{font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif}.el img,.el video{width:100%;height:100%;object-fit:cover;display:block}
 .el .audio{width:100%;height:100%;border:.3cqw solid #E6EBE7;border-radius:1.6cqw;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:1.4cqw;background:#F6FAF8;font-family:sans-serif}.el .lb{font-size:2.8cqw;color:#4A5A53}
+.qr{width:100%;height:100%;display:flex;align-items:center;justify-content:center;gap:4cqw;border:.3cqw solid #E6EBE7;border-radius:1.6cqw;padding:2cqw;background:#fff}.qr svg{height:100%;max-height:26cqw;width:auto;aspect-ratio:1/1;flex:none}
+.qrt{font:2.8cqw/1.6 'Pretendard',sans-serif;color:#3D4B45}.qrt b{font-size:3.2cqw;color:#0B4536}
 footer{text-align:center;color:#7B8A83;font:13px sans-serif;padding:8px 0 40px}@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{background:#fff}.wrapbook{padding:0}.sheet{width:152mm;margin:0;box-shadow:none;break-after:page}footer{display:none}}</style></head>
 <body><main class="wrapbook">${pages}</main><footer>인물대백과사에서 만든 나의 책 · ${new Date().toLocaleDateString('ko-KR')} 내려받음 · 이 파일 하나로 언제든 열어볼 수 있어요.</footer></body></html>`;
-  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([html],{type:'text/html'})); a.download=(state.title||'내책').replace(/[\\/:*?"<>|]/g,'')+'.html'; document.body.appendChild(a); a.click(); a.remove(); toast('내려받았어요');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([html],{type:'text/html'})); a.download=(state.title||'내책').replace(/[\\/:*?"<>|]/g,'')+(print?' (인쇄용)':'')+'.html'; document.body.appendChild(a); a.click(); a.remove(); toast(print?'인쇄용을 내려받았어요 · 열고 Ctrl+P → PDF로 저장':'내려받았어요');
 }
-$('btnExport').onclick=exportHTML;
+$('btnExport').onclick=openExport;
 
 /* ═══════════════ 실제 저장 (로그인한 내 책: ?book=책번호) ═══════════════ */
 const BOOK = new URLSearchParams(location.search).get('book');
@@ -781,7 +820,7 @@ async function saveNow(){
     const del=await sb.from('pages').delete().eq('book_id',BOOK).not('id','in',`(${rows.map(r=>r.id).join(',')})`); if(del.error) throw del.error;
     const t=(o.title||'').trim().slice(0,120)||'제목 없는 책';
     if(t!==bookRow.title){ const b=await sb.from('books').update({title:t}).eq('id',BOOK); if(b.error) throw b.error; bookRow.title=t; }
-    lastSaved=cur; setSave('ok');
+    lastSaved=cur; setSave('ok'); updPublish();
   }catch(err){ console.error(err); setSave('err'); }
   saving=false;
 }
@@ -850,14 +889,31 @@ function reflowAll(){ // 옮긴 글이 한 페이지를 넘으면 다음 페이�
   for(let i=0;i<state.pages.length;i++){ state.cur=i; state.sel=null; renderCanvas(); for(const e of [...page().els]) if(e.type==='text'){ autoGrow(e); flowOverflow(e); } }
   state.cur=0; state.sel=null; history=[]; future=[]; renderAll();
 }
-function updPublish(){ if(!ONLINE||!bookRow) return; const b=$('btnPublish'); b.lastChild.textContent = bookRow.is_public ? '서가에서 내리기' : '서가에 공개'; b.classList.toggle('primary',!bookRow.is_public); }
-async function togglePublic(){
-  endEdit(); await saveNow(); const next=!bookRow.is_public;
-  if(next && !confirm('이 책을 서가에 공개할까요?\n다른 회원들이 읽을 수 있게 돼요. 언제든 내릴 수 있어요.')) return;
-  const patch={is_public:next, published_at: next ? (bookRow.published_at||new Date().toISOString()) : bookRow.published_at};
-  const {error}=await sb.from('books').update(patch).eq('id',BOOK); if(error){ toast('바꾸지 못했어요'); return; }
-  Object.assign(bookRow,patch); updPublish(); toast(next?'서가에 공개했어요':'서가에서 내렸어요');
+/* 초안 → 발행: 쓰는 내용(pages)은 초안이고, 서가 독자는 「발행하기」로 복사한 발행본(book_snapshots)만 본다 */
+let snapPagesJSON=null;
+const draftPagesJSON = () => JSON.stringify(JSON.parse(serialize()).pages);
+const pubDirty = () => !!bookRow && bookRow.is_public && draftPagesJSON()!==snapPagesJSON;
+function updPublish(){ if(!ONLINE||!bookRow) return; const b=$('btnPublish'), st=$('pubState'), un=$('btnUnpub');
+  st.hidden=false; un.hidden=!bookRow.is_public;
+  if(!bookRow.is_public){ b.lastChild.textContent='발행하기'; b.classList.add('primary'); st.className='pubstate'; st.textContent='초안 · 나만 보기'; }
+  else if(pubDirty()){ b.lastChild.textContent='다시 발행'; b.classList.add('primary'); st.className='pubstate dirty'; st.textContent='고친 내용 있음 · 서가에는 이전 발행본'; }
+  else { b.lastChild.textContent='발행됨 ✓'; b.classList.remove('primary'); st.className='pubstate live'; st.textContent='서가에 발행됨'; } }
+async function togglePublic(){ // 「발행하기 / 다시 발행」
+  endEdit(); await saveNow(); if(serialize()!==lastSaved){ toast('저장이 끝나면 다시 눌러 주세요'); return; }
+  const first=!bookRow.is_public; if(!first && !pubDirty()){ toast('이미 최신 발행본이 서가에 있어요'); return; }
+  if(!confirm(first ? '이 책을 서가에 발행할까요?\n다른 회원들이 읽을 수 있게 돼요.\n\n발행한 뒤에 고친 내용은 「다시 발행」을 눌러야 서가에 반영돼요.' : '고친 내용을 서가에 다시 발행할까요?\n지금 서가의 발행본이 새 내용으로 바뀌어요.')) return;
+  const now=new Date().toISOString(), pages=JSON.parse(serialize()).pages;
+  const up=await sb.from('book_snapshots').upsert({book_id:BOOK,title:bookRow.title,author_name:(bookRow.author_name||'').slice(0,40),pages,published_at:now});
+  if(up.error){ console.error(up.error); toast('발행하지 못했어요. 다시 시도해 주세요'); return; }
+  if(first){ const patch={is_public:true,published_at:bookRow.published_at||now}; const r=await sb.from('books').update(patch).eq('id',BOOK); if(r.error){ toast('발행하지 못했어요'); return; } Object.assign(bookRow,patch); }
+  snapPagesJSON=JSON.stringify(pages); updPublish(); toast(first?'서가에 발행했어요':'새 내용으로 다시 발행했어요');
 }
+async function unpublish(){
+  if(!confirm('서가에서 내릴까요?\n다른 회원들이 더 이상 볼 수 없어요. 언제든 다시 발행할 수 있어요.')) return;
+  const {error}=await sb.from('books').update({is_public:false}).eq('id',BOOK); if(error){ toast('내리지 못했어요'); return; }
+  bookRow.is_public=false; updPublish(); toast('서가에서 내렸어요');
+}
+$('btnUnpub').onclick=()=>unpublish();
 async function boot(){
   if(!ONLINE){ setSave('demo'); renderAll(); return; }
   document.querySelector('.demo')?.remove(); setSave('load');
@@ -868,7 +924,8 @@ async function boot(){
   const b=await sb.from('books').select('id,owner_id,title,author_name,format,is_public,published_at,deleted_at').eq('id',BOOK).maybeSingle();
   if(b.error||!b.data||b.data.owner_id!==user.id||b.data.deleted_at){ fatal('이 책을 열 수 없어요','없는 책이거나 내 책이 아니에요.',['내 서재로','../editor/']); return; }
   bookRow=b.data; state.title=bookRow.title;
-  const [pg,md]=await Promise.all([sb.from('pages').select('*').eq('book_id',BOOK).order('position'), sb.from('media').select('id,kind,storage_path,size_bytes').eq('book_id',BOOK)]);
+  const [pg,md,sn]=await Promise.all([sb.from('pages').select('*').eq('book_id',BOOK).order('position'), sb.from('media').select('id,kind,storage_path,size_bytes').eq('book_id',BOOK), sb.from('book_snapshots').select('pages').eq('book_id',BOOK).maybeSingle()]);
+  if(sn && sn.data) snapPagesJSON=JSON.stringify(sn.data.pages);
   if(pg.error||md.error){ fatal('책을 불러오지 못했어요','잠시 후 다시 시도해 주세요.'); return; }
   md.data.forEach(m=>mediaInfo[m.id]=m);
   const urls=await signAll(md.data);

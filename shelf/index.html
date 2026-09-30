@@ -141,9 +141,10 @@ let query = '', page = 0;
 window.addEventListener('hashchange', route);
 route();
 function route(){
-  const m = location.hash.match(/^#\/book\/([0-9a-f-]{36})(?:\/p\/(\d{1,4}))?$/);
+  // #/book/<책>  ·  #/book/<책>/p/<쪽>  ·  #/book/<책>/m/<영상·노래 번호>(인쇄본 QR)
+  const m = location.hash.match(/^#\/book\/([0-9a-f-]{36})(?:\/p\/(\d{1,4})|\/m\/([0-9a-f-]{36}))?$/);
   window.scrollTo(0,0);
-  m ? viewBook(m[1], m[2]?+m[2]:0) : viewList();
+  m ? viewBook(m[1], m[2]?+m[2]:0, m[3]||null) : viewList();
 }
 
 /* ───────── 목록 ───────── */
@@ -176,7 +177,7 @@ async function loadPage(reset){
 }
 
 /* ───────── 책 읽기 ───────── */
-async function viewBook(id, pageNo=0){
+async function viewBook(id, pageNo=0, mediaId=null){
   $app.innerHTML = '<div class="wrap"><p class="note" style="padding-top:30px">책을 펴는 중…</p></div>';
   const [b,c,m] = await Promise.all([
     sb.from('shelf_books').select('id,title,subtitle,author_name,published_at,format').eq('id',id).maybeSingle(),
@@ -184,9 +185,18 @@ async function viewBook(id, pageNo=0){
     sb.from('media').select('id,storage_path').eq('book_id',id)
   ]);
   let pagesHTML = null;
-  if(b.data && b.data.format==='pages'){ // 새 편집기 책: 페이지 모양 그대로
-    const pg = await sb.from('pages').select('id,position,bg,els').eq('book_id',id).order('position');
-    if(pg.error){ $app.innerHTML='<div class="wrap"><div class="msg err" style="margin-top:30px">책을 불러오지 못했어요.</div></div>'; return; }
+  let shelfPages = null;
+  if(b.data && b.data.format==='pages'){ // 새 편집기 책: 독자는 '발행본'만 본다(작가가 고치는 초안은 보이지 않음)
+    const sn = await sb.from('book_snapshots').select('title,author_name,pages').eq('book_id',id).maybeSingle();
+    if(sn.data){ shelfPages = sn.data.pages; if(sn.data.title) b.data.title = sn.data.title; if(sn.data.author_name) b.data.author_name = sn.data.author_name; }
+    else if(!(c.data||[]).length){ // 발행본이 없는 예전 책: 현재 페이지로 보여 준다
+      const pg = await sb.from('pages').select('id,position,bg,els').eq('book_id',id).order('position');
+      if(pg.error){ $app.innerHTML='<div class="wrap"><div class="msg err" style="margin-top:30px">책을 불러오지 못했어요.</div></div>'; return; }
+      shelfPages = pg.data; }
+    // 발행본이 없고 옛 글(장)이 있으면: 새 편집기로 옮기기 전의 발행 내용을 그대로 보여 준다
+  }
+  if(shelfPages){
+    const pg = {data: Array.isArray(shelfPages)?shelfPages:[]};
     const list=(m.data||[]).filter(x=>x.storage_path), urls={};
     if(list.length){ const sg=await sb.storage.from(BUCKET).createSignedUrls(list.map(x=>x.storage_path),3600); (sg.data||[]).forEach((d,i)=>{ if(d&&d.signedUrl) urls[list[i].id]=d.signedUrl; }); }
     pagesHTML = `<div class="pages">${pg.data.map((p,i)=>`<section class="pgwrap" id="c${i}" aria-label="${i+1}쪽">${BookRender.pageHTML(p,urls)}<div class="pno">— ${i+1} —</div></section>`).join('')}</div>`;
@@ -217,6 +227,7 @@ async function viewBook(id, pageNo=0){
     </form></dialog>`;
   // 목차 이동
   const pb=document.getElementById('printBtn'); if(pb) pb.onclick=()=>window.print();
+  if(mediaId && pagesHTML){ const i=(shelfPages||[]).findIndex(p=>(p.els||[]).some(e=>e&&e.media_id===mediaId)); if(i>=0) pageNo=i+1; }
   if(pageNo){ const jump=()=>document.getElementById('c'+(pageNo-1))?.scrollIntoView({block:'start'}); [60,400,1000].forEach(t=>setTimeout(jump,t)); } // QR·공유용 쪽 바로가기: #/book/<id>/p/<쪽>
   $app.querySelectorAll('[data-goto]').forEach(a=>a.onclick=e=>{ e.preventDefault(); document.getElementById(a.dataset.goto).scrollIntoView({behavior:'smooth'}); });
   hydrateMedia($app, paths);

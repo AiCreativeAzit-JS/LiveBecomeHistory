@@ -271,7 +271,7 @@ document.addEventListener('keydown',ev=>{ if(ev.key==='Escape') closeBookMenu();
 function openBookMenu(b,x,y,openB){
   closeBookMenu(); const m=document.createElement('div'); m.id='bkmenu'; m.className='bkmenu'; m.setAttribute('role','menu');
   m.innerHTML = `<button data-m="open">📖 열기</button><button data-m="rename">✏️ 이름 바꾸기</button>
-    <button data-m="pub" ${b.admin_hidden?'disabled':''}>${b.is_public?'📕 서가에서 내리기':'📗 서가에 공개하기'}</button>
+    <button data-m="pub" ${b.admin_hidden?'disabled':''}>${b.is_public?'📕 서가에서 내리기':b.format==='pages'?'📗 열어서 발행하기':'📗 서가에 공개하기'}</button>
     ${b.is_public&&!b.admin_hidden?'<button data-m="view">🔗 서가에서 보기</button>':''}<hr><button data-m="trash" class="del">🗑 휴지통으로 옮기기</button>`;
   document.body.appendChild(m); m.style.left=Math.max(8,Math.min(innerWidth-m.offsetWidth-8,x-m.offsetWidth))+'px'; m.style.top=Math.min(innerHeight-m.offsetHeight-8,y)+'px';
   m.querySelector('button').focus();
@@ -280,6 +280,7 @@ function openBookMenu(b,x,y,openB){
     else if(k==='view') window.open('../shelf/#/book/'+b.id,'_blank','noopener');
     else if(k==='rename'){ const t=prompt('새 책 제목을 적어 주세요', b.title); if(t===null) return; const v=t.trim().slice(0,120); if(!v){ toast('제목을 비울 수 없어요'); return; }
       const {error}=await sb.from('books').update({title:v}).eq('id',b.id); toast(error?'바꾸지 못했어요':'제목을 바꿨어요'); viewLibrary(); }
+    else if(k==='pub' && !b.is_public && b.format==='pages'){ toast('새 편집기에서 확인한 뒤 「발행하기」를 눌러 주세요'); setTimeout(()=>openB(b),600); }
     else if(k==='pub'){ const next=!b.is_public; if(next&&!confirm(`“${b.title}”을(를) 서가에 공개할까요?\n다른 회원들이 읽을 수 있게 돼요.`)) return;
       const {error}=await sb.from('books').update({is_public:next, published_at: next ? (b.published_at||new Date().toISOString()) : b.published_at}).eq('id',b.id);
       toast(error?'바꾸지 못했어요':next?'서가에 공개했어요':'서가에서 내렸어요'); viewLibrary(); }
