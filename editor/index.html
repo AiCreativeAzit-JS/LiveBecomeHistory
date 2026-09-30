@@ -82,6 +82,8 @@
   .toast.show{opacity:1}
   .hidden{display:none!important}
   .note{font-size:14.5px;color:var(--gray-2)}
+  label.showpw{display:flex;align-items:center;gap:10px;font-weight:600;font-size:16px;margin:14px 0 0;cursor:pointer}
+  label.showpw input{width:22px;height:22px;accent-color:var(--green)}
 </style>
 </head>
 <body>
@@ -163,10 +165,12 @@ function viewAuth(mode='login'){
       <label for="em">이메일</label><input id="em" type="email" autocomplete="email" required>
       <label for="pw">비밀번호 (8자 이상)</label><input id="pw" type="password" minlength="8" autocomplete="${signup?'new-password':'current-password'}" required>
       ${signup?'<label for="pw2">비밀번호 확인 (한 번 더 입력)</label><input id="pw2" type="password" minlength="8" autocomplete="new-password" required>':''}
+      <label class="showpw"><input type="checkbox" id="showpw"> 비밀번호 보이기</label>
       <div class="row" style="margin-top:20px"><button type="submit" class="gold" id="go">${signup?'가입하기':'로그인'}</button>
       <button type="button" class="link" id="sw">${signup?'이미 회원이에요':'처음이에요 (회원가입)'}</button></div>
       <div id="out"></div>
     </form></div>`;
+  document.getElementById('showpw').onchange = e=>{ ['pw','pw2'].forEach(id=>{ const el=document.getElementById(id); if(el) el.type = e.target.checked ? 'text' : 'password'; }); };
   document.getElementById('sw').onclick = ()=>viewAuth(signup?'login':'signup');
   document.getElementById('f').onsubmit = async e=>{
     e.preventDefault();
