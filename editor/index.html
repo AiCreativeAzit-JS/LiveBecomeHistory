@@ -103,6 +103,10 @@
   .brandwrap{display:flex;align-items:center;min-width:0}
   .brandwrap .brand{white-space:nowrap}
   @media (max-width:420px){.brandwrap .brand span{display:none}}
+  .agree{margin-top:14px;padding:12px 14px;border:1px solid var(--line-2);border-radius:8px;background:#fff}
+  .agree .showpw{margin:6px 0 0;align-items:flex-start}.agree .showpw input{flex:none;margin-top:3px}
+  .agnote{font-size:13px;color:var(--gray-2);margin:8px 0 0;line-height:1.55}
+  .foot-links{text-align:center;font-size:13.5px;color:var(--gray-2);margin:30px 0 10px}
 </style>
 </head>
 <body>
@@ -111,6 +115,7 @@
   <div class="row" id="topRight"></div>
 </div></header>
 <main class="wrap" id="app"></main>
+<p class="foot-links"><a href="../terms/">이용약관</a></p>
 <div class="toast" id="toast"></div>
 
 <script src="../lib/supabase-js.umd.js"></script>
@@ -173,6 +178,7 @@ async function init(){
 function route(){ user ? viewLibrary() : viewAuth(); }
 
 /* ───────── 로그인 ───────── */
+const TERMS_VERSION='2026-10'; // 이용약관 버전(동의 기록용). 약관을 바꾸면 올린다.
 function viewAuth(mode='login'){
   $top.innerHTML='';
   const signup = mode==='signup';
@@ -185,23 +191,32 @@ function viewAuth(mode='login'){
       <label for="pw">비밀번호 (8자 이상)</label><input id="pw" type="password" minlength="8" autocomplete="${signup?'new-password':'current-password'}" required>
       ${signup?'<label for="pw2">비밀번호 확인 (한 번 더 입력)</label><input id="pw2" type="password" minlength="8" autocomplete="new-password" required>':''}
       <label class="showpw"><input type="checkbox" id="showpw"> 비밀번호 보이기</label>
+      ${signup?`<div class="agree">
+        <label class="showpw"><input type="checkbox" id="agAll"> <span><b>모두 동의해요</b></span></label>
+        <label class="showpw"><input type="checkbox" id="agTerms" class="ag"> <span>(필수) 만 14세 이상이며, <a href="../terms/" target="_blank" rel="noopener">이용약관</a>에 동의해요</span></label>
+        <label class="showpw"><input type="checkbox" id="agPriv" class="ag"> <span>(필수) 개인정보 수집·이용에 동의해요</span></label>
+        <p class="agnote">수집 항목: 이메일, 작가 이름, 비밀번호(암호화 저장) · 목적: 회원 확인·로그인·중요 안내 · 보관: 탈퇴할 때까지(법령이 정한 경우 그 기간). 동의하지 않으면 가입할 수 없어요.</p>
+      </div>`:''}
       <div class="row" style="margin-top:20px"><button type="submit" class="gold" id="go">${signup?'가입하기':'로그인'}</button>
       <button type="button" class="link" id="sw">${signup?'이미 회원이에요':'처음이에요 (회원가입)'}</button></div>
       <div id="out"></div>
     </form></div>`;
   document.getElementById('showpw').onchange = e=>{ ['pw','pw2'].forEach(id=>{ const el=document.getElementById(id); if(el) el.type = e.target.checked ? 'text' : 'password'; }); };
   document.getElementById('sw').onclick = ()=>viewAuth(signup?'login':'signup');
+  if(signup){ const all=document.getElementById('agAll'), ags=[...document.querySelectorAll('.ag')];
+    all.onchange=()=>ags.forEach(a=>a.checked=all.checked); ags.forEach(a=>a.onchange=()=>all.checked=ags.every(x=>x.checked)); }
   document.getElementById('f').onsubmit = async e=>{
     e.preventDefault();
     const em=document.getElementById('em').value.trim(), pw=document.getElementById('pw').value;
     const out=document.getElementById('out'), go=document.getElementById('go');
     if(!em||pw.length<8){ out.innerHTML=msgBox('err','이메일과 8자 이상의 비밀번호를 입력해 주세요.'); return; }
     if(signup && pw!==document.getElementById('pw2').value){ out.innerHTML=msgBox('err','비밀번호가 서로 달라요. 두 칸에 똑같이 입력해 주세요.'); document.getElementById('pw2').focus(); return; }
+    if(signup && !(document.getElementById('agTerms').checked && document.getElementById('agPriv').checked)){ out.innerHTML=msgBox('err','필수 항목(이용약관, 개인정보 수집·이용)에 동의해 주세요.'); return; }
     go.disabled=true; out.innerHTML='';
     try{
       if(signup){
         const name=document.getElementById('nm').value.trim();
-        const { data, error } = await sb.auth.signUp({ email:em, password:pw, options:{ data:{ name }, ...(location.protocol.startsWith('http') ? { emailRedirectTo: location.href.split('#')[0] } : {}) } });
+        const { data, error } = await sb.auth.signUp({ email:em, password:pw, options:{ data:{ name, terms_version:TERMS_VERSION, agreed_at:new Date().toISOString() }, ...(location.protocol.startsWith('http') ? { emailRedirectTo: location.href.split('#')[0] } : {}) } });
         if(error) throw error;
         if(!data.session){ out.innerHTML=msgBox('ok','가입 확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.'); go.disabled=false; return; }
       } else {
