@@ -48,6 +48,30 @@
   .th .nm{display:block;font-size:12.5px;margin-top:7px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .th.on .nm{color:var(--brand-2);font-weight:600}
   .th.drop{outline:2px dashed var(--brand)}
+  /* 파워포인트식: 썸네일 위 빠른 버튼 + 사이에 끼워 넣기 + 오른쪽 클릭 메뉴 */
+  .th .acts{position:absolute;right:8px;top:6px;display:flex;gap:3px;opacity:0;transition:opacity .15s}
+  .th:hover .acts,.th.on .acts,.th:focus-within .acts{opacity:1}
+  .th .acts button{width:26px;height:26px;border-radius:7px;background:#fff;border:1px solid var(--line);display:grid;place-items:center;color:var(--muted)}
+  .th .acts button svg{width:14px;height:14px}
+  .th .acts button:hover{color:var(--brand);border-color:var(--brand)}
+  .th .acts button.del:hover{color:var(--danger);border-color:var(--danger)}
+  .ins{display:block;width:100%;height:14px;margin:-4px 0 4px;position:relative;cursor:pointer;background:none}
+  .ins::before{content:"";position:absolute;left:14px;right:14px;top:6px;height:2px;border-radius:2px;background:var(--brand);opacity:0;transition:opacity .15s}
+  .ins::after{content:"+";position:absolute;left:50%;top:-3px;transform:translateX(-50%);width:20px;height:20px;border-radius:50%;background:var(--brand);color:#fff;font:700 15px/20px var(--sans);text-align:center;opacity:0;transition:opacity .15s}
+  .ins:hover::before,.ins:hover::after,.ins:focus-visible::before,.ins:focus-visible::after{opacity:1}
+  .ctx{position:fixed;z-index:70;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 34px rgba(20,40,32,.18);padding:6px;min-width:200px;font-family:var(--sans)}
+  .ctx[hidden]{display:none}
+  .ctx button{display:flex;width:100%;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;font-size:14px;text-align:left}
+  .ctx button:hover{background:var(--bg)} .ctx button.del{color:var(--danger)} .ctx button:disabled{opacity:.4;cursor:default;background:none}
+  .ctx hr{border:none;border-top:1px solid var(--line);margin:5px 4px}
+  .ctx kbd{margin-left:auto;font:12px var(--sans);color:var(--faint)}
+  /* 글자 크기 목록 */
+  .fs output{cursor:pointer;border-left:1px solid var(--line);border-right:1px solid var(--line);height:34px;display:grid;place-items:center}
+  .fs output:hover{background:var(--bg)}
+  .fslist{position:fixed;z-index:70;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 30px rgba(20,40,32,.16);padding:5px;max-height:300px;overflow-y:auto;width:110px}
+  .fslist[hidden]{display:none}
+  .fslist button{display:block;width:100%;text-align:left;padding:7px 12px;border-radius:7px;font-size:14px}
+  .fslist button:hover{background:var(--bg)} .fslist button.on{background:var(--brand-soft);color:var(--brand-2);font-weight:700}
   .addpage{width:100%;padding:12px;border:1.5px dashed var(--line);border-radius:12px;color:var(--muted);display:flex;gap:7px;align-items:center;justify-content:center;font-weight:600}
   .addpage:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
   /* 가운데: 캔버스 */
@@ -216,6 +240,17 @@
   <span class="sep"></span>
   <button data-m="clear" title="꾸밈 지우기"><svg viewBox="0 0 24 24"><path d="M4 7V5h16v2M10 5l-3 14M14 19l6-6M20 19l-6-6"/></svg></button>
 </div>
+<div class="ctx" id="ctx" hidden role="menu" aria-label="페이지 메뉴">
+  <button data-c="newAfter" role="menuitem">＋ 새 페이지 (뒤에)</button>
+  <button data-c="newBefore" role="menuitem">＋ 새 페이지 (앞에)</button>
+  <button data-c="dup" role="menuitem">⧉ 페이지 복제</button>
+  <hr>
+  <button data-c="up" role="menuitem">↑ 앞으로 옮기기</button>
+  <button data-c="down" role="menuitem">↓ 뒤로 옮기기</button>
+  <hr>
+  <button data-c="del" class="del" role="menuitem">🗑 페이지 삭제 <kbd>Delete</kbd></button>
+</div>
+<div class="fslist" id="fslist" hidden role="listbox" aria-label="글자 크기"></div>
 <input type="file" id="file" hidden>
 <div class="toast" id="toast" role="status"></div>
 
@@ -276,7 +311,7 @@ const selEl = () => page().els.find(e=>e.id===state.sel);
 const pct = (v,t) => (v/t*100).toFixed(3)+'%';
 function elStyle(e){ return `left:${pct(e.x,PW)};top:${pct(e.y,PH)};width:${pct(e.w,PW)};height:${pct(e.h,PH)}`; }
 function txStyle(e){
-  return `font-size:${(e.fs*PT_CQW).toFixed(3)}cqw;line-height:${e.fs>=20?1.3:e.fs>=15?1.55:1.85};text-align:${e.align};color:${e.color};font-weight:${e.b?700:400};font-style:${e.i?'italic':'normal'}`;
+  return `font-size:${(e.fs*PT_CQW).toFixed(3)}cqw;line-height:${e.fs>=20?1.3:e.fs>=15?1.55:1.85};text-align:${e.align};color:${e.color};font-weight:${e.b?700:400};font-style:${e.i?'italic':'normal'};text-decoration:${e.u?'underline':'none'}`;
 }
 function bars(){ let s=''; for(let i=0;i<34;i++){ s+=`<b style="height:${20+Math.abs(Math.sin(i*1.7))*80}%"></b>`; } return s; }
 function elHTML(e, mode){ // mode: edit | thumb | view
@@ -318,8 +353,11 @@ function renderAll(){ renderThumbs(); renderCanvas(); renderPanels(); renderBott
 function flagSaved(){ $('save').innerHTML = '<svg viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M20 6L9 17l-5-5"/></svg> 시안(저장 안 됨)'; }
 
 function renderThumbs(){
+  const ins=i=>`<button class="ins" data-ins="${i}" title="여기에 새 페이지 끼워 넣기" aria-label="${i}쪽 뒤에 새 페이지"></button>`;
   $('thumbs').innerHTML = state.pages.map((p,i)=>`<div class="th ${i===state.cur?'on':''}" data-i="${i}" draggable="true" role="button" tabindex="0" aria-label="${i+1}쪽 ${esc(p.name)}">
-    <span class="no">${String(i+1).padStart(2,'0')}</span><div class="mini">${pageHTML(p,'thumb')}</div><span class="nm">${esc(p.name)}</span></div>`).join('');
+    <span class="no">${String(i+1).padStart(2,'0')}</span>
+    <span class="acts"><button data-act="dup" title="복제" aria-label="${i+1}쪽 복제"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/></svg></button><button data-act="del" class="del" title="삭제 (Delete)" aria-label="${i+1}쪽 삭제"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></span>
+    <div class="mini">${pageHTML(p,'thumb')}</div><span class="nm">${esc(p.name)}</span></div>${ins(i+1)}`).join('');
   $('pcount').textContent = state.pages.length;
 }
 function pageWidthPx(){ return Math.round(PW*3.7795*state.zoom); }
@@ -346,7 +384,7 @@ function decorate(id){ // 선택 표시 + 크기 조절 손잡이
 function checkOver(id){
   const n=elNode(id); if(!n) return; const tx=n.querySelector('.tx'); if(!tx) return;
   const over = tx.scrollHeight > tx.clientHeight+2; n.classList.toggle('over',over);
-  let b=n.querySelector('.badge-over'); if(over&&!b){ b=document.createElement('span'); b.className='badge-over'; b.textContent='페이지가 가득 찼어요 · 새 페이지에 이어 써 주세요'; n.appendChild(b); } if(!over&&b) b.remove();
+  let b=n.querySelector('.badge-over'); if(over&&!b){ b=document.createElement('span'); b.className='badge-over'; b.textContent='페이지가 가득 찼어요 · 이어서 쓰면 다음 페이지로 넘어가요'; n.appendChild(b); } if(!over&&b) b.remove();
 }
 
 /* ═══════════════ 오른쪽 패널 ═══════════════ */
@@ -356,12 +394,12 @@ function renderPanels(){
   if(!e) s+='<div class="empty-sel">페이지의 글이나 사진을 누르면 여기서 다듬을 수 있어요.</div>';
   else if(e.type==='text') s+=`
     <label class="lab">글꼴</label><div class="seg" id="fontSeg"><button data-f="serif" class="${e.font==='serif'?'on':''}" style="font-family:var(--serif)">명조</button><button data-f="sans" class="${e.font==='sans'?'on':''}">고딕</button></div>
-    <label class="lab">글자 크기</label><div class="fs"><button id="fsDn" aria-label="작게">−</button><output>${e.fs}pt</output><button id="fsUp" aria-label="크게">＋</button></div>
+    <label class="lab">글자 크기</label><div class="fs"><button id="fsDn" aria-label="작게">−</button><output id="fsVal" role="button" tabindex="0" aria-haspopup="listbox" title="눌러서 크기 고르기">${e.fs}pt ▾</output><button id="fsUp" aria-label="크게">＋</button></div>
     <label class="lab">모양</label><div class="row"><div class="seg" id="alignSeg">
       <button data-a="left" class="${e.align==='left'?'on':''}" aria-label="왼쪽"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h14"/></svg></button>
       <button data-a="center" class="${e.align==='center'?'on':''}" aria-label="가운데"><svg viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M5 18h14"/></svg></button>
       <button data-a="right" class="${e.align==='right'?'on':''}" aria-label="오른쪽"><svg viewBox="0 0 24 24"><path d="M4 6h16M10 12h10M6 18h14"/></svg></button></div>
-      <div class="seg"><button id="bB" class="${e.b?'on':''}" style="font-weight:800" aria-label="굵게">가</button><button id="bI" class="${e.i?'on':''}" style="font-style:italic" aria-label="기울임">가</button></div></div>
+      <div class="seg"><button id="bB" class="${e.b?'on':''}" style="font-weight:800" aria-label="굵게">가</button><button id="bI" class="${e.i?'on':''}" style="font-style:italic" aria-label="기울임">가</button><button id="bU" class="${e.u?'on':''}" style="text-decoration:underline" aria-label="밑줄">가</button></div></div>
     <label class="lab">글자 색 <span style="font-weight:400">· 글자를 드래그해 고르면 고른 글자만 바뀌어요</span></label><div class="sw" id="inkSw">${SWATCH_INK.map(c=>`<button data-c="${c}" class="${e.color.toLowerCase()===c.toLowerCase()?'on':''}" style="background:${c}" aria-label="${c}"></button>`).join('')}</div>
     <div class="tools"><span class="sub" style="margin:0">Delete 키로도 지울 수 있어요</span><button class="iconbtn" id="delEl" title="상자 삭제"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></div>`;
   else s+=`<p class="sub">${KIND_KO[e.type]} · ${esc(e.name||'')}</p>
@@ -372,7 +410,7 @@ function renderPanels(){
     <label class="lab" for="pname">페이지 이름</label><input class="field" id="pname" maxlength="30" value="${esc(p.name)}">
     <label class="lab">배경 색상</label><div class="sw" id="bgSw">${SWATCH_BG.map(c=>`<button data-c="${c}" class="${p.bg.toLowerCase()===c.toLowerCase()?'on':''}" style="background:${c}" aria-label="배경 ${c}"></button>`).join('')}</div>
     <div class="tools"><div class="row" style="gap:2px"><button class="iconbtn" id="pUp" title="앞으로" ${state.cur===0?'disabled':''}><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button><button class="iconbtn" id="pDn" title="뒤로" ${state.cur===state.pages.length-1?'disabled':''}><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button></div>
-    <button class="iconbtn" id="delPage" title="이 페이지 삭제"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></div>`;
+    <button class="btn" id="delPage" title="이 페이지 삭제" style="color:var(--danger);padding:6px 11px;font-size:13px"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>페이지 삭제</button></div>`;
 }
 
 /* ═══════════════ 동작: 추가 / 삭제 / 이동 ═══════════════ */
@@ -417,13 +455,10 @@ function autoGrow(e){
 }
 const HINT = $('hint').textContent;
 function delEl(){ const e=selEl(); if(!e) return; snap(); page().els=page().els.filter(x=>x.id!==e.id); state.sel=null; state.editing=false; renderThumbs(); renderCanvas(); renderPanels(); }
-function addPageBlank(){
-  snap(); const p={id:uid(),name:`새 페이지 ${state.pages.length+1}`,bg:'#FFFFFF',els:[]}; state.pages.splice(state.cur+1,0,p); state.cur++;
-  const e=T(MX,MT,CW,PH-MT-MB,''); p.els.push(e); state.sel=e.id; state.editing=false; state.zoom=state.zoom||fitZoom(); renderAll(); startEdit(e.id); // 워드처럼 새 페이지 = 본문 전체가 글상자
-}
+function addPageBlank(){ state.zoom=state.zoom||fitZoom(); insertPageAt(state.cur+1); } // 워드처럼 새 페이지 = 본문 전체가 글상자
 function goPage(i){ if(i<0||i>=state.pages.length) return; endEdit(); state.cur=i; state.sel=null; renderAll(); }
 function movePage(from,to){ if(to<0||to>=state.pages.length||from===to) return; snap(); const [p]=state.pages.splice(from,1); state.pages.splice(to,0,p); state.cur=to; renderAll(); }
-function delPage(){ if(state.pages.length<2){ toast('마지막 페이지는 지울 수 없어요'); return; } if(!confirm(`“${page().name}” 페이지를 삭제할까요?`)) return; snap(); state.pages.splice(state.cur,1); state.cur=Math.max(0,state.cur-1); state.sel=null; renderAll(); }
+function delPage(){ delPageAt(state.cur); }
 
 /* 사진·영상·음악 → 새 페이지 */
 let pendingKind=null;
@@ -493,10 +528,78 @@ const endDrag=()=>{ if(!drag) return; const e=selEl(); const d=drag; drag=null;
   else if(d.moved){ renderThumbs(); renderPanels(); } };
 $('center').addEventListener('pointerup',endDrag); $('center').addEventListener('pointercancel',endDrag);
 $('center').addEventListener('dblclick',ev=>{ const node=ev.target.closest('#canvas .el.t'); if(node&&!state.editing){ select(node.dataset.id); startEdit(node.dataset.id); } });
-$('center').addEventListener('input',ev=>{ const tx=ev.target.closest&&ev.target.closest('.tx'); if(!tx||!state.editing) return; const e=selEl(); if(!e) return; e.html=tx.innerHTML; autoGrow(e); clearTimeout(input._t); input._t=setTimeout(renderThumbs,250); });
+$('center').addEventListener('input',ev=>{ const tx=ev.target.closest&&ev.target.closest('.tx'); if(!tx||!state.editing) return; const e=selEl(); if(!e) return; e.html=tx.innerHTML; autoGrow(e); if(!flowOverflow(e)){ clearTimeout(input._t); input._t=setTimeout(renderThumbs,250); } });
 // 붙여넣기는 글자만(다른 곳의 서식·위험한 코드가 들어오지 않게)
 $('center').addEventListener('paste',ev=>{ if(!ev.target.closest||!ev.target.closest('.tx')) return; ev.preventDefault(); document.execCommand('insertText',false,(ev.clipboardData||window.clipboardData).getData('text/plain')); });
 function input(){}
+
+/* ═══════════════ 글자 크기 목록 ═══════════════ */
+const FS_LIST=[8,9,10,11,12,13,14,16,18,20,24,28,32,36,40,48,60];
+function openFsList(){
+  const e=selEl(); if(!e||e.type!=='text') return; const o=$('fsVal').getBoundingClientRect(), L=$('fslist');
+  L.innerHTML=FS_LIST.map(v=>`<button role="option" data-fs="${v}" class="${v===e.fs?'on':''}" aria-selected="${v===e.fs}">${v}pt${v===12?' · 본문':''}</button>`).join('');
+  L.hidden=false; L.style.left=Math.min(innerWidth-120,o.left)+'px'; L.style.top=Math.min(innerHeight-310,o.bottom+4)+'px';
+  L.querySelector('.on')?.scrollIntoView({block:'center'});
+}
+function closeFsList(){ $('fslist').hidden=true; }
+$('fslist').addEventListener('mousedown',ev=>ev.preventDefault());
+$('fslist').addEventListener('click',ev=>{ const b=ev.target.closest('[data-fs]'); if(!b) return; const e=selEl(); if(!e) return;
+  snap(); const was=state.editing, n=elNode(e.id); if(was&&n) e.html=sanitizeText(n.querySelector('.tx').innerHTML);
+  e.fs=+b.dataset.fs; closeFsList(); renderCanvas(); renderThumbs(); renderPanels(); if(was) startEdit(e.id); });
+document.addEventListener('pointerdown',ev=>{ if(!ev.target.closest('#fslist,#fsVal')) closeFsList(); if(!ev.target.closest('#ctx')) closeCtx(); },true);
+
+/* ═══════════════ 페이지 다루기 (파워포인트 방식) ═══════════════ */
+const blankPage = () => ({id:uid(),name:`새 페이지 ${state.pages.length+1}`,bg:'#FFFFFF',els:[T(MX,MT,CW,PH-MT-MB,'')]});
+function insertPageAt(i){ endEdit(); snap(); const p=blankPage(); state.pages.splice(i,0,p); state.cur=i; state.sel=p.els[0].id; renderAll(); startEdit(p.els[0].id); }
+function dupPage(i){ endEdit(); snap(); const c=JSON.parse(JSON.stringify(state.pages[i])); c.id=uid(); c.name=state.pages[i].name+' (복제)'; c.els.forEach(e=>e.id=uid()); state.pages.splice(i+1,0,c); state.cur=i+1; state.sel=null; renderAll(); toast('페이지를 복제했어요'); }
+function delPageAt(i, ask=true){
+  if(state.pages.length<2){ toast('마지막 한 페이지는 지울 수 없어요'); return; }
+  const p=state.pages[i]; const hasContent=p.els.some(e=>e.type!=='text'||plain(e.html));
+  if(ask && hasContent && !confirm(`${i+1}쪽 “${p.name}”을(를) 삭제할까요?\n(실수했다면 Ctrl+Z로 되돌릴 수 있어요)`)) return;
+  endEdit(); snap(); state.pages.splice(i,1); state.cur=Math.min(i,state.pages.length-1); state.sel=null; renderAll();
+  toast(`${i+1}쪽을 삭제했어요 · Ctrl+Z로 되돌리기`); document.querySelector('.th.on')?.focus();
+}
+let ctxIndex=0;
+function openCtx(i,x,y){ ctxIndex=i; const m=$('ctx'); m.hidden=false;
+  m.querySelector('[data-c=up]').disabled=i===0; m.querySelector('[data-c=down]').disabled=i===state.pages.length-1; m.querySelector('[data-c=del]').disabled=state.pages.length<2;
+  m.style.left=Math.min(innerWidth-m.offsetWidth-8,x)+'px'; m.style.top=Math.min(innerHeight-m.offsetHeight-8,y)+'px'; }
+function closeCtx(){ $('ctx').hidden=true; }
+$('ctx').addEventListener('click',ev=>{ const b=ev.target.closest('[data-c]'); if(!b||b.disabled) return; const i=ctxIndex; closeCtx();
+  ({newAfter:()=>insertPageAt(i+1), newBefore:()=>insertPageAt(i), dup:()=>dupPage(i), up:()=>{state.cur=i;movePage(i,i-1);}, down:()=>{state.cur=i;movePage(i,i+1);}, del:()=>delPageAt(i)})[b.dataset.c](); });
+
+/* ═══════════════ 워드처럼 넘친 글을 다음 페이지로 ═══════════════ */
+function textPositions(root){ const out=[]; const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT); let n; while((n=w.nextNode())) for(let k=0;k<n.length;k++) out.push([n,k]); return out; }
+function flowOverflow(e){
+  const n=elNode(e.id); if(!n) return false; const tx=n.querySelector('.tx');
+  if(tx.scrollHeight<=tx.clientHeight+2 || e.y+e.h < LIM.y1-0.05) return false;   // 아래 여백까지 자란 뒤에도 넘칠 때만
+  const bottom=tx.getBoundingClientRect().bottom-2, pos=textPositions(tx); if(pos.length<2) return false;
+  const fits=i=>{ const r=document.createRange(); r.setStart(pos[i][0],pos[i][1]); r.setEnd(pos[i][0],pos[i][1]+1); const b=r.getBoundingClientRect(); return b.height===0 || b.bottom<=bottom; };
+  let lo=0, hi=pos.length-1; if(!fits(0)) return false;
+  while(lo<hi){ const mid=Math.ceil((lo+hi)/2); if(fits(mid)) lo=mid; else hi=mid-1; }
+  let cut=lo+1; if(cut>=pos.length) return false;
+  for(let k=cut;k>Math.max(0,cut-24);k--){ if(/\s/.test(pos[k-1][0].data[pos[k-1][1]])){ cut=k; break; } } // 단어 중간에서 자르지 않기
+  // 커서가 잘리는 뒷부분에 있었는지(그러면 다음 페이지에서 이어 쓴다)
+  const s=getSelection(); let caretAfter=false, caretOffsetInMoved=0;
+  const cutR=document.createRange(); cutR.setStart(pos[cut][0],pos[cut][1]); cutR.setEndAfter(tx.lastChild);
+  if(s.rangeCount&&tx.contains(s.anchorNode)){ const c=document.createRange(); c.setStart(pos[cut][0],pos[cut][1]); c.setEnd(s.anchorNode,s.anchorOffset);
+    caretAfter = cutR.isPointInRange(s.anchorNode,s.anchorOffset); if(caretAfter) caretOffsetInMoved=c.toString().length; }
+  snap();
+  const holder=document.createElement('div'); holder.appendChild(cutR.extractContents());
+  const moved=sanitizeText(holder.innerHTML).replace(/^(\s|&nbsp;)+/,''); e.html=sanitizeText(tx.innerHTML); tx.innerHTML=e.html;
+  // 다음 페이지가 이어 쓰기 페이지면 앞에 붙이고, 아니면 새 페이지를 끼워 넣는다
+  const next=state.pages[state.cur+1]; let target=next&&next.flowFrom===page().id ? next.els.find(x=>x.type==='text') : null;
+  if(target) target.html = moved + (plain(target.html)?' '+target.html:'');
+  else { const np=blankPage(); np.name=page().name+' (이어서)'; np.flowFrom=page().id; target=np.els[0];
+    Object.assign(target,{html:moved,fs:e.fs,font:e.font,color:e.color,align:e.align,b:e.b,i:e.i,u:e.u}); state.pages.splice(state.cur+1,0,np); }
+  if(caretAfter){ state.editing=false; state.cur++; state.sel=target.id; renderAll(); startEdit(target.id); placeCaretAt(elNode(target.id).querySelector('.tx'), Math.max(0, caretOffsetInMoved - holder.textContent.match(/^\s*/)[0].length)); }
+  else { renderThumbs(); autoGrow(e); }
+  toast('글이 넘쳐서 다음 페이지로 이어졌어요');
+  const t2=selEl(); if(t2&&t2.id===target.id) requestAnimationFrame(()=>{ autoGrow(t2); flowOverflow(t2); }); // 다음 페이지도 넘치면 계속
+  return true;
+}
+function placeCaretAt(tx, offset){ const pos=textPositions(tx); const r=document.createRange();
+  if(!pos.length||offset>=pos.length){ r.selectNodeContents(tx); r.collapse(false); } else { const [n,k]=pos[Math.max(0,offset)]; r.setStart(n,k); r.collapse(true); }
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); }
 
 /* ═══════════════ 고른 글자만 꾸미기 (워드 방식) ═══════════════ */
 const MINI_COLORS = ['#1B2B25','#C0392B','#E67E22','#2E6FB5','#0F5B48','#8A6E22','#8E44AD'];
@@ -533,13 +636,24 @@ $('secSel').addEventListener('mousedown',ev=>{ if(ev.target.closest('button')&&s
 /* ═══════════════ 이벤트 연결 ═══════════════ */
 document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{ const k=b.dataset.add; k==='text'?addText():pickMedia(k); });
 $('addPage').onclick=addPageBlank; $('addTop').onclick=addPageBlank;
-$('thumbs').addEventListener('click',ev=>{ const t=ev.target.closest('.th'); if(t) goPage(+t.dataset.i); });
-$('thumbs').addEventListener('keydown',ev=>{ if(ev.key!=='Enter'&&ev.key!==' ') return; const t=ev.target.closest('.th'); if(t){ ev.preventDefault(); goPage(+t.dataset.i); } });
+$('thumbs').addEventListener('click',ev=>{
+  const ins=ev.target.closest('[data-ins]'); if(ins) return insertPageAt(+ins.dataset.ins);
+  const t=ev.target.closest('.th'); if(!t) return; const i=+t.dataset.i; const a=ev.target.closest('[data-act]');
+  if(a){ ev.stopPropagation(); return a.dataset.act==='del' ? delPageAt(i) : dupPage(i); }
+  goPage(i); });
+$('thumbs').addEventListener('contextmenu',ev=>{ const t=ev.target.closest('.th'); if(!t) return; ev.preventDefault(); openCtx(+t.dataset.i,ev.clientX,ev.clientY); });
+$('thumbs').addEventListener('keydown',ev=>{ const t=ev.target.closest('.th'); if(!t||ev.target!==t) return; const i=+t.dataset.i;
+  if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); goPage(i); }
+  else if(ev.key==='Delete'||ev.key==='Backspace'){ ev.preventDefault(); ev.stopPropagation(); delPageAt(i); }
+  else if(ev.key==='ArrowDown'||ev.key==='ArrowUp'){ ev.preventDefault(); const j=i+(ev.key==='ArrowDown'?1:-1); if(j>=0&&j<state.pages.length){ goPage(j); document.querySelector(`.th[data-i="${j}"]`)?.focus(); } }
+  else if(ev.key==='ContextMenu'||(ev.shiftKey&&ev.key==='F10')){ ev.preventDefault(); const r=t.getBoundingClientRect(); openCtx(i,r.right-10,r.top+20); } });
 let dragFrom=null;
 $('thumbs').addEventListener('dragstart',ev=>{ const t=ev.target.closest('.th'); if(!t) return; dragFrom=+t.dataset.i; ev.dataTransfer.effectAllowed='move'; ev.dataTransfer.setData('text/plain',String(dragFrom)); });
 $('thumbs').addEventListener('dragover',ev=>{ const t=ev.target.closest('.th'); if(!t) return; ev.preventDefault(); document.querySelectorAll('.th.drop').forEach(x=>x.classList.remove('drop')); t.classList.add('drop'); });
 $('thumbs').addEventListener('drop',ev=>{ const t=ev.target.closest('.th'); if(!t) return; ev.preventDefault(); const to=+t.dataset.i; const from=dragFrom; dragFrom=null; if(from!=null){ state.cur=from; movePage(from,to); } });
 $('thumbs').addEventListener('dragend',()=>document.querySelectorAll('.th.drop').forEach(x=>x.classList.remove('drop')));
+$('secSel').addEventListener('click',ev=>{ if(ev.target.closest('#fsVal')) openFsList(); });
+$('secSel').addEventListener('keydown',ev=>{ if(ev.target.id==='fsVal'&&(ev.key==='Enter'||ev.key===' ')){ ev.preventDefault(); openFsList(); } });
 $('secSel').addEventListener('click',ev=>{
   const e=selEl(); if(!e) return; const b=ev.target.closest('button'); if(!b) return;
   if(b.id==='delEl') return delEl();
@@ -550,13 +664,14 @@ $('secSel').addEventListener('click',ev=>{
     if(b.dataset.c && applyToSelection('color',b.dataset.c)) return;
     if(b.id==='bB' && applyToSelection('bold')) return;
     if(b.id==='bI' && applyToSelection('italic')) return;
+    if(b.id==='bU' && applyToSelection('underline')) return;
   }
   snap();
   if(b.dataset.f) e.font=b.dataset.f;
   else if(b.dataset.a) e.align=b.dataset.a;
   else if(b.dataset.c) e.color=b.dataset.c;
   else if(b.id==='fsUp') e.fs=Math.min(60,e.fs+1); else if(b.id==='fsDn') e.fs=Math.max(6,e.fs-1);
-  else if(b.id==='bB') e.b=!e.b; else if(b.id==='bI') e.i=!e.i;
+  else if(b.id==='bB') e.b=!e.b; else if(b.id==='bI') e.i=!e.i; else if(b.id==='bU') e.u=!e.u;
   const was=state.editing; const n=elNode(e.id);
   if(was&&n){ e.html=sanitizeText(n.querySelector('.tx').innerHTML); }
   renderCanvas(); renderThumbs(); renderPanels(); if(was) startEdit(e.id);
@@ -577,7 +692,7 @@ $('back').onclick=()=>toast('시안이라 내 서재로는 이동하지 않아�
 $('btnPublish').onclick=()=>toast('시안이라 공개는 동작하지 않아요. 실제 에디터에서는 서가에 올라가요');
 document.addEventListener('keydown',ev=>{
   const typing = state.editing || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
-  if(ev.key==='Escape'){ if(!$('pv').hidden){ closePV(); return; } if(state.editing) endEdit(); else if(state.sel){ state.sel=null; decorate('__none'); renderPanels(); } return; }
+  if(ev.key==='Escape'){ if(!$('ctx').hidden||!$('fslist').hidden){ closeCtx(); closeFsList(); return; } if(!$('pv').hidden){ closePV(); return; } if(state.editing) endEdit(); else if(state.sel){ state.sel=null; decorate('__none'); renderPanels(); } return; }
   if((ev.ctrlKey||ev.metaKey)&&!typing){ if(ev.key.toLowerCase()==='z'&&!ev.shiftKey){ ev.preventDefault(); undo(); } else if(ev.key.toLowerCase()==='y'||(ev.key.toLowerCase()==='z'&&ev.shiftKey)){ ev.preventDefault(); redo(); } return; }
   if(typing) return;
   const e=selEl(); if(!e) return;
