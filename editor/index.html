@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>내 책 쓰기 — 인물대백과사</title>
+<meta name="robots" content="noindex">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Pretendard:wght@400;500;600;700;800&display=swap');
+  :root{
+    --ivory:#F2EEE2; --ivory-light:#FAF8F2; --green:#0B3324; --ink:#23261F;
+    --gray-1:#4C4A40; --gray-2:#6F6D63; --gold:#D4AF37; --gold-deep:#8A6E22;
+    --sage:#9DAE9E; --line:#CFC8AE; --line-2:#E4DDCB; --danger:#9b2c2c;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--ivory);color:var(--ink);font-family:'Pretendard',-apple-system,sans-serif;font-size:18px;line-height:1.7;word-break:keep-all;-webkit-font-smoothing:antialiased}
+  h1,h2,h3,.serif{font-family:'Noto Serif KR',serif}
+  :focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+  header.top{position:sticky;top:0;z-index:20;background:rgba(242,238,226,.95);backdrop-filter:blur(6px);border-bottom:1px solid var(--line-2)}
+  .top-in{max-width:1100px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .brand{font-family:'Noto Serif KR',serif;font-weight:700;color:var(--green);font-size:18px}
+  .brand span{color:var(--gold-deep)}
+  .wrap{max-width:1100px;margin:0 auto;padding:28px 20px 80px}
+  .narrow{max-width:460px;margin:40px auto}
+  .card{background:var(--ivory-light);border:1px solid var(--line-2);border-radius:10px;padding:26px 24px}
+  h1{font-size:28px;color:var(--green);margin:0 0 8px}
+  h2{font-size:22px;color:var(--green);margin:0 0 14px}
+  p.sub{color:var(--gray-1);margin:0 0 20px}
+  label{display:block;font-weight:700;font-size:15px;margin:14px 0 6px;color:var(--green)}
+  input[type=text],input[type=email],input[type=password],textarea{width:100%;font:inherit;font-size:18px;padding:12px 14px;border:1.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+  button,.btn{font:inherit;font-weight:700;font-size:16px;border:none;border-radius:999px;padding:11px 20px;cursor:pointer;background:var(--green);color:var(--ivory-light);min-height:44px}
+  button:hover{background:#0f4531}
+  button.gold{background:var(--gold);color:var(--green)}
+  button.gold:hover{background:#e0bd4f}
+  button.ghost{background:transparent;color:var(--green);border:1.5px solid var(--green)}
+  button.ghost:hover{background:rgba(11,51,36,.07)}
+  button.danger{background:transparent;color:var(--danger);border:1.5px solid var(--danger)}
+  button.small{font-size:14px;padding:7px 14px;min-height:36px}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .between{justify-content:space-between}
+  .msg{margin-top:14px;padding:12px 14px;border-radius:8px;font-size:15.5px}
+  .msg.err{background:#fbeaea;color:var(--danger)}
+  .msg.ok{background:#e6f1e9;color:var(--green)}
+  .link{background:none;color:var(--gold-deep);padding:0;min-height:0;text-decoration:underline;font-weight:600}
+  .link:hover{background:none}
+  /* 서재 */
+  .books{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:18px;margin-top:22px}
+  .book{background:var(--green);color:var(--ivory-light);border-radius:8px;padding:24px 20px;cursor:pointer;display:flex;flex-direction:column;gap:8px;min-height:190px;border:1px solid var(--gold)}
+  .book:hover{transform:translateY(-2px)}
+  .book h3{margin:0;font-size:20px;color:var(--ivory-light);line-height:1.4}
+  .book .meta{font-size:13.5px;color:rgba(250,248,242,.7);margin-top:auto}
+  .badge{display:inline-block;font-size:12px;font-weight:800;padding:3px 10px;border-radius:999px;background:var(--gold);color:var(--green)}
+  .badge.off{background:transparent;color:var(--gold);border:1px solid var(--gold)}
+  .badge.warn{background:var(--danger);color:#fff}
+  /* 편집기 */
+  .editor{display:grid;grid-template-columns:260px 1fr;gap:22px;align-items:start}
+  @media(max-width:820px){.editor{grid-template-columns:1fr}}
+  .side{background:var(--ivory-light);border:1px solid var(--line-2);border-radius:10px;padding:16px;position:sticky;top:76px}
+  @media(max-width:820px){.side{position:static}}
+  .ch-item{display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:16px}
+  .ch-item.on{background:var(--green);color:var(--ivory-light)}
+  .ch-item:hover:not(.on){background:var(--line-2)}
+  .ch-item .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ch-item .mv{background:none;color:inherit;padding:2px 6px;min-height:0;font-size:13px;opacity:.7}
+  .ch-item .mv:hover{opacity:1;background:rgba(212,175,55,.3)}
+  .bar{display:flex;gap:6px;flex-wrap:wrap;padding:10px;background:var(--ivory-light);border:1px solid var(--line-2);border-bottom:none;border-radius:10px 10px 0 0;position:sticky;top:60px;z-index:5}
+  .bar button{background:#fff;color:var(--green);border:1px solid var(--line);font-size:15px;padding:6px 12px;min-height:38px;border-radius:8px}
+  .bar button:hover{background:var(--accent-bg,#f4ecdc)}
+  #ctitle{font-family:'Noto Serif KR',serif;font-size:24px;font-weight:700;border-radius:0;border-bottom:none}
+  #cbody{min-height:420px;background:#fff;border:1.5px solid var(--line);border-radius:0 0 10px 10px;padding:22px 20px;font-family:'Noto Serif KR',serif;font-size:19px;line-height:2;outline:none}
+  #cbody:focus{border-color:var(--gold)}
+  #cbody img,#cbody video{max-width:100%;border-radius:6px;margin:10px 0;display:block}
+  #cbody audio{width:100%;margin:10px 0;display:block}
+  #cbody blockquote{margin:14px 0;padding:6px 18px;border-left:4px solid var(--gold);color:var(--gray-1)}
+  #cbody h2,#cbody h3{margin:20px 0 8px}
+  .status{font-size:14px;color:var(--gray-2)}
+  .fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:620px){.fields{grid-template-columns:1fr}}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--gold);color:var(--green);font-weight:800;padding:12px 22px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.25);z-index:99;opacity:0;pointer-events:none;transition:opacity .25s}
+  .toast.show{opacity:1}
+  .hidden{display:none!important}
+  .note{font-size:14.5px;color:var(--gray-2)}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in">
+  <div class="brand">인물대백과사 <span>· 내 책 쓰기</span></div>
+  <div class="row" id="topRight"></div>
+</div></header>
+<main class="wrap" id="app"></main>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+'use strict';
+/* ───────── 설정 ───────── */
+const SUPABASE_URL = 'https://qsucbnvicaviatdpnfxx.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_DR6vaBdtzLjicYQ8X-u9bA_6U8mzJuY'; // 공개용 키: 보안은 DB 규칙(RLS)이 담당
+const BUCKET = 'book-media';
+const INLINE_LIMIT = 15 * 1024 * 1024; // 내보내기 시 HTML 안에 넣는 파일 상한
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $app = document.getElementById('app');
+const $top = document.getElementById('topRight');
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(t){ const el=document.getElementById('toast'); el.textContent=t; el.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('show'),2200); }
+function msgBox(kind,text){ return `<div class="msg ${kind}" role="alert">${esc(text)}</div>`; }
+
+/* ───────── 본문 정제(허용 목록 방식) ───────── */
+const ALLOWED = new Set(['P','BR','STRONG','B','EM','I','U','H2','H3','BLOCKQUOTE','UL','OL','LI','IMG','AUDIO','VIDEO','DIV','SPAN']);
+function sanitize(html){
+  const doc = new DOMParser().parseFromString('<body>'+html+'</body>','text/html');
+  (function walk(node){
+    [...node.childNodes].forEach(ch=>{
+      if(ch.nodeType===3) return;
+      if(ch.nodeType!==1){ ch.remove(); return; }
+      if(!ALLOWED.has(ch.tagName)){ // 허용되지 않는 태그는 글자만 남긴다
+        if(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED'].includes(ch.tagName)){ ch.remove(); return; }
+        walk(ch); ch.replaceWith(...ch.childNodes); return;
+      }
+      const media = ch.getAttribute('data-media');
+      [...ch.attributes].forEach(a=>ch.removeAttribute(a.name));
+      if(['IMG','AUDIO','VIDEO'].includes(ch.tagName)){
+        if(media && /^[0-9a-f-]{36}$/.test(media)) ch.setAttribute('data-media',media); else { ch.remove(); return; }
+      }
+      walk(ch);
+    });
+  })(doc.body);
+  return doc.body.innerHTML;
+}
+
+/* ───────── 상태 ───────── */
+let user = null;
+let book = null, chapters = [], current = null, mediaMap = {};
+let saveTimer = null, savedRange = null;
+
+/* ───────── 시작 ───────── */
+sb.auth.onAuthStateChange((_e, session)=>{ user = session?.user ?? null; });
+init();
+async function init(){
+  const { data } = await sb.auth.getSession();
+  user = data.session?.user ?? null;
+  route();
+}
+function route(){ user ? viewLibrary() : viewAuth(); }
+
+/* ───────── 로그인 ───────── */
+function viewAuth(mode='login'){
+  $top.innerHTML='';
+  const signup = mode==='signup';
+  $app.innerHTML = `<div class="narrow card">
+    <h1 class="serif">${signup?'회원가입':'로그인'}</h1>
+    <p class="sub">${signup?'이름과 이메일로 내 책 쓰기를 시작하세요.':'내 책을 이어서 쓰세요.'}</p>
+    <form id="f" novalidate>
+      ${signup?'<label for="nm">이름 (작가 이름)</label><input id="nm" type="text" maxlength="40" autocomplete="name">':''}
+      <label for="em">이메일</label><input id="em" type="email" autocomplete="email" required>
+      <label for="pw">비밀번호 (8자 이상)</label><input id="pw" type="password" minlength="8" autocomplete="${signup?'new-password':'current-password'}" required>
+      <div class="row" style="margin-top:20px"><button type="submit" class="gold" id="go">${signup?'가입하기':'로그인'}</button>
+      <button type="button" class="link" id="sw">${signup?'이미 회원이에요':'처음이에요 (회원가입)'}</button></div>
+      <div id="out"></div>
+    </form></div>`;
+  document.getElementById('sw').onclick = ()=>viewAuth(signup?'login':'signup');
+  document.getElementById('f').onsubmit = async e=>{
+    e.preventDefault();
+    const em=document.getElementById('em').value.trim(), pw=document.getElementById('pw').value;
+    const out=document.getElementById('out'), go=document.getElementById('go');
+    if(!em||pw.length<8){ out.innerHTML=msgBox('err','이메일과 8자 이상의 비밀번호를 입력해 주세요.'); return; }
+    go.disabled=true; out.innerHTML='';
+    try{
+      if(signup){
+        const name=document.getElementById('nm').value.trim();
+        const { data, error } = await sb.auth.signUp({ email:em, password:pw, options:{ data:{ name }, emailRedirectTo: location.href.split('#')[0] } });
+        if(error) throw error;
+        if(!data.session){ out.innerHTML=msgBox('ok','가입 확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.'); go.disabled=false; return; }
+      } else {
+        const { error } = await sb.auth.signInWithPassword({ email:em, password:pw });
+        if(error) throw error;
+      }
+      const { data } = await sb.auth.getSession(); user=data.session?.user; route();
+    }catch(err){ out.innerHTML=msgBox('err', friendly(err)); go.disabled=false; }
+  };
+}
+function friendly(err){
+  const m=(err.message||'').toLowerCase();
+  if(m.includes('invalid login')) return '이메일 또는 비밀번호가 맞지 않아요.';
+  if(m.includes('already registered')) return '이미 가입된 이메일이에요. 로그인해 주세요.';
+  if(m.includes('email not confirmed')) return '메일 확인이 아직 안 됐어요. 받은 메일의 링크를 눌러 주세요.';
+  if(m.includes('rate limit')) return '잠시 후 다시 시도해 주세요.';
+  return '문제가 생겼어요: '+(err.message||'알 수 없는 오류');
+}
+async function logout(){ await sb.auth.signOut(); user=null; book=null; route(); }
+
+/* ───────── 내 서재 ───────── */
+async function viewLibrary(){
+  clearTimeout(saveTimer);
+  $top.innerHTML = `<span class="note">${esc(user.email)}</span><button class="ghost small" id="lo">로그아웃</button>`;
+  document.getElementById('lo').onclick = logout;
+  $app.innerHTML = `<div class="row between"><div><h1 class="serif">내 서재</h1><p class="sub">내가 쓰는 책들이에요. 책은 언제든 내려받아 간직할 수 있어요.</p></div>
+    <button class="gold" id="nb">＋ 새 책 만들기</button></div><div id="list" class="books">불러오는 중…</div>`;
+  document.getElementById('nb').onclick = newBook;
+  const { data, error } = await sb.from('books').select('id,title,subtitle,is_public,admin_hidden,updated_at')
+    .eq('owner_id', user.id).is('deleted_at', null).order('updated_at',{ascending:false});
+  const list=document.getElementById('list');
+  if(error){ list.innerHTML=msgBox('err','책 목록을 불러오지 못했어요.'); return; }
+  if(!data.length){ list.innerHTML='<p class="note">아직 책이 없어요. “새 책 만들기”를 눌러 첫 페이지를 시작해 보세요.</p>'; return; }
+  list.innerHTML = data.map(b=>`<div class="book" tabindex="0" role="button" data-id="${b.id}">
+    <div>${b.admin_hidden?'<span class="badge warn">관리자에 의해 숨김</span>':b.is_public?'<span class="badge">서가에 공개 중</span>':'<span class="badge off">나만 보기</span>'}</div>
+    <h3>${esc(b.title)}</h3><div>${esc(b.subtitle)}</div>
+    <div class="meta">${new Date(b.updated_at).toLocaleDateString('ko-KR')} 수정</div></div>`).join('');
+  list.querySelectorAll('.book').forEach(el=>{
+    const open=()=>openBook(el.dataset.id);
+    el.onclick=open; el.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(); } };
+  });
+}
+async function newBook(){
+  const { data:prof } = await sb.from('profiles').select('display_name').eq('id',user.id).maybeSingle();
+  const { data, error } = await sb.from('books').insert({ owner_id:user.id, author_name: prof?.display_name||'' }).select().single();
+  if(error){ toast('책을 만들지 못했어요'); return; }
+  await sb.from('chapters').insert({ book_id:data.id, position:0, title:'첫 번째 이야기', content:'' });
+  openBook(data.id);
+}
+
+/* ───────── 편집기 ───────── */
+async function openBook(id){
+  $app.innerHTML='<p class="note">불러오는 중…</p>';
+  const [b,c,m] = await Promise.all([
+    sb.from('books').select('*').eq('id',id).single(),
+    sb.from('chapters').select('*').eq('book_id',id).order('position'),
+    sb.from('media').select('*').eq('book_id',id)
+  ]);
+  if(b.error||c.error){ $app.innerHTML=msgBox('err','책을 불러오지 못했어요.'); return; }
+  book=b.data; chapters=c.data; mediaMap={}; (m.data||[]).forEach(x=>mediaMap[x.id]=x);
+  if(!chapters.length){ const r=await sb.from('chapters').insert({book_id:id,position:0,title:'첫 번째 이야기'}).select().single(); chapters=[r.data]; }
+  current=chapters[0]; renderEditor();
+}
+function renderEditor(){
+  $top.innerHTML = `<button class="ghost small" id="back">← 내 서재</button><button class="ghost small" id="lo">로그아웃</button>`;
+  document.getElementById('back').onclick = async()=>{ await flush(); viewLibrary(); };
+  document.getElementById('lo').onclick = async()=>{ await flush(); logout(); };
+  $app.innerHTML = `
+  <div class="card" style="margin-bottom:22px">
+    <div class="fields">
+      <div><label for="bt" style="margin-top:0">책 제목</label><input id="bt" type="text" maxlength="120" value="${esc(book.title)}"></div>
+      <div><label for="ba" style="margin-top:0">지은이</label><input id="ba" type="text" maxlength="40" value="${esc(book.author_name)}"></div>
+    </div>
+    <label for="bs">부제 (선택)</label><input id="bs" type="text" maxlength="200" value="${esc(book.subtitle)}">
+    <div class="row between" style="margin-top:16px">
+      <span class="status" id="st">저장됨</span>
+      <div class="row">
+        <button class="ghost small" id="ex">📥 내 책 내려받기 (HTML)</button>
+        <button class="small ${book.is_public?'ghost':'gold'}" id="pub">${book.is_public?'서가에서 내리기':'서가에 공개하기'}</button>
+        <button class="danger small" id="del">책 삭제</button>
+      </div>
+    </div>
+    ${book.admin_hidden?msgBox('err','이 책은 관리자에 의해 서가에서 숨겨졌어요. 문의해 주세요.'):''}
+  </div>
+  <div class="editor">
+    <aside class="side"><h2 style="font-size:18px">목차</h2><div id="chl"></div>
+      <button class="small ghost" id="addc" style="margin-top:12px;width:100%">＋ 장 추가</button></aside>
+    <section>
+      <div class="bar" id="bar">
+        <button data-cmd="bold" title="굵게"><b>가</b> 굵게</button>
+        <button data-cmd="italic" title="기울임"><i>가</i> 기울임</button>
+        <button data-blk="h2">소제목</button>
+        <button data-blk="blockquote">인용</button>
+        <button data-cmd="insertUnorderedList">• 목록</button>
+        <button data-up="image">🖼 사진</button>
+        <button data-up="video">🎬 영상</button>
+        <button data-up="audio">🎵 노래</button>
+      </div>
+      <input id="ctitle" type="text" maxlength="120" placeholder="이 장의 제목" style="border-radius:0">
+      <div id="cbody" contenteditable="true" role="textbox" aria-multiline="true" aria-label="본문"></div>
+      <input type="file" id="file" class="hidden">
+      <p class="note" style="margin-top:10px">글은 쓰는 대로 자동 저장돼요. 사진 15MB, 영상·노래는 50MB까지 올릴 수 있어요.</p>
+    </section>
+  </div>`;
+  bindEditor(); renderChapters(); loadChapter();
+}
+function setStatus(t){ const s=document.getElementById('st'); if(s) s.textContent=t; }
+
+function bindEditor(){
+  const meta = ()=>{ setStatus('저장 중…'); clearTimeout(saveTimer); saveTimer=setTimeout(flush,800); };
+  ['bt','ba','bs'].forEach(id=>document.getElementById(id).oninput=()=>{
+    book.title=document.getElementById('bt').value.trim()||'제목 없는 책';
+    book.author_name=document.getElementById('ba').value.trim();
+    book.subtitle=document.getElementById('bs').value.trim(); meta(); });
+  document.getElementById('ctitle').oninput=()=>{ current.title=document.getElementById('ctitle').value; renderChapters(); meta(); };
+  const body=document.getElementById('cbody');
+  body.oninput=()=>{ current.content=body.innerHTML; meta(); };
+  body.addEventListener('paste',e=>{ // 붙여넣기는 글자만
+    e.preventDefault(); const t=(e.clipboardData||window.clipboardData).getData('text/plain'); document.execCommand('insertText',false,t); });
+  document.getElementById('addc').onclick=addChapter;
+  document.getElementById('ex').onclick=exportBook;
+  document.getElementById('pub').onclick=togglePublic;
+  document.getElementById('del').onclick=deleteBook;
+  const bar=document.getElementById('bar'), file=document.getElementById('file');
+  bar.querySelectorAll('button').forEach(b=>b.addEventListener('mousedown',e=>e.preventDefault())); // 선택 영역 유지
+  bar.onclick=e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.cmd){ document.execCommand(b.dataset.cmd); body.oninput(); }
+    else if(b.dataset.blk){ document.execCommand('formatBlock',false,b.dataset.blk); body.oninput(); }
+    else if(b.dataset.up){
+      const sel=getSelection(); savedRange = sel.rangeCount && body.contains(sel.anchorNode) ? sel.getRangeAt(0).cloneRange() : null;
+      file.dataset.kind=b.dataset.up; file.accept=b.dataset.up+'/*'; file.value=''; file.click();
+    }
+  };
+  file.onchange=()=>{ if(file.files[0]) uploadMedia(file.files[0], file.dataset.kind); };
+}
+
+function renderChapters(){
+  const box=document.getElementById('chl'); if(!box) return;
+  box.innerHTML = chapters.map((c,i)=>`<div class="ch-item ${c===current?'on':''}" data-i="${i}">
+    <span class="t">${i+1}. ${esc(c.title||'(제목 없음)')}</span>
+    <button class="mv" data-mv="-1" aria-label="위로" ${i===0?'disabled':''}>▲</button>
+    <button class="mv" data-mv="1" aria-label="아래로" ${i===chapters.length-1?'disabled':''}>▼</button>
+    <button class="mv" data-rm="1" aria-label="이 장 삭제">✕</button></div>`).join('');
+  box.onclick=async e=>{
+    const item=e.target.closest('.ch-item'); if(!item) return; const i=+item.dataset.i;
+    const mv=e.target.closest('[data-mv]'), rm=e.target.closest('[data-rm]');
+    if(mv){ e.stopPropagation(); await moveChapter(i,+mv.dataset.mv); }
+    else if(rm){ e.stopPropagation(); await removeChapter(i); }
+    else { await flush(); current=chapters[i]; renderChapters(); loadChapter(); }
+  };
+}
+async function loadChapter(){
+  document.getElementById('ctitle').value=current.title||'';
+  const body=document.getElementById('cbody'); body.innerHTML=sanitize(current.content||'');
+  await hydrateMedia(body);
+}
+async function hydrateMedia(root){
+  const nodes=[...root.querySelectorAll('[data-media]')];
+  await Promise.all(nodes.map(async n=>{
+    const m=mediaMap[n.getAttribute('data-media')]; if(!m||!m.storage_path) return;
+    const { data } = await sb.storage.from(BUCKET).createSignedUrl(m.storage_path, 3600);
+    if(data?.signedUrl){ n.src=data.signedUrl; if(n.tagName!=='IMG') n.controls=true; }
+  }));
+}
+
+/* ───────── 저장 ───────── */
+async function flush(){
+  clearTimeout(saveTimer); if(!book||!current) return;
+  try{
+    const clean = sanitize(document.getElementById('cbody')?.innerHTML ?? current.content ?? '');
+    current.content = clean;
+    const [a,b] = await Promise.all([
+      sb.from('books').update({ title:book.title, subtitle:book.subtitle, author_name:book.author_name }).eq('id',book.id),
+      sb.from('chapters').update({ title:current.title||'', content:clean }).eq('id',current.id)
+    ]);
+    if(a.error||b.error) throw (a.error||b.error);
+    setStatus('저장됨 ✓');
+  }catch(e){ setStatus('⚠ 저장 실패 — 인터넷 연결을 확인해 주세요'); }
+}
+window.addEventListener('beforeunload',e=>{ if(saveTimer){ flush(); e.preventDefault(); e.returnValue=''; } });
+
+async function addChapter(){
+  await flush();
+  const { data, error } = await sb.from('chapters').insert({ book_id:book.id, position:chapters.length, title:`새 이야기 ${chapters.length+1}` }).select().single();
+  if(error){ toast('장을 추가하지 못했어요'); return; }
+  chapters.push(data); current=data; renderChapters(); loadChapter();
+}
+async function moveChapter(i,d){
+  await flush(); const j=i+d; if(j<0||j>=chapters.length) return;
+  [chapters[i],chapters[j]]=[chapters[j],chapters[i]];
+  await Promise.all(chapters.map((c,k)=>{ c.position=k; return sb.from('chapters').update({position:k}).eq('id',c.id); }));
+  renderChapters();
+}
+async function removeChapter(i){
+  if(chapters.length===1){ toast('마지막 장은 지울 수 없어요'); return; }
+  if(!confirm(`“${chapters[i].title||'이 장'}”을(를) 삭제할까요? 되돌릴 수 없어요.`)) return;
+  const c=chapters[i]; await sb.from('chapters').delete().eq('id',c.id);
+  chapters.splice(i,1); chapters.forEach((x,k)=>{ x.position=k; sb.from('chapters').update({position:k}).eq('id',x.id); });
+  if(current===c){ current=chapters[Math.max(0,i-1)]; loadChapter(); } renderChapters();
+}
+
+/* ───────── 사진·영상·노래 ───────── */
+const LIMITS={ image:15*1024*1024, video:50*1024*1024, audio:50*1024*1024 };
+async function uploadMedia(f, kind){
+  if(f.size>LIMITS[kind]){ toast(`파일이 너무 커요 (${Math.round(LIMITS[kind]/1048576)}MB 이하)`); return; }
+  if(!f.type.startsWith(kind+'/')){ toast('파일 종류가 맞지 않아요'); return; }
+  setStatus('올리는 중…');
+  const ext=(f.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,8)||'bin';
+  const path=`${user.id}/${book.id}/${crypto.randomUUID()}.${ext}`;
+  const up=await sb.storage.from(BUCKET).upload(path,f,{ contentType:f.type, upsert:false });
+  if(up.error){ setStatus('⚠ 올리기 실패'); toast('올리지 못했어요'); return; }
+  const { data, error } = await sb.from('media').insert({ book_id:book.id, owner_id:user.id, kind, storage_path:path, size_bytes:f.size }).select().single();
+  if(error){ setStatus('⚠ 올리기 실패'); return; }
+  mediaMap[data.id]=data;
+  const body=document.getElementById('cbody'); body.focus();
+  if(savedRange){ const s=getSelection(); s.removeAllRanges(); s.addRange(savedRange); }
+  const tag = kind==='image'?'img':kind;
+  document.execCommand('insertHTML',false,`<p><${tag} data-media="${data.id}"></${tag}></p>`);
+  await hydrateMedia(body); body.oninput(); toast('넣었어요');
+}
+
+/* ───────── 공개·삭제 ───────── */
+async function togglePublic(){
+  await flush();
+  const next=!book.is_public;
+  if(next && !confirm('이 책을 서가에 공개할까요?\n다른 회원들이 읽을 수 있게 돼요. 언제든 내릴 수 있어요.')) return;
+  const patch={ is_public:next, published_at: next ? (book.published_at||new Date().toISOString()) : book.published_at };
+  const { error } = await sb.from('books').update(patch).eq('id',book.id);
+  if(error){ toast('바꾸지 못했어요'); return; }
+  Object.assign(book,patch); renderEditor(); toast(next?'서가에 공개했어요':'서가에서 내렸어요');
+}
+async function deleteBook(){
+  if(!confirm(`“${book.title}” 책을 삭제할까요?\n삭제 전에 내려받기를 권해요.`)) return;
+  const { error } = await sb.from('books').update({ deleted_at:new Date().toISOString(), is_public:false }).eq('id',book.id);
+  if(error){ toast('삭제하지 못했어요'); return; }
+  book=null; toast('삭제했어요'); viewLibrary();
+}
+
+/* ───────── 내 책 내려받기(HTML 한 파일) ───────── */
+const blobToDataURL = b => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(b); });
+async function exportBook(){
+  await flush(); const btn=document.getElementById('ex'); btn.disabled=true; setStatus('책을 묶는 중…');
+  try{
+    const parts=[];
+    for(const c of chapters){
+      const wrap=document.createElement('div'); wrap.innerHTML=sanitize(c.content||'');
+      for(const n of wrap.querySelectorAll('[data-media]')){
+        const m=mediaMap[n.getAttribute('data-media')];
+        if(!m?.storage_path){ n.remove(); continue; }
+        if(m.size_bytes<=INLINE_LIMIT){
+          const { data, error } = await sb.storage.from(BUCKET).download(m.storage_path);
+          if(!error){ n.setAttribute('src', await blobToDataURL(data)); if(n.tagName!=='IMG') n.setAttribute('controls',''); continue; }
+        }
+        const { data } = await sb.storage.from(BUCKET).createSignedUrl(m.storage_path, 60*60*24*7);
+        const p=document.createElement('p'); p.className='big';
+        p.innerHTML = `[용량이 커서 이 파일은 따로 받아 주세요] <a href="${esc(data?.signedUrl||'')}">파일 내려받기 (7일간 유효)</a>`;
+        n.replaceWith(p);
+      }
+      parts.push(`<section class="ch" id="c${parts.length}"><h2>${esc(c.title)}</h2>${wrap.innerHTML}</section>`);
+    }
+    const toc=chapters.map((c,i)=>`<li><a href="#c${i}">${esc(c.title||'(제목 없음)')}</a></li>`).join('');
+    const html=`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(book.title)}</title>
+<style>body{margin:0;background:#F2EEE2;color:#23261F;font-family:'Noto Serif KR','Batang',serif;font-size:19px;line-height:2}
+.cover{background:#0B3324;color:#FAF8F2;text-align:center;padding:90px 24px}.cover h1{font-size:34px;margin:0 0 12px}.cover p{color:#D4AF37;margin:6px 0}
+main{max-width:720px;margin:0 auto;padding:30px 22px 80px}.toc{background:#FAF8F2;border:1px solid #E4DDCB;padding:18px 28px;border-radius:8px}
+.ch{margin-top:56px}.ch h2{color:#0B3324;border-bottom:2px solid #D4AF37;padding-bottom:8px}img,video{max-width:100%;border-radius:6px}audio{width:100%}
+blockquote{border-left:4px solid #D4AF37;margin:14px 0;padding:4px 18px;color:#4C4A40}a{color:#8A6E22}footer{text-align:center;color:#6F6D63;font-size:14px;padding:30px}</style></head>
+<body><div class="cover"><h1>${esc(book.title)}</h1>${book.subtitle?`<p>${esc(book.subtitle)}</p>`:''}<p>${esc(book.author_name)} 지음</p></div>
+<main><ol class="toc">${toc}</ol>${parts.join('')}</main>
+<footer>인물대백과사에서 만든 나의 책 · ${new Date().toLocaleDateString('ko-KR')} 내려받음<br>이 파일 하나로 언제든 열어볼 수 있어요.</footer></body></html>`;
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([html],{type:'text/html'}));
+    a.download=(book.title||'내책').replace(/[\\/:*?"<>|]/g,'')+'.html'; document.body.appendChild(a); a.click(); a.remove();
+    setStatus('저장됨 ✓'); toast('내려받았어요');
+  }catch(e){ setStatus('⚠ 내려받기 실패'); toast('내려받지 못했어요'); }
+  btn.disabled=false;
+}
+</script>
+</body>
+</html>
