@@ -214,7 +214,7 @@ async function viewLibrary(){
   $app.innerHTML = `<div class="row between"><div><h1 class="serif">내 서재</h1><p class="sub">내가 쓰는 책들이에요. 책은 언제든 내려받아 간직할 수 있어요.</p></div>
     <button class="gold" id="nb">＋ 새 책 만들기</button></div><div id="list" class="books">불러오는 중…</div>`;
   document.getElementById('nb').onclick = newBook;
-  const { data, error } = await sb.from('books').select('id,title,subtitle,is_public,admin_hidden,updated_at')
+  const { data, error } = await sb.from('books').select('id,title,subtitle,is_public,admin_hidden,updated_at,format')
     .eq('owner_id', user.id).is('deleted_at', null).order('updated_at',{ascending:false});
   const list=document.getElementById('list');
   if(error){ list.innerHTML=msgBox('err','책 목록을 불러오지 못했어요.'); return; }
@@ -224,16 +224,16 @@ async function viewLibrary(){
     <h3>${esc(b.title)}</h3><div>${esc(b.subtitle)}</div>
     <div class="meta">${new Date(b.updated_at).toLocaleDateString('ko-KR')} 수정</div></div>`).join('');
   list.querySelectorAll('.book').forEach(el=>{
-    const open=()=>openBook(el.dataset.id);
+    const b=data.find(x=>x.id===el.dataset.id); const open=()=> b.format==='pages' ? (location.href=studioURL(b.id)) : openBook(b.id);
     el.onclick=open; el.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(); } };
   });
 }
+const studioURL = id => '../studio/?book='+encodeURIComponent(id);
 async function newBook(){
   const { data:prof } = await sb.from('profiles').select('display_name').eq('id',user.id).maybeSingle();
-  const { data, error } = await sb.from('books').insert({ owner_id:user.id, author_name: prof?.display_name||'' }).select().single();
+  const { data, error } = await sb.from('books').insert({ owner_id:user.id, author_name: prof?.display_name||'', format:'pages' }).select().single();
   if(error){ toast('책을 만들지 못했어요'); return; }
-  await sb.from('chapters').insert({ book_id:data.id, position:0, title:'첫 번째 이야기', content:'' });
-  openBook(data.id);
+  location.href = studioURL(data.id); // 새 책은 새 편집기(스튜디오)에서
 }
 
 /* ───────── 편집기 ───────── */
@@ -269,6 +269,9 @@ function renderEditor(){
       </div>
     </div>
     ${book.admin_hidden?msgBox('err','이 책은 관리자에 의해 서가에서 숨겨졌어요. 문의해 주세요.'):''}
+    <div class="msg ok" style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+      <span>✨ <b>새 편집기</b>에서 신국판 페이지로 꾸며 보세요. 지금 글은 그대로 옮겨지고, 원본도 보관돼요.</span>
+      <a class="btn gold" style="padding:8px 16px;font-size:15px;text-decoration:none;border-radius:999px;font-weight:700" href="${studioURL(book.id)}" id="toStudio">새 편집기로 옮기기</a></div>
   </div>
   <div class="editor">
     <aside class="side"><h2 style="font-size:18px">목차</h2><div id="chl"></div>
@@ -295,6 +298,7 @@ function renderEditor(){
 function setStatus(t){ const s=document.getElementById('st'); if(s) s.textContent=t; }
 
 function bindEditor(){
+  const ts=document.getElementById('toStudio'); if(ts) ts.onclick=async ev=>{ ev.preventDefault(); await flush(); location.href=ts.href; };
   const meta = ()=>{ setStatus('저장 중…'); clearTimeout(saveTimer); saveTimer=setTimeout(flush,800); };
   ['bt','ba','bs'].forEach(id=>document.getElementById(id).oninput=()=>{
     book.title=document.getElementById('bt').value.trim()||'제목 없는 책';

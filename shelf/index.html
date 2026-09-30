@@ -69,6 +69,9 @@
   dialog textarea{width:100%;font:inherit;font-size:17px;padding:12px;border:1.5px solid var(--line);border-radius:8px;min-height:110px}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--gold);color:var(--green);font-weight:800;padding:12px 22px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.25);z-index:99;opacity:0;pointer-events:none;transition:opacity .25s}
   .toast.show{opacity:1}
+  .pages{max-width:620px;margin:26px auto 0}.pgwrap{margin:0 0 30px}.pgwrap .bk-pg{box-shadow:0 8px 28px rgba(20,40,32,.13)}
+  .pno{text-align:center;font-size:13px;color:var(--gray-2);margin-top:8px}
+  .slim{background:var(--green);color:var(--ivory-light);text-align:center;padding:22px 20px}.slim h1{margin:0;font-size:22px;color:var(--ivory-light)}.slim p{margin:4px 0 0;color:var(--gold);font-size:15px}
   footer{background:#071f16;color:rgba(250,248,242,.6);text-align:center;font-size:13.5px;padding:22px 18px}
 </style>
 </head>
@@ -82,6 +85,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../lib/book-render.js"></script>
 <script>
 'use strict';
 const SUPABASE_URL = 'https://qsucbnvicaviatdpnfxx.supabase.co';
@@ -89,6 +93,7 @@ const SUPABASE_KEY = 'sb_publishable_DR6vaBdtzLjicYQ8X-u9bA_6U8mzJuY'; // 공개
 const BUCKET = 'book-media';
 const PAGE = 12;
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+if(window.BookRender){ const st=document.createElement('style'); st.textContent=BookRender.CSS; document.head.appendChild(st); }
 const $app = document.getElementById('app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(t){ const el=document.getElementById('toast'); el.textContent=t; el.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('show'),2400); }
@@ -160,20 +165,30 @@ async function loadPage(reset){
 async function viewBook(id){
   $app.innerHTML = '<div class="wrap"><p class="note" style="padding-top:30px">책을 펴는 중…</p></div>';
   const [b,c,m] = await Promise.all([
-    sb.from('shelf_books').select('id,title,subtitle,author_name,published_at').eq('id',id).maybeSingle(),
+    sb.from('shelf_books').select('id,title,subtitle,author_name,published_at,format').eq('id',id).maybeSingle(),
     sb.from('chapters').select('id,position,title,content').eq('book_id',id).order('position'),
     sb.from('media').select('id,storage_path').eq('book_id',id)
   ]);
+  let pagesHTML = null;
+  if(b.data && b.data.format==='pages'){ // 새 편집기 책: 페이지 모양 그대로
+    const pg = await sb.from('pages').select('id,position,bg,els').eq('book_id',id).order('position');
+    if(pg.error){ $app.innerHTML='<div class="wrap"><div class="msg err" style="margin-top:30px">책을 불러오지 못했어요.</div></div>'; return; }
+    const list=(m.data||[]).filter(x=>x.storage_path), urls={};
+    if(list.length){ const sg=await sb.storage.from(BUCKET).createSignedUrls(list.map(x=>x.storage_path),3600); (sg.data||[]).forEach((d,i)=>{ if(d&&d.signedUrl) urls[list[i].id]=d.signedUrl; }); }
+    pagesHTML = `<div class="pages">${pg.data.map((p,i)=>`<section class="pgwrap" id="c${i}" aria-label="${i+1}쪽">${BookRender.pageHTML(p,urls)}<div class="pno">— ${i+1} —</div></section>`).join('')}</div>`;
+  }
   if(b.error||c.error){ $app.innerHTML='<div class="wrap"><div class="msg err" style="margin-top:30px">책을 불러오지 못했어요.</div><p><a href="#/">← 서가로</a></p></div>'; return; }
   if(!b.data){ $app.innerHTML='<div class="wrap"><div class="empty">이 책은 비공개이거나 없는 책이에요.<br><a href="#/">← 서가로 돌아가기</a></div></div>'; return; }
   const book=b.data, chapters=c.data||[], paths={}; (m.data||[]).forEach(x=>paths[x.id]=x.storage_path);
   document.title = `${book.title} — 인물대백과사`;
-  $app.innerHTML = `
-    <div class="cover"><h1 class="serif">${esc(book.title)}</h1>${book.subtitle?`<p class="sub">${esc(book.subtitle)}</p>`:''}
-      <p class="sub">${esc(book.author_name||'이름 없는 작가')} 지음</p></div>
-    <div class="wrap"><article class="reader">
-      ${chapters.length>1?`<ol class="toc" aria-label="목차">${chapters.map((x,i)=>`<li><a href="#" data-goto="c${i}">${esc(x.title||'(제목 없음)')}</a></li>`).join('')}</ol>`:''}
-      ${chapters.map((x,i)=>`<section class="ch" id="c${i}"><h2 class="serif">${esc(x.title)}</h2><div class="body">${sanitize(x.content||'')}</div></section>`).join('')}
+  const header = pagesHTML
+    ? `<div class="slim"><h1 class="serif">${esc(book.title)}</h1><p>${esc(book.author_name||'이름 없는 작가')} 지음</p></div>`
+    : `<div class="cover"><h1 class="serif">${esc(book.title)}</h1>${book.subtitle?`<p class="sub">${esc(book.subtitle)}</p>`:''}
+      <p class="sub">${esc(book.author_name||'이름 없는 작가')} 지음</p></div>`;
+  const body = pagesHTML || `${chapters.length>1?`<ol class="toc" aria-label="목차">${chapters.map((x,i)=>`<li><a href="#" data-goto="c${i}">${esc(x.title||'(제목 없음)')}</a></li>`).join('')}</ol>`:''}
+      ${chapters.map((x,i)=>`<section class="ch" id="c${i}"><h2 class="serif">${esc(x.title)}</h2><div class="body">${sanitize(x.content||'')}</div></section>`).join('')}`;
+  $app.innerHTML = `${header}
+    <div class="wrap"><article class="reader">${body}
       <div class="actions"><a class="btn ghost" href="#/">← 서가로</a>
         <button class="ghost" id="share">🔗 주소 복사</button>
         <button class="ghost" id="rep">🚩 신고하기</button></div>
