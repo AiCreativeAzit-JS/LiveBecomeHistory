@@ -62,6 +62,25 @@
   .privacy{font-size:14px;color:var(--gray-2);margin-top:26px}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--gold);color:var(--green);font-weight:800;padding:12px 22px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.25);z-index:99;opacity:0;pointer-events:none;transition:opacity .25s}
   .toast.show{opacity:1}
+  .dash{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+  .panel{background:var(--ivory-light);border:1px solid var(--line-2);border-radius:10px;padding:18px 20px}
+  .panel h2{font-size:18px;color:var(--green);margin:0 0 4px}
+  .panel .meta{margin:0 0 12px}
+  .todo li{margin:6px 0}.todo{margin:0;padding-left:20px}
+  .todo .ok{color:var(--green)}.todo .warn{color:var(--danger);font-weight:700}
+  .chart{width:100%;height:96px;display:block}
+  .chart rect{fill:var(--gold)}.chart rect.today{fill:var(--green)}
+  .chart text{font:11px 'Pretendard',sans-serif;fill:var(--gray-2)}
+  .big{font-family:'Noto Serif KR',serif;font-size:26px;color:var(--green);font-weight:700;margin-right:6px}
+  .meter{height:12px;border-radius:99px;background:var(--line-2);overflow:hidden;margin:6px 0 2px}
+  .meter i{display:block;height:100%;background:var(--green);border-radius:99px}
+  .meter.mid i{background:var(--gold-deep)}.meter.high i{background:var(--danger)}
+  .kinds{display:flex;height:12px;border-radius:99px;overflow:hidden;background:var(--line-2);margin:8px 0 6px}
+  .kinds i{display:block;height:100%}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13.5px;color:var(--gray-1)}
+  .legend b{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:0}
+  .mini{list-style:none;margin:0;padding:0}.mini li{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line-2);font-size:15px}
+  .mini li:last-child{border-bottom:none}.mini .meta{margin:0;white-space:nowrap}
   label.showpw{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;margin:12px 0 0;cursor:pointer}
   label.showpw input{width:20px;height:20px;accent-color:var(--green)}
 </style>
@@ -89,8 +108,8 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const fmt = d => d ? new Date(d).toLocaleString('ko-KR',{dateStyle:'medium',timeStyle:'short'}) : '';
 function toast(t){ const el=document.getElementById('toast'); el.textContent=t; el.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('show'),2400); }
 
-let tab = 'reports', repFilter = 'open', bookFilter = 'all';
-let data = { reports:[], books:[], profiles:[], notes:{}, stats:{} };
+let tab = 'dash', repFilter = 'open', bookFilter = 'all';
+let data = { reports:[], books:[], profiles:[], notes:{}, media:[], usage:null };
 
 init();
 async function init(){
@@ -128,16 +147,20 @@ function viewDenied(email){
 
 /* ───────── 데이터 ───────── */
 async function loadAll(){
-  const [reports, books, profiles, notes] = await Promise.all([
+  const [reports, books, profiles, notes, media, usage] = await Promise.all([
     sb.from('reports').select('id,book_id,reporter_id,reason,status,created_at').order('created_at',{ascending:false}),
     sb.from('books').select('id,owner_id,title,author_name,is_public,admin_hidden,deleted_at,published_at,created_at').order('created_at',{ascending:false}),
     sb.from('profiles').select('id,display_name,created_at').order('created_at',{ascending:false}),
-    sb.from('book_admin_notes').select('book_id,note')
+    sb.from('book_admin_notes').select('book_id,note'),
+    sb.from('media').select('book_id,kind,size_bytes,created_at'), // 크기·종류만(내용·설명은 읽지 않음)
+    sb.rpc('admin_usage')
   ]);
   const bad = [reports,books,profiles,notes].find(r=>r.error);
   if(bad){ $app.innerHTML=`<div class="msg err">데이터를 불러오지 못했어요. 새로고침해 주세요.</div>`; throw bad.error; }
   data.reports=reports.data; data.books=books.data; data.profiles=profiles.data;
   data.notes={}; notes.data.forEach(n=>data.notes[n.book_id]=n.note);
+  data.media = media.error ? [] : media.data;
+  data.usage = usage.error ? null : usage.data; // 없어도 화면은 뜬다
 }
 const bookById = id => data.books.find(b=>b.id===id);
 const visible = b => b.is_public && !b.admin_hidden && !b.deleted_at;
@@ -156,6 +179,7 @@ function render(){
       <div class="stat ${openReports?'alert':''}"><b>${openReports}</b><span>처리할 신고</span></div>
     </div>
     <div class="tabs" role="tablist">
+      <button class="tab ${tab==='dash'?'on':''}" data-t="dash" role="tab">한눈에 보기</button>
       <button class="tab ${tab==='reports'?'on':''}" data-t="reports" role="tab">신고 ${openReports?`(${openReports})`:''}</button>
       <button class="tab ${tab==='books'?'on':''}" data-t="books" role="tab">책</button>
       <button class="tab ${tab==='members'?'on':''}" data-t="members" role="tab">회원</button>
@@ -163,7 +187,75 @@ function render(){
     <div id="pane"></div>
     <p class="privacy">🔒 <b>비공개(나만 보기)</b> 책의 내용은 이 화면에서 열지 않아요. 관리자는 제목·지은이 같은 기본 정보와 공개된 책만 다뤄요.</p>`;
   $app.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{ tab=b.dataset.t; render(); });
-  ({reports:paneReports, books:paneBooks, members:paneMembers})[tab]();
+  ({dash:paneDash, reports:paneReports, books:paneBooks, members:paneMembers})[tab]();
+}
+
+/* ───────── 한눈에 보기(대시보드) ───────── */
+const LIMIT = { db: 500*1024**2, storage: 1024**3 }; // Supabase 무료 요금제 기준
+const DAY = 86400000;
+const mb = n => n>=1024**3 ? (n/1024**3).toFixed(2)+'GB' : (n/1024**2).toFixed(n<10*1024**2?1:0)+'MB';
+const dayKey = d => { const x=new Date(d); return x.getFullYear()+'-'+(x.getMonth()+1)+'-'+x.getDate(); };
+function daily(dates, days=30){
+  const today=new Date(); today.setHours(0,0,0,0);
+  const bins=[...Array(days)].map((_,i)=>({d:new Date(today.getTime()-(days-1-i)*DAY),n:0}));
+  const idx={}; bins.forEach((b,i)=>idx[dayKey(b.d)]=i);
+  dates.forEach(d=>{ if(!d) return; const i=idx[dayKey(d)]; if(i!==undefined) bins[i].n++; });
+  return bins;
+}
+function barChart(bins, label){
+  const W=300,H=96,base=80,max=Math.max(1,...bins.map(b=>b.n)),bw=W/bins.length;
+  const bars=bins.map((b,i)=>{ const h=b.n?Math.max(3,b.n/max*(base-14)):0;
+    return `<rect x="${(i*bw+1).toFixed(1)}" y="${(base-h).toFixed(1)}" width="${(bw-2).toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" class="${i===bins.length-1?'today':''}"><title>${b.d.getMonth()+1}월 ${b.d.getDate()}일: ${b.n}</title></rect>`; }).join('');
+  const f=bins[0].d;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${esc(label)}">
+    <line x1="0" y1="${base}" x2="${W}" y2="${base}" stroke="#CFC8AE"/>${bars}
+    <text x="0" y="${H-2}">${f.getMonth()+1}/${f.getDate()}</text><text x="${W}" y="${H-2}" text-anchor="end">오늘</text>
+    <text x="0" y="10">최대 ${max}</text></svg>`;
+}
+function meter(used, limit){
+  const r=Math.min(1,used/limit), cls=r>=.8?'high':r>=.5?'mid':'';
+  return `<div class="meter ${cls}" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(r*100)}"><i style="width:${(r*100).toFixed(1)}%"></i></div>`;
+}
+function paneDash(){
+  const pane=document.getElementById('pane');
+  const live=data.books.filter(b=>!b.deleted_at), weekAgo=Date.now()-7*DAY;
+  const openReports=data.reports.filter(r=>r.status==='open').length;
+  const trash=data.books.filter(b=>b.deleted_at).length;
+  const u=data.usage;
+  const storageUsed = u ? Number(u.storage_bytes) : data.media.reduce((s,m)=>s+Number(m.size_bytes||0),0);
+  // 할 일
+  const todo=[];
+  todo.push(openReports?`<li class="warn">처리할 신고 ${openReports}건 → <a href="#" data-go="reports">신고 탭</a></li>`:`<li class="ok">✅ 처리할 신고 없음</li>`);
+  if(u && u.db_bytes/LIMIT.db>=.8) todo.push(`<li class="warn">데이터베이스가 ${Math.round(u.db_bytes/LIMIT.db*100)}% 찼어요 → 요금제 올리기 검토</li>`);
+  if(storageUsed/LIMIT.storage>=.8) todo.push(`<li class="warn">파일 저장 공간이 ${Math.round(storageUsed/LIMIT.storage*100)}% 찼어요 → 요금제 올리기 검토</li>`);
+  if(trash) todo.push(`<li>휴지통에 있는 책 ${trash}권 (작가가 직접 되살리거나 지울 수 있어요)</li>`);
+  todo.push(`<li>백업: 무료 요금제는 자동 백업이 없어요. 한 달에 한 번 <b>운영 점검표</b>대로 내보내기</li>`);
+  // 추이
+  const mem=daily(data.profiles.map(p=>p.created_at)), bk=daily(live.map(b=>b.created_at)), pub=daily(data.books.filter(visible).map(b=>b.published_at));
+  const sum=a=>a.reduce((s,b)=>s+b.n,0), week=a=>a.slice(-7).reduce((s,b)=>s+b.n,0);
+  // 종류별 용량
+  const K={image:['사진','#D4AF37'],video:['영상','#0B3324'],audio:['노래','#8A6E22']};
+  const byKind={image:0,video:0,audio:0}; data.media.forEach(m=>{ if(byKind[m.kind]!==undefined) byKind[m.kind]+=Number(m.size_bytes||0); });
+  const kTotal=Object.values(byKind).reduce((a,b)=>a+b,0);
+  // 용량이 큰 책
+  const perBook={}; data.media.forEach(m=>perBook[m.book_id]=(perBook[m.book_id]||0)+Number(m.size_bytes||0));
+  const topBooks=Object.entries(perBook).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const nameOf=id=>data.profiles.find(p=>p.id===id)?.display_name||'(이름 없음)';
+  pane.innerHTML=`<div class="dash">
+    <section class="panel"><h2>오늘 할 일</h2><p class="meta">관리자가 확인할 것만 모았어요.</p><ul class="todo">${todo.join('')}</ul></section>
+    <section class="panel"><h2>새 회원 · 최근 30일</h2><p class="meta"><span class="big">${sum(mem)}</span>명 · 이번 주 ${week(mem)}명</p>${barChart(mem,'최근 30일 날짜별 새 회원 수')}</section>
+    <section class="panel"><h2>새 책 · 최근 30일</h2><p class="meta"><span class="big">${sum(bk)}</span>권 · 이번 주 ${week(bk)}권 · 30일 사이 서가 공개 ${sum(pub)}권</p>${barChart(bk,'최근 30일 날짜별 새 책 수')}</section>
+    <section class="panel"><h2>저장 공간</h2><p class="meta">Supabase 무료 요금제 한도 기준이에요. 80%가 넘으면 빨간색으로 바뀌어요.</p>
+      <div class="row" style="justify-content:space-between"><b>사진·영상·노래 파일</b><span class="meta" style="margin:0">${mb(storageUsed)} / ${mb(LIMIT.storage)}${u?` · ${Number(u.storage_files).toLocaleString()}개`:''}</span></div>${meter(storageUsed,LIMIT.storage)}
+      ${kTotal?`<div class="kinds" aria-hidden="true">${Object.entries(byKind).map(([k,v])=>v?`<i style="width:${(v/kTotal*100).toFixed(1)}%;background:${K[k][1]}"></i>`:'').join('')}</div>
+      <div class="legend">${Object.entries(byKind).map(([k,v])=>`<span><b style="background:${K[k][1]}"></b>${K[k][0]} ${mb(v)}</span>`).join('')}</div>`:''}
+      <div class="row" style="justify-content:space-between;margin-top:14px"><b>데이터베이스(글·페이지)</b><span class="meta" style="margin:0">${u?`${mb(Number(u.db_bytes))} / ${mb(LIMIT.db)}`:'확인 못 함'}</span></div>${u?meter(Number(u.db_bytes),LIMIT.db):''}
+    </section>
+    <section class="panel"><h2>최근 가입한 회원</h2><ul class="mini">${data.profiles.slice(0,5).map(p=>`<li><span>${esc(p.display_name||'(이름 없음)')}</span><span class="meta">${fmt(p.created_at)}</span></li>`).join('')||'<li class="meta">아직 없어요</li>'}</ul></section>
+    <section class="panel"><h2>최근 만든 책</h2><ul class="mini">${live.slice(0,5).map(b=>`<li><span>${esc(b.title)} <span class="meta">· ${visible(b)?'공개':b.admin_hidden?'숨김':'나만 보기'}</span></span><span class="meta">${fmt(b.created_at)}</span></li>`).join('')||'<li class="meta">아직 없어요</li>'}</ul></section>
+    <section class="panel"><h2>용량을 많이 쓰는 책</h2><p class="meta">책 한 권 한도는 200MB예요.</p><ul class="mini">${topBooks.map(([id,n])=>{ const b=bookById(id); return `<li><span>${esc(b?.title||'(지운 책)')} <span class="meta">· ${esc(b?nameOf(b.owner_id):'')}</span></span><span class="meta">${mb(n)}</span></li>`; }).join('')||'<li class="meta">아직 올린 파일이 없어요</li>'}</ul></section>
+  </div>`;
+  pane.onclick=e=>{ const a=e.target.closest('[data-go]'); if(a){ e.preventDefault(); tab=a.dataset.go; render(); } };
 }
 
 function paneReports(){
