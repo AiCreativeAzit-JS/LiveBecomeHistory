@@ -106,8 +106,16 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 if(window.BookRender){ const st=document.createElement('style'); st.textContent=BookRender.CSS; document.head.appendChild(st); }
 if(window.BookViewer) BookViewer.injectCSS();
 // 저작권 보호: 책 내용은 인쇄·복사·우클릭·끌기로 퍼 갈 수 없게(독자 모두, 로그인 여부와 무관)
-const COPY_NOTE = '작가의 저작권 보호를 위해 이 책은 내려받기·인쇄·복사를 할 수 없어요.';
-function guard(root){ if(!window.BookViewer) return; BookViewer.protect(root,{onBlocked:t=>toast(t==='print'||t==='save'?'이 책은 인쇄·저장할 수 없어요':'이 책의 내용은 복사할 수 없어요')}); BookViewer.wireVideo(root); BookViewer.wireAudio(root); }
+const COPY_NOTE = '작가의 저작권 보호를 위해 이 책은 내려받기·인쇄·복사를 할 수 없어요. 화면에는 보는 분의 정보가 옅게 표시돼요.';
+function guard(root){ if(!window.BookViewer) return; BookViewer.protect(root,{onBlocked:t=>toast(t==='print'||t==='save'?'이 책은 인쇄·저장할 수 없어요':'이 책의 내용은 복사할 수 없어요')}); BookViewer.wireVideo(root); BookViewer.wireAudio(root);
+  wmLabel().then(t=>BookViewer.watermark(root,t)); }
+// 워터마크 글: 로그인한 분은 가린 이메일(ha***@gmail.com), 아니면 「비회원 열람」 + 여는 시각
+async function wmLabel(){
+  let who='비회원 열람';
+  try{ const { data } = await sb.auth.getSession(); const em=data.session&&data.session.user&&data.session.user.email; if(em&&em.includes('@')){ const [a,d]=em.split('@'); who=a.slice(0,2)+'***@'+d; } }catch{}
+  const t=new Date(), z=n=>String(n).padStart(2,'0');
+  return `archive4everyone.com · ${who} · ${t.getFullYear()}.${z(t.getMonth()+1)}.${z(t.getDate())} ${z(t.getHours())}:${z(t.getMinutes())}`;
+}
 const $app = document.getElementById('app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(t){ const el=document.getElementById('toast'); el.textContent=t; el.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('show'),2400); }
