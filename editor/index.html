@@ -103,6 +103,11 @@
   .brandwrap{display:flex;align-items:center;min-width:0}
   .brandwrap .brand{white-space:nowrap}
   @media (max-width:420px){.brandwrap .brand span{display:none}}
+  .acct{margin:40px 0 0;text-align:center;font-size:14px;color:var(--gray-2)}
+  .acct .link{font-size:14px;color:var(--gray-2);text-decoration:underline;padding:0;min-height:0}
+  .quitdlg{max-width:460px;border:1px solid var(--line-2);border-radius:12px;padding:24px}
+  .quitdlg::backdrop{background:rgba(0,0,0,.35)}.quitdlg ul{padding-left:20px;margin:6px 0 10px}
+  .quitdlg input{width:100%;font:inherit;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;margin-top:6px}
   .agree{margin-top:14px;padding:12px 14px;border:1px solid var(--line-2);border-radius:8px;background:#fff}
   .agree .showpw{margin:6px 0 0;align-items:flex-start}.agree .showpw input{flex:none;margin-top:3px}
   .agnote{font-size:13px;color:var(--gray-2);margin:8px 0 0;line-height:1.55}
@@ -115,7 +120,7 @@
   <div class="row" id="topRight"></div>
 </div></header>
 <main class="wrap" id="app"></main>
-<p class="foot-links"><a href="../terms/">이용약관</a></p>
+<p class="foot-links"><a href="../terms/">이용약관</a> · <a href="../privacy/">개인정보 처리방침</a></p>
 <div class="toast" id="toast"></div>
 
 <script src="../lib/supabase-js.umd.js"></script>
@@ -194,7 +199,7 @@ function viewAuth(mode='login'){
       ${signup?`<div class="agree">
         <label class="showpw"><input type="checkbox" id="agAll"> <span><b>모두 동의해요</b></span></label>
         <label class="showpw"><input type="checkbox" id="agTerms" class="ag"> <span>(필수) 만 14세 이상이며, <a href="../terms/" target="_blank" rel="noopener">이용약관</a>에 동의해요</span></label>
-        <label class="showpw"><input type="checkbox" id="agPriv" class="ag"> <span>(필수) 개인정보 수집·이용에 동의해요</span></label>
+        <label class="showpw"><input type="checkbox" id="agPriv" class="ag"> <span>(필수) <a href="../privacy/" target="_blank" rel="noopener">개인정보 수집·이용</a>에 동의해요</span></label>
         <p class="agnote">수집 항목: 이메일, 작가 이름, 비밀번호(암호화 저장) · 목적: 회원 확인·로그인·중요 안내 · 보관: 탈퇴할 때까지(법령이 정한 경우 그 기간). 동의하지 않으면 가입할 수 없어요.</p>
       </div>`:''}
       <div class="row" style="margin-top:20px"><button type="submit" class="gold" id="go">${signup?'가입하기':'로그인'}</button>
@@ -240,6 +245,31 @@ function detail(err){ // 원인 파악용 원문(문의할 때 함께 알려 주
 }
 async function logout(){ await sb.auth.signOut(); user=null; book=null; route(); }
 
+/* ───────── 회원 탈퇴 ───────── */
+function openQuit(){
+  const d=document.createElement('dialog'); d.className='quitdlg';
+  d.innerHTML=`<h2 class="serif" style="margin-top:0">회원 탈퇴</h2>
+    <p>탈퇴하면 <b>되돌릴 수 없어요.</b> 아래 내용이 모두 바로 지워져요.</p>
+    <ul><li>내 모든 책(휴지통 포함)과 페이지, 서가 발행본</li><li>올린 사진·영상·노래 파일</li><li>비밀 링크(받은 분들도 더 이상 볼 수 없어요)</li><li>계정 정보(이메일·이름)</li></ul>
+    <p class="note">💡 간직하고 싶은 책은 먼저 스튜디오의 「내려받기」로 저장해 두세요.</p>
+    <label for="qin">계속하려면 <b>탈퇴</b>라고 적어 주세요</label><input id="qin" type="text" autocomplete="off">
+    <div id="qmsg"></div>
+    <div class="row" style="justify-content:flex-end;gap:10px;margin-top:14px"><button type="button" class="ghost" id="qno">취소</button><button type="button" class="danger" id="qyes" disabled>탈퇴하기</button></div>`;
+  document.body.appendChild(d); d.showModal();
+  const inp=d.querySelector('#qin'), yes=d.querySelector('#qyes'); inp.focus();
+  inp.oninput=()=>{ yes.disabled = inp.value.trim()!=='탈퇴'; };
+  d.querySelector('#qno').onclick=()=>{ d.close(); d.remove(); };
+  yes.onclick=async()=>{
+    yes.disabled=true; yes.textContent='지우는 중…';
+    let ok=false;
+    try{ const { data, error } = await sb.functions.invoke('delete-account',{ body:{ confirm:'탈퇴' } }); ok = !error && data && data.ok; }catch(err){ console.error(err); }
+    if(!ok){ d.querySelector('#qmsg').innerHTML=msgBox('err','탈퇴를 끝내지 못했어요. 잠시 뒤 다시 시도하거나 문의해 주세요.'); yes.disabled=false; yes.textContent='탈퇴하기'; return; }
+    try{ await sb.auth.signOut({ scope:'local' }); }catch{}
+    d.close(); d.remove(); user=null; book=null; $top.innerHTML='';
+    $app.innerHTML=`<div class="narrow card" style="text-align:center"><h1 class="serif">탈퇴가 끝났어요</h1><p class="sub">그동안 인물대백과사와 함께해 주셔서 고마웠어요.<br>계정과 책, 파일을 모두 지웠어요.</p><a class="btn ghost" href="https://archive4everyone.com/">인물대백과사 홈으로</a></div>`;
+  };
+}
+
 /* ───────── 내 서재 ───────── */
 let libTab='books';
 async function viewLibrary(){
@@ -249,8 +279,10 @@ async function viewLibrary(){
   $app.innerHTML = `<div class="row between"><div><h1 class="serif">내 서재</h1><p class="sub">내가 쓰는 책들이에요. 책은 언제든 내려받아 간직할 수 있어요.</p></div>
     <button class="gold" id="nb">＋ 새 책 만들기</button></div>
     <div class="libtabs" role="tablist"><button role="tab" data-tab="books">📚 내 책 <span id="cBooks"></span></button><button role="tab" data-tab="trash">🗑 휴지통 <span id="cTrash"></span></button></div>
-    <div id="list" class="books">불러오는 중…</div>`;
+    <div id="list" class="books">불러오는 중…</div>
+    <div class="acct"><a href="../privacy/">개인정보 처리방침</a> · <a href="../terms/">이용약관</a> · <button type="button" class="link" id="quit">회원 탈퇴</button></div>`;
   document.getElementById('nb').onclick = newBook;
+  document.getElementById('quit').onclick = openQuit;
   document.querySelectorAll('.libtabs [data-tab]').forEach(b=>b.onclick=()=>{ libTab=b.dataset.tab; viewLibrary(); });
   const { data, error } = await sb.from('books').select('id,title,subtitle,is_public,admin_hidden,updated_at,format,deleted_at,published_at')
     .eq('owner_id', user.id).order('updated_at',{ascending:false});
