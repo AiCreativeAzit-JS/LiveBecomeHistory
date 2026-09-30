@@ -183,6 +183,7 @@
   .opt b{display:block;font-size:15.5px;margin-bottom:4px} .opt span{font-size:13.5px;color:var(--muted);line-height:1.5}
   .exwarn{font-size:13.5px;background:#FFF3DC;color:#7A5B0C;border-radius:10px;padding:10px 12px;margin:4px 0 12px}
   .exwarn:empty{display:none}
+  .linkbox{display:flex;gap:8px;margin:6px 0 12px}.linkbox input{flex:1;min-width:0;font:13px var(--sans);padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink)}
   .fatal{max-width:420px;margin:60px auto;background:#fff;border:1px solid var(--line);border-radius:14px;padding:28px 26px;text-align:center;box-shadow:var(--shadow)}
   .fatal h2{font-family:var(--serif);color:var(--brand-2);margin:0 0 8px;font-size:20px}.fatal p{color:var(--muted);margin:0 0 18px}
   .save[data-state=err]{color:var(--danger);font-weight:600}.save[data-state=saving]{color:var(--gold)}
@@ -210,6 +211,7 @@
     <button class="btn" id="btnPreview"><svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>미리보기</button>
     <button class="btn" id="btnExport"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>내려받기</button>
     <span class="pubstate" id="pubState" hidden></span>
+    <button class="btn" id="btnShare" title="서가에 올리지 않고, 링크를 받은 사람만 보게 하기">🔗 비밀 링크</button>
     <button class="btn" id="btnUnpub" hidden>서가에서 내리기</button>
     <button class="btn primary" id="btnPublish"><svg viewBox="0 0 24 24"><path d="M2 5h6a4 4 0 014 4v11a3 3 0 00-3-3H2z"/><path d="M22 5h-6a4 4 0 00-4 4v11a3 3 0 013-3h7z"/></svg>서가에 공개</button>
   </header>
@@ -262,6 +264,12 @@
   <span class="sep"></span>
   <button data-m="clear" title="꾸밈 지우기"><svg viewBox="0 0 24 24"><path d="M4 7V5h16v2M10 5l-3 14M14 19l6-6M20 19l-6-6"/></svg></button>
 </div>
+<div class="modal" id="shDlg" hidden role="dialog" aria-modal="true" aria-labelledby="shT"><div class="mbox">
+  <h3 id="shT">🔗 비밀 링크로 공유하기</h3>
+  <p class="sub" style="color:var(--muted);font-size:14px;margin:0 0 14px">서가에 올리지 않고, <b>이 링크를 받은 사람만</b> 책을 볼 수 있어요. 가족·친구에게 카카오톡으로 보내기 좋아요. 링크는 언제든 끊을 수 있어요.</p>
+  <div id="shBody"></div>
+  <div style="text-align:right;margin-top:12px"><button class="btn" id="shClose">닫기</button></div>
+</div></div>
 <div class="modal" id="exDlg" hidden role="dialog" aria-modal="true" aria-labelledby="exT"><div class="mbox">
   <h3 id="exT">어떻게 내려받을까요?</h3>
   <button class="opt" data-ex="screen"><b>📱 화면용 전자책 (HTML)</b><span>컴퓨터·휴대폰에서 열어 보는 책이에요. 사진·영상·노래가 파일 안에 담겨 바로 재생돼요.</span></button>
@@ -283,7 +291,7 @@
 <input type="file" id="file" hidden>
 <div class="toast" id="toast" role="status"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../lib/supabase-js.umd.js"></script>
 <script src="../lib/qrcode.js"></script>
 <script>
 'use strict';
@@ -349,7 +357,10 @@ function txStyle(e){
 function bars(){ let s=''; for(let i=0;i<34;i++){ s+=`<b style="height:${20+Math.abs(Math.sin(i*1.7))*80}%"></b>`; } return s; }
 // 인쇄용: 영상·노래 자리에 QR 코드(휴대폰으로 찍으면 서가의 그 영상·노래로)
 const PUBLIC_SHELF = new URL('../shelf/', location.href).href; // 운영 도메인이 정해지면 https://archive4everyone.com/... 로 바꾼다
-function mediaLink(e){ return typeof BOOK!=='undefined' && BOOK ? `${PUBLIC_SHELF}#/book/${BOOK}/m/${e.media_id||''}` : PUBLIC_SHELF; }
+function mediaLink(e){
+  if(typeof BOOK==='undefined' || !BOOK) return PUBLIC_SHELF;
+  if(bookRow && !bookRow.is_public && shareToken) return `${PUBLIC_SHELF}#/s/${shareToken}/m/${e.media_id||''}`; // 비공개 책은 비밀 링크로
+  return `${PUBLIC_SHELF}#/book/${BOOK}/m/${e.media_id||''}`; }
 function qrSVG(text){ try{ const q=qrcode(0,'M'); q.addData(text); q.make(); return q.createSvgTag({cellSize:4,margin:4,scalable:true}); }catch(err){ console.error(err); return ''; } }
 function qrBlock(e){ const what=e.type==='video'?'영상':'노래';
   return `<div class="qr">${qrSVG(mediaLink(e))}<div class="qrt"><b>${esc(e.name||what)}</b><br>휴대폰 카메라로 찍으면<br>${what}이 재생돼요</div></div>`; }
@@ -776,7 +787,8 @@ async function exportPages(forPrint=false){
 }
 function openExport(){
   endEdit(); let w='';
-  if(ONLINE && !bookRow.is_public) w='⚠ 아직 발행하지 않은 책이에요. 인쇄용의 QR 코드는 책을 발행해야 열려요.';
+  if(ONLINE && !bookRow.is_public && !shareToken) w='⚠ 아직 발행하지 않은 책이에요. 인쇄용 QR 코드는 서가에 발행하거나 「🔗 비밀 링크」를 만들어야 열려요.';
+  else if(ONLINE && !bookRow.is_public && shareToken) w='🔒 서가에 올리지 않은 책이라, QR 코드는 비밀 링크로 열려요(링크를 끊으면 QR도 열리지 않아요).'+(pubDirty()?' 발행 뒤 고친 영상·노래는 링크의 「지금 내용으로 새로 고침」을 눌러야 열려요.':'');
   else if(ONLINE && pubDirty()) w='ℹ QR 코드는 서가의 발행본을 보여줘요. 발행 뒤에 새로 넣은 영상·노래는 「다시 발행」해야 QR로 열려요.';
   $('exWarn').textContent=w; $('exDlg').hidden=false; $('exDlg').querySelector('.opt').focus();
 }
@@ -892,21 +904,55 @@ function reflowAll(){ // 옮긴 글이 한 페이지를 넘으면 다음 페이�
 /* 초안 → 발행: 쓰는 내용(pages)은 초안이고, 서가 독자는 「발행하기」로 복사한 발행본(book_snapshots)만 본다 */
 let snapPagesJSON=null;
 const draftPagesJSON = () => JSON.stringify(JSON.parse(serialize()).pages);
-const pubDirty = () => !!bookRow && bookRow.is_public && draftPagesJSON()!==snapPagesJSON;
+let shareToken=null;
+const pubDirty = () => !!bookRow && (bookRow.is_public || !!shareToken) && draftPagesJSON()!==snapPagesJSON;
 function updPublish(){ if(!ONLINE||!bookRow) return; const b=$('btnPublish'), st=$('pubState'), un=$('btnUnpub');
   st.hidden=false; un.hidden=!bookRow.is_public;
-  if(!bookRow.is_public){ b.lastChild.textContent='발행하기'; b.classList.add('primary'); st.className='pubstate'; st.textContent='초안 · 나만 보기'; }
+  if(!bookRow.is_public){ b.lastChild.textContent='서가에 발행하기'; b.classList.add('primary');
+    if(shareToken){ st.className='pubstate '+(pubDirty()?'dirty':'live'); st.textContent = pubDirty() ? '🔒 비밀 링크 공유 중 · 고친 내용은 아직 안 보여요' : '🔒 비밀 링크로 공유 중'; }
+    else { st.className='pubstate'; st.textContent='초안 · 나만 보기'; } }
   else if(pubDirty()){ b.lastChild.textContent='다시 발행'; b.classList.add('primary'); st.className='pubstate dirty'; st.textContent='고친 내용 있음 · 서가에는 이전 발행본'; }
   else { b.lastChild.textContent='발행됨 ✓'; b.classList.remove('primary'); st.className='pubstate live'; st.textContent='서가에 발행됨'; } }
+// 지금 초안을 발행본으로 복사(서가와 비밀 링크가 함께 쓰는 한 권)
+async function writeSnapshot(){
+  const pages=JSON.parse(serialize()).pages;
+  const up=await sb.from('book_snapshots').upsert({book_id:BOOK,title:bookRow.title,author_name:(bookRow.author_name||'').slice(0,40),pages,published_at:new Date().toISOString()});
+  if(up.error){ console.error(up.error); return false; } snapPagesJSON=JSON.stringify(pages); return true;
+}
+/* 비밀 링크 */
+const newToken = () => { const a=new Uint8Array(24); crypto.getRandomValues(a); return btoa(String.fromCharCode(...a)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }; // 32자, 추측 불가
+const shareURL = () => `${PUBLIC_SHELF}#/s/${shareToken}`;
+function renderShare(){
+  const box=$('shBody');
+  if(!shareToken){ box.innerHTML=`<button class="btn primary" id="shMake" style="width:100%;justify-content:center">비밀 링크 만들기</button>
+    <p class="sub" style="font-size:13px;color:var(--muted);margin:10px 0 0">지금 쓴 내용으로 공유본이 만들어져요. 서가에는 올라가지 않아요.</p>`; return; }
+  box.innerHTML=`<label class="lab" for="shUrl">공유 링크</label><div class="linkbox"><input id="shUrl" readonly value="${esc(shareURL())}"><button class="btn primary" id="shCopy">복사</button></div>
+    ${pubDirty()?`<div class="exwarn">링크를 만든 뒤 고친 내용이 있어요. 받는 분은 아직 이전 내용을 봐요.</div><button class="btn" id="shRefresh" style="width:100%;justify-content:center;margin-bottom:8px">지금 내용으로 새로 고침</button>`:''}
+    <div class="row" style="justify-content:space-between"><button class="btn" id="shRotate" title="예전 링크는 더 이상 열리지 않아요">새 링크로 바꾸기</button><button class="btn" id="shCut" style="color:var(--danger)">링크 끊기</button></div>`;
+}
+async function openShare(){ if(!ONLINE) return toast('시안이라 비밀 링크는 만들 수 없어요'); endEdit(); await saveNow(); renderShare(); $('shDlg').hidden=false; }
+$('btnShare').onclick=openShare;
+$('shDlg').addEventListener('click',async ev=>{
+  if(ev.target.id==='shDlg'||ev.target.id==='shClose'){ $('shDlg').hidden=true; return; }
+  const id=ev.target.closest('button')?.id; if(!id) return;
+  if(id==='shCopy'){ try{ await navigator.clipboard.writeText(shareURL()); toast('링크를 복사했어요. 카카오톡 등에 붙여 넣으세요'); }catch{ $('shUrl').select(); toast('링크를 길게 눌러 복사해 주세요'); } return; }
+  if(id==='shMake'){ if((!snapPagesJSON||draftPagesJSON()!==snapPagesJSON) && !(await writeSnapshot())){ toast('만들지 못했어요'); return; }
+    const t=newToken(); const {error}=await sb.from('book_shares').insert({book_id:BOOK,token:t}); if(error){ console.error(error); toast('만들지 못했어요'); return; }
+    shareToken=t; toast('비밀 링크를 만들었어요'); }
+  else if(id==='shRefresh'){ if(!(await writeSnapshot())){ toast('새로 고치지 못했어요'); return; } toast('링크에 지금 내용을 반영했어요'+(bookRow.is_public?' (서가에도 반영)':'')); }
+  else if(id==='shRotate'){ if(!confirm('새 링크로 바꿀까요?\n예전 링크(와 그 링크로 만든 QR)는 더 이상 열리지 않아요.')) return;
+    const t=newToken(); const {error}=await sb.from('book_shares').update({token:t}).eq('book_id',BOOK); if(error){ toast('바꾸지 못했어요'); return; } shareToken=t; toast('새 링크로 바꿨어요'); }
+  else if(id==='shCut'){ if(!confirm('비밀 링크를 끊을까요?\n링크를 받은 분들이 더 이상 볼 수 없어요.')) return;
+    const {error}=await sb.from('book_shares').delete().eq('book_id',BOOK); if(error){ toast('끊지 못했어요'); return; } shareToken=null; toast('링크를 끊었어요'); }
+  renderShare(); updPublish();
+});
 async function togglePublic(){ // 「발행하기 / 다시 발행」
   endEdit(); await saveNow(); if(serialize()!==lastSaved){ toast('저장이 끝나면 다시 눌러 주세요'); return; }
   const first=!bookRow.is_public; if(!first && !pubDirty()){ toast('이미 최신 발행본이 서가에 있어요'); return; }
   if(!confirm(first ? '이 책을 서가에 발행할까요?\n다른 회원들이 읽을 수 있게 돼요.\n\n발행한 뒤에 고친 내용은 「다시 발행」을 눌러야 서가에 반영돼요.' : '고친 내용을 서가에 다시 발행할까요?\n지금 서가의 발행본이 새 내용으로 바뀌어요.')) return;
-  const now=new Date().toISOString(), pages=JSON.parse(serialize()).pages;
-  const up=await sb.from('book_snapshots').upsert({book_id:BOOK,title:bookRow.title,author_name:(bookRow.author_name||'').slice(0,40),pages,published_at:now});
-  if(up.error){ console.error(up.error); toast('발행하지 못했어요. 다시 시도해 주세요'); return; }
+  const now=new Date().toISOString(); if(!(await writeSnapshot())){ toast('발행하지 못했어요. 다시 시도해 주세요'); return; }
   if(first){ const patch={is_public:true,published_at:bookRow.published_at||now}; const r=await sb.from('books').update(patch).eq('id',BOOK); if(r.error){ toast('발행하지 못했어요'); return; } Object.assign(bookRow,patch); }
-  snapPagesJSON=JSON.stringify(pages); updPublish(); toast(first?'서가에 발행했어요':'새 내용으로 다시 발행했어요');
+  updPublish(); toast(first?'서가에 발행했어요':'새 내용으로 다시 발행했어요');
 }
 async function unpublish(){
   if(!confirm('서가에서 내릴까요?\n다른 회원들이 더 이상 볼 수 없어요. 언제든 다시 발행할 수 있어요.')) return;
@@ -924,8 +970,9 @@ async function boot(){
   const b=await sb.from('books').select('id,owner_id,title,author_name,format,is_public,published_at,deleted_at').eq('id',BOOK).maybeSingle();
   if(b.error||!b.data||b.data.owner_id!==user.id||b.data.deleted_at){ fatal('이 책을 열 수 없어요','없는 책이거나 내 책이 아니에요.',['내 서재로','../editor/']); return; }
   bookRow=b.data; state.title=bookRow.title;
-  const [pg,md,sn]=await Promise.all([sb.from('pages').select('*').eq('book_id',BOOK).order('position'), sb.from('media').select('id,kind,storage_path,size_bytes').eq('book_id',BOOK), sb.from('book_snapshots').select('pages').eq('book_id',BOOK).maybeSingle()]);
+  const [pg,md,sn,sh]=await Promise.all([sb.from('pages').select('*').eq('book_id',BOOK).order('position'), sb.from('media').select('id,kind,storage_path,size_bytes').eq('book_id',BOOK), sb.from('book_snapshots').select('pages').eq('book_id',BOOK).maybeSingle(), sb.from('book_shares').select('token').eq('book_id',BOOK).maybeSingle()]);
   if(sn && sn.data) snapPagesJSON=JSON.stringify(sn.data.pages);
+  if(sh && sh.data) shareToken=sh.data.token;
   if(pg.error||md.error){ fatal('책을 불러오지 못했어요','잠시 후 다시 시도해 주세요.'); return; }
   md.data.forEach(m=>mediaInfo[m.id]=m);
   const urls=await signAll(md.data);

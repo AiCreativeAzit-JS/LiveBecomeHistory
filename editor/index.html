@@ -107,7 +107,7 @@
 <main class="wrap" id="app"></main>
 <div class="toast" id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../lib/supabase-js.umd.js"></script>
 <script>
 'use strict';
 /* ───────── 설정 ───────── */
@@ -118,7 +118,7 @@ const INLINE_LIMIT = 15 * 1024 * 1024; // 내보내기 시 HTML 안에 넣는 �
 
 const $app = document.getElementById('app');
 if(!window.supabase){
-  $app.innerHTML = '<div class="narrow card"><h1 class="serif">화면을 불러오지 못했어요</h1><p class="sub">인터넷 연결을 확인하거나, 보안 프로그램·광고 차단이 꺼져 있는지 확인한 뒤 새로고침해 주세요.<br>(부품 파일: cdn.jsdelivr.net)</p></div>';
+  $app.innerHTML = '<div class="narrow card"><h1 class="serif">화면을 불러오지 못했어요</h1><p class="sub">인터넷 연결을 확인하거나, 보안 프로그램·광고 차단이 꺼져 있는지 확인한 뒤 새로고침해 주세요.<br></p></div>';
   throw new Error('supabase-js not loaded');
 }
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);

@@ -98,7 +98,7 @@
 <footer>인물대백과사 · 이름난 사람만 책을 남기던 시대는 지났습니다.</footer>
 <div class="toast" id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../lib/supabase-js.umd.js"></script>
 <script src="../lib/book-render.js"></script>
 <script>
 'use strict';
@@ -143,7 +143,9 @@ route();
 function route(){
   // #/book/<책>  ·  #/book/<책>/p/<쪽>  ·  #/book/<책>/m/<영상·노래 번호>(인쇄본 QR)
   const m = location.hash.match(/^#\/book\/([0-9a-f-]{36})(?:\/p\/(\d{1,4})|\/m\/([0-9a-f-]{36}))?$/);
+  const sh = location.hash.match(/^#\/s\/([A-Za-z0-9_-]{32,64})(?:\/m\/([0-9a-f-]{36}))?$/); // 비밀 링크
   window.scrollTo(0,0);
+  if(sh) return viewShared(sh[1], sh[2]||null);
   m ? viewBook(m[1], m[2]?+m[2]:0, m[3]||null) : viewList();
 }
 
@@ -177,6 +179,22 @@ async function loadPage(reset){
 }
 
 /* ───────── 책 읽기 ───────── */
+/* ───────── 비밀 링크로 받은 책 ───────── */
+async function viewShared(token, mediaId){
+  document.title='공유받은 책 — 인물대백과사';
+  $app.innerHTML = '<div class="wrap"><p class="note" style="padding-top:30px">책을 펴는 중…</p></div>';
+  let data=null;
+  try{ const r = await sb.functions.invoke('shared-book',{ body:{ token } }); if(!r.error) data=r.data; }catch(err){ console.error(err); }
+  if(!data || !Array.isArray(data.pages)){ $app.innerHTML='<div class="wrap"><div class="empty">링크가 끊겼거나 잘못된 링크예요.<br>책을 보내 준 분께 새 링크를 부탁해 주세요.</div></div>'; return; }
+  const pages=data.pages, urls=data.urls||{};
+  document.title = `${data.title||'책'} — 인물대백과사`;
+  $app.innerHTML = `<div class="slim"><h1 class="serif">${esc(data.title||'')}</h1><p>${esc(data.author_name||'')}${data.author_name?' 지음':''}</p></div>
+    <div class="oldnote" style="background:#E7F1ED;color:#0B4536">🔒 링크를 받은 분만 볼 수 있는 책이에요. 링크를 다른 곳에 올리지 말아 주세요.</div>
+    <div class="printbar"><span class="note">종이로 뽑을 때는 인쇄 창에서 <b>「PDF로 저장」</b>을 고르세요.</span><button class="ghost" id="printBtn">🖨 인쇄 · PDF</button></div>
+    <div class="wrap"><article class="reader"><div class="pages">${pages.map((p,i)=>`<section class="pgwrap" id="c${i}" aria-label="${i+1}쪽">${BookRender.pageHTML(p,urls)}<div class="pno">— ${i+1} —</div></section>`).join('')}</div></article></div>`;
+  document.getElementById('printBtn').onclick=()=>window.print();
+  if(mediaId){ const i=pages.findIndex(p=>(p.els||[]).some(e=>e&&e.media_id===mediaId)); if(i>=0){ const jump=()=>document.getElementById('c'+i)?.scrollIntoView({block:'start'}); [60,400,1000].forEach(t=>setTimeout(jump,t)); } }
+}
 async function viewBook(id, pageNo=0, mediaId=null){
   $app.innerHTML = '<div class="wrap"><p class="note" style="padding-top:30px">책을 펴는 중…</p></div>';
   const [b,c,m] = await Promise.all([
