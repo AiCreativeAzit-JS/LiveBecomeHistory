@@ -16,6 +16,7 @@
   body{margin:0;background:var(--ivory);color:var(--ink);font-family:'Pretendard',-apple-system,sans-serif;font-size:17px;line-height:1.6;word-break:keep-all;-webkit-font-smoothing:antialiased}
   h1,h2,h3,.serif{font-family:'Noto Serif KR',serif}
   :focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+  a:not(.btn){color:var(--gold-deep);font-weight:600}
   header.top{position:sticky;top:0;z-index:20;background:rgba(242,238,226,.95);backdrop-filter:blur(6px);border-bottom:1px solid var(--line-2)}
   .top-in{max-width:1100px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
   .brand{font-family:'Noto Serif KR',serif;font-weight:700;color:var(--green);font-size:18px}
@@ -32,6 +33,8 @@
   button.gold{background:var(--gold);color:var(--green)}
   button.ghost,.btn.ghost{background:transparent;color:var(--green);border:1.5px solid var(--green)}
   button.danger{background:transparent;color:var(--danger);border:1.5px solid var(--danger)}
+  .btn.danger{background:transparent;color:var(--danger);border:1.5px solid var(--danger)}
+  .btn[aria-hidden]{cursor:default;opacity:.75}
   button.small,.btn.small{font-size:13.5px;padding:6px 13px;min-height:34px}
   button:disabled{opacity:.5;cursor:not-allowed}
   .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:18px 0 24px}
@@ -181,7 +184,7 @@ function paneReports(){
             ${b&&!b.admin_hidden?`<button class="danger small" data-act="hide">책 숨기고 처리 완료</button>`:''}
             <button class="small" data-act="resolved">처리 완료</button>
             <button class="ghost small" data-act="dismissed">문제없음</button>`:`<button class="ghost small" data-act="open">다시 열기</button>`}
-        </div></div>`; }).join('') : '<div class="empty">해당하는 신고가 없어요.</div>'}`;
+        </div></div>`; }).join('') : emptyReports()}`;
   const sel=document.getElementById('rf'); sel.value=repFilter; sel.onchange=()=>{ repFilter=sel.value; render(); };
   pane.onclick=async e=>{
     const btn=e.target.closest('[data-act]'); if(!btn) return;
@@ -198,6 +201,18 @@ function paneReports(){
       await loadAll(); render(); toast('처리했어요');
     }catch(err){ console.error(err); toast('처리하지 못했어요'); btn.disabled=false; }
   };
+}
+function emptyReports(){
+  if(repFilter!=='open') return '<div class="empty">해당하는 신고가 없어요.</div>';
+  return `<div class="item" style="text-align:center;padding:28px 20px">
+    <h3 style="font-size:19px">✅ 지금 처리할 신고가 없어요</h3>
+    <p class="meta" style="margin:8px 0 14px">회원이 서가의 책에서 <b>🚩 신고하기</b>를 누르면 이곳에 카드로 나타나요.<br>
+    신고가 들어오면 카드마다 아래 버튼이 생겨요.</p>
+    <div class="row" style="justify-content:center">
+      <span class="btn danger small" aria-hidden="true">책 숨기고 처리 완료</span>
+      <span class="btn small" aria-hidden="true">처리 완료</span>
+      <span class="btn ghost small" aria-hidden="true">문제없음</span></div>
+    <p class="meta" style="margin-top:14px">💡 직접 시험해 보려면 로그인한 상태로 <a href="../shelf/">서가</a>에서 책을 열고 신고해 보세요.</p></div>`;
 }
 async function setReport(id,status){ const { error } = await sb.from('reports').update({status}).eq('id',id); if(error) throw error; }
 async function rpcHide(bookId,hidden,note){ const { error } = await sb.rpc('admin_set_hidden',{ b:bookId, hidden, note }); if(error) throw error; }
