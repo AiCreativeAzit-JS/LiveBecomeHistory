@@ -72,20 +72,9 @@
   .pages{max-width:620px;margin:26px auto 0}.pgwrap{margin:0 0 30px}.pgwrap .bk-pg{box-shadow:0 8px 28px rgba(20,40,32,.13)}
   .pno{text-align:center;font-size:13px;color:var(--gray-2);margin-top:8px}
   .slim{background:var(--green);color:var(--ivory-light);text-align:center;padding:22px 20px}.slim h1{margin:0;font-size:22px;color:var(--ivory-light)}.slim p{margin:4px 0 0;color:var(--gold);font-size:15px}
-  .printbar{max-width:620px;margin:18px auto 0;display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
-  .printbar .note{flex:1;min-width:200px}
   .oldnote{max-width:720px;margin:18px auto 0;background:#FFF7E0;color:#7A5B0C;border-radius:10px;padding:11px 14px;font-size:14.5px}
-  /* 인쇄: 신국판 한 쪽 = 종이 한 장 */
-  @media print{
-    @page{size:152mm 225mm;margin:0}
-    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    body{background:#fff}
-    header.top,footer,.slim,.actions,.printbar,.oldnote,dialog,.toast,.pno{display:none!important}
-    .wrap{padding:0;max-width:none}.reader{padding:0;max-width:none}
-    .pages{max-width:none;margin:0}.pgwrap{margin:0;break-after:page;page-break-after:always}
-    .pgwrap .bk-pg{width:152mm;box-shadow:none}
-    .ch img,.ch video,.ch audio,.ch blockquote{break-inside:avoid}
-  }
+  .copynote{max-width:620px;margin:14px auto 0;text-align:center;font-size:13px;color:var(--gray-2)}
+  .oldap{container-type:inline-size;width:100%;max-width:560px;height:72px;margin:10px 0}
   footer{background:#071f16;color:rgba(250,248,242,.6);text-align:center;font-size:13.5px;padding:22px 18px}
 </style>
 </head>
@@ -100,6 +89,7 @@
 
 <script src="../lib/supabase-js.umd.js"></script>
 <script src="../lib/book-render.js"></script>
+<script src="../lib/book-viewer.js"></script>
 <script>
 'use strict';
 const SUPABASE_URL = 'https://qsucbnvicaviatdpnfxx.supabase.co';
@@ -108,6 +98,10 @@ const BUCKET = 'book-media';
 const PAGE = 12;
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 if(window.BookRender){ const st=document.createElement('style'); st.textContent=BookRender.CSS; document.head.appendChild(st); }
+if(window.BookViewer) BookViewer.injectCSS();
+// 저작권 보호: 책 내용은 인쇄·복사·우클릭·끌기로 퍼 갈 수 없게(독자 모두, 로그인 여부와 무관)
+const COPY_NOTE = '작가의 저작권 보호를 위해 이 책은 내려받기·인쇄·복사를 할 수 없어요.';
+function guard(root){ if(!window.BookViewer) return; BookViewer.protect(root,{onBlocked:t=>toast(t==='print'||t==='save'?'이 책은 인쇄·저장할 수 없어요':'이 책의 내용은 복사할 수 없어요')}); BookViewer.wireVideo(root); BookViewer.wireAudio(root); }
 const $app = document.getElementById('app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(t){ const el=document.getElementById('toast'); el.textContent=t; el.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('show'),2400); }
@@ -190,10 +184,12 @@ async function viewShared(token, mediaId){
   document.title = `${data.title||'책'} — 인물대백과사`;
   $app.innerHTML = `<div class="slim"><h1 class="serif">${esc(data.title||'')}</h1><p>${esc(data.author_name||'')}${data.author_name?' 지음':''}</p></div>
     <div class="oldnote" style="background:#E7F1ED;color:#0B4536">🔒 링크를 받은 분만 볼 수 있는 책이에요. 링크를 다른 곳에 올리지 말아 주세요.</div>
-    <div class="printbar"><span class="note">종이로 뽑을 때는 인쇄 창에서 <b>「PDF로 저장」</b>을 고르세요.</span><button class="ghost" id="printBtn">🖨 인쇄 · PDF</button></div>
-    <div class="wrap"><article class="reader"><div class="pages">${pages.map((p,i)=>`<section class="pgwrap" id="c${i}" aria-label="${i+1}쪽">${BookRender.pageHTML(p,urls)}<div class="pno">— ${i+1} —</div></section>`).join('')}</div></article></div>`;
-  document.getElementById('printBtn').onclick=()=>window.print();
-  if(mediaId){ const i=pages.findIndex(p=>(p.els||[]).some(e=>e&&e.media_id===mediaId)); if(i>=0){ const jump=()=>document.getElementById('c'+i)?.scrollIntoView({block:'start'}); [60,400,1000].forEach(t=>setTimeout(jump,t)); } }
+    <p class="copynote">${COPY_NOTE}</p>
+    <div class="wrap"><article class="reader" id="reader"></article></div>`;
+  const reader=document.getElementById('reader');
+  const viewer=BookViewer.flip(reader, pages.map(p=>BookRender.pageHTML(p,urls)));
+  guard(reader);
+  if(mediaId){ const i=pages.findIndex(p=>(p.els||[]).some(e=>e&&e.media_id===mediaId)); if(i>=0) setTimeout(()=>viewer.go(i,false),60); }
 }
 async function viewBook(id, pageNo=0, mediaId=null){
   $app.innerHTML = '<div class="wrap"><p class="note" style="padding-top:30px">책을 펴는 중…</p></div>';
@@ -217,7 +213,7 @@ async function viewBook(id, pageNo=0, mediaId=null){
     const pg = {data: Array.isArray(shelfPages)?shelfPages:[]};
     const list=(m.data||[]).filter(x=>x.storage_path), urls={};
     if(list.length){ const sg=await sb.storage.from(BUCKET).createSignedUrls(list.map(x=>x.storage_path),3600); (sg.data||[]).forEach((d,i)=>{ if(d&&d.signedUrl) urls[list[i].id]=d.signedUrl; }); }
-    pagesHTML = `<div class="pages">${pg.data.map((p,i)=>`<section class="pgwrap" id="c${i}" aria-label="${i+1}쪽">${BookRender.pageHTML(p,urls)}<div class="pno">— ${i+1} —</div></section>`).join('')}</div>`;
+    pagesHTML = pg.data.map(p=>BookRender.pageHTML(p,urls)); // 쪽마다 HTML → 가로 넘김 보기
   }
   if(b.error||c.error){ $app.innerHTML='<div class="wrap"><div class="msg err" style="margin-top:30px">책을 불러오지 못했어요.</div><p><a href="#/">← 서가로</a></p></div>'; return; }
   if(!b.data){ $app.innerHTML='<div class="wrap"><div class="empty">이 책은 비공개이거나 없는 책이에요.<br><a href="#/">← 서가로 돌아가기</a></div></div>'; return; }
@@ -227,11 +223,10 @@ async function viewBook(id, pageNo=0, mediaId=null){
     ? `<div class="slim"><h1 class="serif">${esc(book.title)}</h1><p>${esc(book.author_name||'이름 없는 작가')} 지음</p></div>`
     : `<div class="cover"><h1 class="serif">${esc(book.title)}</h1>${book.subtitle?`<p class="sub">${esc(book.subtitle)}</p>`:''}
       <p class="sub">${esc(book.author_name||'이름 없는 작가')} 지음</p></div>`;
-  const body = pagesHTML || `${chapters.length>1?`<ol class="toc" aria-label="목차">${chapters.map((x,i)=>`<li><a href="#" data-goto="c${i}">${esc(x.title||'(제목 없음)')}</a></li>`).join('')}</ol>`:''}
+  const body = pagesHTML ? '<div id="flip"></div>' : `${chapters.length>1?`<ol class="toc" aria-label="목차">${chapters.map((x,i)=>`<li><a href="#" data-goto="c${i}">${esc(x.title||'(제목 없음)')}</a></li>`).join('')}</ol>`:''}
       ${chapters.map((x,i)=>`<section class="ch" id="c${i}"><h2 class="serif">${esc(x.title)}</h2><div class="body">${sanitize(x.content||'')}</div></section>`).join('')}`;
   $app.innerHTML = `${header}
-    ${pagesHTML?`<div class="printbar"><span class="note">종이로 뽑을 때는 인쇄 창에서 대상을 <b>「PDF로 저장」</b>으로 고르면 신국판 한 쪽이 종이 한 장이 돼요.</span><button class="ghost" id="printBtn">🖨 인쇄 · PDF</button></div>`
-      :`<div class="oldnote">이 책은 옛 형식이라 인쇄하면 쪽이 중간에서 잘릴 수 있어요. 작가가 새 편집기로 옮기면 페이지 단위로 볼 수 있어요.</div>`}
+    <p class="copynote">${COPY_NOTE}</p>
     <div class="wrap"><article class="reader">${body}
       <div class="actions"><a class="btn ghost" href="#/">← 서가로</a>
         <button class="ghost" id="share">🔗 주소 복사</button>
@@ -244,11 +239,14 @@ async function viewBook(id, pageNo=0, mediaId=null){
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px"><button type="button" class="ghost" id="rc">닫기</button><button type="submit" class="gold" id="rs">신고 보내기</button></div>
     </form></dialog>`;
   // 목차 이동
-  const pb=document.getElementById('printBtn'); if(pb) pb.onclick=()=>window.print();
-  if(mediaId && pagesHTML){ const i=(shelfPages||[]).findIndex(p=>(p.els||[]).some(e=>e&&e.media_id===mediaId)); if(i>=0) pageNo=i+1; }
-  if(pageNo){ const jump=()=>document.getElementById('c'+(pageNo-1))?.scrollIntoView({block:'start'}); [60,400,1000].forEach(t=>setTimeout(jump,t)); } // QR·공유용 쪽 바로가기: #/book/<id>/p/<쪽>
+  const readerEl=$app.querySelector('.reader');
+  if(pagesHTML){
+    const viewer=BookViewer.flip(document.getElementById('flip'), pagesHTML);
+    if(mediaId){ const i=(shelfPages||[]).findIndex(p=>(p.els||[]).some(e=>e&&e.media_id===mediaId)); if(i>=0) pageNo=i+1; }
+    if(pageNo) setTimeout(()=>viewer.go(pageNo-1,false),60); // QR·공유용 쪽 바로가기: #/book/<id>/p/<쪽>, /m/<미디어>
+  } else if(pageNo){ const jump=()=>document.getElementById('c'+(pageNo-1))?.scrollIntoView({block:'start'}); [60,400,1000].forEach(t=>setTimeout(jump,t)); }
   $app.querySelectorAll('[data-goto]').forEach(a=>a.onclick=e=>{ e.preventDefault(); document.getElementById(a.dataset.goto).scrollIntoView({behavior:'smooth'}); });
-  hydrateMedia($app, paths);
+  hydrateMedia($app, paths).then(()=>guard(readerEl));
   document.getElementById('share').onclick=async()=>{ try{ await navigator.clipboard.writeText(location.href); toast('주소를 복사했어요'); }catch{ toast('주소창의 주소를 복사해 주세요'); } };
   const dlg=document.getElementById('dlg');
   document.getElementById('rep').onclick=async()=>{
@@ -272,7 +270,9 @@ async function hydrateMedia(root, paths){
   await Promise.all([...root.querySelectorAll('[data-media]')].map(async n=>{
     const p=paths[n.getAttribute('data-media')]; if(!p){ n.remove(); return; }
     const { data } = await sb.storage.from(BUCKET).createSignedUrl(p, 3600);
-    if(data?.signedUrl){ n.src=data.signedUrl; if(n.tagName!=='IMG') n.controls=true; if(n.tagName==='IMG') n.loading='lazy'; } else n.remove();
+    if(!data?.signedUrl){ n.remove(); return; }
+    if(n.tagName==='AUDIO'){ const w=document.createElement('div'); w.className='oldap'; w.innerHTML=BookRender.audioPlayer(esc(data.signedUrl)); n.replaceWith(w); return; }
+    n.src=data.signedUrl; if(n.tagName==='VIDEO') n.controls=true; if(n.tagName==='IMG'){ n.loading='lazy'; n.draggable=false; }
   }));
 }
 </script>

@@ -49,6 +49,10 @@
   .th .nm{display:block;font-size:12.5px;margin-top:7px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .th.on .nm{color:var(--brand-2);font-weight:600}
   .th.drop{outline:2px dashed var(--brand)}
+  .th .pick{position:absolute;left:8px;top:26px;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);background:#fff;color:transparent;font:800 12px/1 var(--sans);display:grid;place-items:center;opacity:0;transition:opacity .15s;z-index:2}
+  .th:hover .pick,.th.picked .pick,.th:focus-within .pick{opacity:1}
+  .th.picked{background:#FFF7E0;border-color:var(--gold)} .th.picked .pick{background:var(--gold);border-color:var(--gold);color:#fff}
+  .pickall{font:600 12px var(--sans);color:var(--brand);padding:4px 8px;border-radius:7px;margin-left:auto;margin-right:4px}.pickall:hover{background:var(--brand-soft)}
   /* 파워포인트식: 썸네일 위 빠른 버튼 + 사이에 끼워 넣기 + 오른쪽 클릭 메뉴 */
   .th .acts{position:absolute;right:8px;top:6px;display:flex;gap:3px;opacity:0;transition:opacity .15s}
   .th:hover .acts,.th.on .acts,.th:focus-within .acts{opacity:1}
@@ -183,6 +187,7 @@
   .opt b{display:block;font-size:15.5px;margin-bottom:4px} .opt span{font-size:13.5px;color:var(--muted);line-height:1.5}
   .exwarn{font-size:13.5px;background:#FFF3DC;color:#7A5B0C;border-radius:10px;padding:10px 12px;margin:4px 0 12px}
   .exwarn:empty{display:none}
+  .ptgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}.ptgrid .opt{margin:0}
   .linkbox{display:flex;gap:8px;margin:6px 0 12px}.linkbox input{flex:1;min-width:0;font:13px var(--sans);padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink)}
   .fatal{max-width:420px;margin:60px auto;background:#fff;border:1px solid var(--line);border-radius:14px;padding:28px 26px;text-align:center;box-shadow:var(--shadow)}
   .fatal h2{font-family:var(--serif);color:var(--brand-2);margin:0 0 8px;font-size:20px}.fatal p{color:var(--muted);margin:0 0 18px}
@@ -217,7 +222,7 @@
   </header>
 
   <aside class="left" aria-label="페이지 목록">
-    <div class="lh"><span>페이지<small id="pcount"></small></span><button class="iconbtn" id="addTop" title="새 페이지"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div>
+    <div class="lh"><span>페이지<small id="pcount"></small></span><button class="pickall" id="pickAll" title="모든 쪽 고르기">전체 선택</button><button class="iconbtn" id="addTop" title="새 페이지"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div>
     <div id="thumbs"></div>
     <button class="addpage" id="addPage"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>새 페이지</span></button>
   </aside>
@@ -231,7 +236,7 @@
   <aside class="right" aria-label="도구">
     <section class="sec">
       <h3>콘텐츠 추가 <small>INSERT</small></h3>
-      <p class="sub">글은 지금 페이지에, 사진·영상·노래는 새 페이지에 담겨요.</p>
+      <p class="sub">지금 페이지의 빈 자리에 담기고, 자리가 없으면 새 페이지가 생겨요.</p>
       <div class="tiles">
         <button class="tile" data-add="text"><svg viewBox="0 0 24 24"><path d="M4 7V5h16v2M12 5v14M9 19h6"/></svg><b>글</b><span>글상자를 만들어요</span></button>
         <button class="tile" data-add="image"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.6"/><path d="M21 15l-5-5L5 21"/></svg><b>이미지</b><span>장면을 담아요</span></button>
@@ -264,6 +269,16 @@
   <span class="sep"></span>
   <button data-m="clear" title="꾸밈 지우기"><svg viewBox="0 0 24 24"><path d="M4 7V5h16v2M10 5l-3 14M14 19l6-6M20 19l-6-6"/></svg></button>
 </div>
+<div class="modal" id="ptDlg" hidden role="dialog" aria-modal="true" aria-labelledby="ptT"><div class="mbox">
+  <h3 id="ptT">어떤 페이지를 넣을까요?</h3>
+  <div class="ptgrid">
+    <button class="opt" data-pt="text"><b>✍️ 글 페이지</b><span>페이지 전체가 글상자예요</span></button>
+    <button class="opt" data-pt="image"><b>🖼 사진 페이지</b><span>제목 · 사진 · 설명</span></button>
+    <button class="opt" data-pt="video"><b>🎬 영상 페이지</b><span>제목 · 영상 · 설명</span></button>
+    <button class="opt" data-pt="audio"><b>🎵 노래 페이지</b><span>제목 · 노래 · 설명(가사)</span></button>
+  </div>
+  <div style="text-align:right"><button class="btn" id="ptClose">닫기</button></div>
+</div></div>
 <div class="modal" id="shDlg" hidden role="dialog" aria-modal="true" aria-labelledby="shT"><div class="mbox">
   <h3 id="shT">🔗 비밀 링크로 공유하기</h3>
   <p class="sub" style="color:var(--muted);font-size:14px;margin:0 0 14px">서가에 올리지 않고, <b>이 링크를 받은 사람만</b> 책을 볼 수 있어요. 가족·친구에게 카카오톡으로 보내기 좋아요. 링크는 언제든 끊을 수 있어요.</p>
@@ -293,6 +308,7 @@
 
 <script src="../lib/supabase-js.umd.js"></script>
 <script src="../lib/qrcode.js"></script>
+<script src="../lib/book-viewer.js"></script>
 <script>
 'use strict';
 /* ═══════════════ 기본 값 ═══════════════
@@ -336,7 +352,7 @@ const state = {
       {id:uid(),type:'image',x:16,y:30,w:120,h:120,src:DEMO_IMG,name:'바다'},
       T(16,158,120,24,'2026년 여름, 동해.<br>파도 소리가 오래 남았다.',{fs:11,align:'center',color:'#3D4B45'})]}
   ],
-  cur:0, sel:null, editing:false, zoom:0, dirty:false
+  cur:0, sel:null, editing:false, zoom:0, dirty:false, picked:new Set()
 };
 let history = [], future = [];
 const snapJSON = () => JSON.stringify({pages:state.pages,cur:state.cur,title:state.title});
@@ -363,7 +379,7 @@ function mediaLink(e){
   return `${PUBLIC_SHELF}#/book/${BOOK}/m/${e.media_id||''}`; }
 function qrSVG(text){ try{ const q=qrcode(0,'M'); q.addData(text); q.make(); return q.createSvgTag({cellSize:4,margin:4,scalable:true}); }catch(err){ console.error(err); return ''; } }
 function qrBlock(e){ const what=e.type==='video'?'영상':'노래';
-  return `<div class="qr">${qrSVG(mediaLink(e))}<div class="qrt"><b>${esc(e.name||what)}</b><br>휴대폰 카메라로 찍으면<br>${what}이 재생돼요</div></div>`; }
+  return `<div class="qr">${qrSVG(mediaLink(e))}<div class="qrt"><b>${what}</b><br>휴대폰 카메라로 찍으면<br>${what}이 재생돼요</div></div>`; }
 function elHTML(e, mode){ // mode: edit | thumb | view | print
   if(mode==='print'){ if(e.type==='video'||e.type==='audio') return `<div class="el m" style="${elStyle(e)}">${qrBlock(e)}</div>`; mode='view'; }
   const ed = mode==='edit', view = mode==='view';
@@ -373,8 +389,8 @@ function elHTML(e, mode){ // mode: edit | thumb | view | print
   else if(e.type==='image') inner = `<img src="${e.src}" alt="${esc(e.name||'')}" draggable="false">`;
   else if(e.type==='video') inner = view ? `<video src="${e.src}" controls playsinline preload="metadata"></video>`
     : `<video src="${e.src}#t=0.1" preload="metadata" muted playsinline style="pointer-events:none"></video><div class="vplay"><i>${ICON.play}</i></div>`;
-  else if(e.type==='audio') inner = view ? `<div class="audio" style="flex-direction:column;justify-content:center;gap:1.4cqw"><div class="lb" style="max-width:none;font-size:2.8cqw">${esc(e.name||'음악')}</div><audio src="${e.src}" controls style="width:92%"></audio></div>`
-    : `<div class="audio"><div class="ic">${ICON.music}</div><div class="bars">${bars()}</div><div class="lb">${esc(e.name||'음악')}</div></div>`;
+  else if(e.type==='audio') inner = view ? `<div class="ap" data-src="${esc(e.src)}"><button type="button" class="ap-btn" aria-label="재생">▶</button><div class="ap-bar" aria-hidden="true"><i></i></div><span class="ap-t">0:00</span></div>`
+    : `<div class="audio"><div class="ic">${ICON.music}</div><div class="bars">${bars()}</div><div class="lb">노래</div></div>`;
   const empty = e.type==='text' && !plain(e.html) ? ' empty' : '';
   return `<div class="el ${e.type==='text'?'t':e.type==='slot'?'s':'m'}${empty}" data-id="${e.id}" style="${elStyle(e)}">${inner}</div>`;
 }
@@ -406,11 +422,13 @@ function flagSaved(){ $('save').innerHTML = '<svg viewBox="0 0 24 24" style="wid
 
 function renderThumbs(){
   const ins=i=>`<button class="ins" data-ins="${i}" title="여기에 새 페이지 끼워 넣기" aria-label="${i}쪽 뒤에 새 페이지"></button>`;
-  $('thumbs').innerHTML = state.pages.map((p,i)=>`<div class="th ${i===state.cur?'on':''}" data-i="${i}" draggable="true" role="button" tabindex="0" aria-label="${i+1}쪽 ${esc(p.name)}">
+  $('thumbs').innerHTML = state.pages.map((p,i)=>`<div class="th ${i===state.cur?'on':''} ${state.picked.has(p.id)?'picked':''}" data-i="${i}" draggable="true" role="button" tabindex="0" aria-label="${i+1}쪽 ${esc(p.name)}">
     <span class="no">${String(i+1).padStart(2,'0')}</span>
+    <button class="pick" data-pick title="여러 쪽 고르기 (Ctrl·Shift+클릭도 돼요)" aria-label="${i+1}쪽 고르기" aria-pressed="${state.picked.has(p.id)}">✓</button>
     <span class="acts"><button data-act="dup" title="복제" aria-label="${i+1}쪽 복제"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/></svg></button><button data-act="del" class="del" title="삭제 (Delete)" aria-label="${i+1}쪽 삭제"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></span>
     <div class="mini">${pageHTML(p,'thumb')}</div><span class="nm">${esc(p.name)}</span></div>${ins(i+1)}`).join('');
   $('pcount').textContent = state.pages.length;
+  $('pickAll').textContent = state.picked.size===state.pages.length ? '선택 해제' : '전체 선택';
 }
 function pageWidthPx(){ return Math.round(PW*3.7795*state.zoom); }
 function fitZoom(){ const c=$('center'); const availH=c.clientHeight-130, availW=c.clientWidth-60; return Math.max(.45,Math.min(1.4,Math.min(availH/(PH*3.7795),availW/(PW*3.7795)))); }
@@ -450,7 +468,8 @@ function renderPanels(){
     <label class="lab">모양</label><div class="row"><div class="seg" id="alignSeg">
       <button data-a="left" class="${e.align==='left'?'on':''}" aria-label="왼쪽"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h14"/></svg></button>
       <button data-a="center" class="${e.align==='center'?'on':''}" aria-label="가운데"><svg viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M5 18h14"/></svg></button>
-      <button data-a="right" class="${e.align==='right'?'on':''}" aria-label="오른쪽"><svg viewBox="0 0 24 24"><path d="M4 6h16M10 12h10M6 18h14"/></svg></button></div>
+      <button data-a="right" class="${e.align==='right'?'on':''}" aria-label="오른쪽"><svg viewBox="0 0 24 24"><path d="M4 6h16M10 12h10M6 18h14"/></svg></button>
+      <button data-a="justify" class="${e.align==='justify'?'on':''}" aria-label="양쪽(균등) 정렬" title="양쪽 정렬"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button></div>
       <div class="seg"><button id="bB" class="${e.b?'on':''}" style="font-weight:800" aria-label="굵게">가</button><button id="bI" class="${e.i?'on':''}" style="font-style:italic" aria-label="기울임">가</button><button id="bU" class="${e.u?'on':''}" style="text-decoration:underline" aria-label="밑줄">가</button></div></div>
     <label class="lab">글자 색 <span style="font-weight:400">· 글자를 드래그해 고르면 고른 글자만 바뀌어요</span></label><div class="sw" id="inkSw">${SWATCH_INK.map(c=>`<button data-c="${c}" class="${e.color.toLowerCase()===c.toLowerCase()?'on':''}" style="background:${c}" aria-label="${c}"></button>`).join('')}</div>
     <div class="tools"><span class="sub" style="margin:0">Delete 키로도 지울 수 있어요</span><button class="iconbtn" id="delEl" title="상자 삭제"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></div>`;
@@ -461,6 +480,13 @@ function renderPanels(){
     <button class="btn" id="addCap" style="width:100%;justify-content:center"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>설명 글 넣기</button>
     <div class="tools"><span class="sub" style="margin:0">끌어서 옮기고, 모서리로 크기를 바꿔요</span><button class="iconbtn" id="delEl" title="삭제"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></div>`;
   $('secSel').innerHTML=s;
+  state.picked=new Set([...state.picked].filter(id=>state.pages.some(q=>q.id===id)));
+  if(state.picked.size>1){ const picks=state.pages.filter(q=>state.picked.has(q.id)), same=picks.every(q=>q.bg===picks[0].bg)?picks[0].bg:'';
+    $('secPage').innerHTML=`<h3>페이지 스타일 <small>${state.picked.size}쪽 선택</small></h3>
+    <p class="sub">고른 <b>${state.picked.size}쪽</b>에 한꺼번에 적용돼요.</p>
+    <label class="lab">배경 색상</label><div class="sw" id="bgSw">${SWATCH_BG.map(c=>`<button data-c="${c}" class="${same.toLowerCase()===c.toLowerCase()?'on':''}" style="background:${c}" aria-label="배경 ${c}"></button>`).join('')}</div>
+    <div class="tools"><button class="btn" id="unpick" style="padding:6px 11px;font-size:13px">선택 해제</button>
+    <button class="btn" id="delPicked" style="color:var(--danger);padding:6px 11px;font-size:13px"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>${state.picked.size}쪽 삭제</button></div>`; return; }
   $('secPage').innerHTML=`<h3>페이지 스타일 <small>PAGE</small></h3>
     <label class="lab" for="pname">페이지 이름</label><input class="field" id="pname" maxlength="30" value="${esc(p.name)}">
     <label class="lab">배경 색상</label><div class="sw" id="bgSw">${SWATCH_BG.map(c=>`<button data-c="${c}" class="${p.bg.toLowerCase()===c.toLowerCase()?'on':''}" style="background:${c}" aria-label="배경 ${c}"></button>`).join('')}</div>
@@ -510,7 +536,7 @@ function autoGrow(e){
 }
 const HINT = $('hint').textContent;
 function delEl(){ const e=selEl(); if(!e) return; snap(); page().els=page().els.filter(x=>x.id!==e.id); state.sel=null; state.editing=false; renderThumbs(); renderCanvas(); renderPanels(); }
-function addPageBlank(){ state.zoom=state.zoom||fitZoom(); insertPageAt(state.cur+1); } // 워드처럼 새 페이지 = 본문 전체가 글상자
+function addPageBlank(){ state.zoom=state.zoom||fitZoom(); insertPageAt(state.cur+1,'text'); } // 워드처럼 새 페이지 = 본문 전체가 글상자
 function goPage(i){ if(i<0||i>=state.pages.length) return; endEdit(); state.cur=i; state.sel=null; renderAll(); }
 function movePage(from,to){ if(to<0||to>=state.pages.length||from===to) return; snap(); const [p]=state.pages.splice(from,1); state.pages.splice(to,0,p); state.cur=to; renderAll(); }
 function delPage(){ delPageAt(state.cur); }
@@ -521,7 +547,7 @@ function pickMedia(kind, slotId=null){ pendingKind=kind; pendingSlot=slotId; con
 $('file').onchange = ()=>{ const f=$('file').files[0]; if(!f) return; const kind=pendingKind;
   if(!f.type.startsWith(kind+'/')){ toast(`${KIND_KO[kind]} 파일을 골라 주세요`); return; }
   if(f.size>LIMIT[kind]*1048576){ toast(`${KIND_KO[kind]}은(는) ${LIMIT[kind]}MB 이하만 올릴 수 있어요${kind==='video'?' (약 50초)':''}`); return; }
-  const name=f.name.replace(/\.[^.]+$/,'').slice(0,60);
+  const name=''; // 파일 이름은 저장하지 않는다(썸네일·QR·서가에 드러나지 않게)
   const slot=pendingSlot; pendingSlot=null; const place=(src,id)=> slot ? fillSlot(slot,kind,src,name,id) : addMediaPage(kind,src,name,id);
   if(ONLINE){ toast(`${KIND_KO[kind]} 올리는 중…`); uploadMedia(f,kind).then(r=>place(r.src,r.id))
       .catch(err=>{ console.error(err); toast(err.message==='quota'||err.code==='54000'?'이 책에 올릴 수 있는 용량(200MB)을 넘어요':'올리지 못했어요. 다시 시도해 주세요'); }); return; }
@@ -536,9 +562,24 @@ function fillSlot(slotId,kind,src,name,mediaId){
   if(kind==='image'){ const im=new Image(); im.onload=()=>put(im.naturalHeight/im.naturalWidth||.75); im.onerror=()=>put(.75); im.src=src; }
   else put(kind==='video'?9/16:Math.min(.3, 34/CW));
 }
+// 사진·영상·노래 넣기: ① 이 페이지에 같은 종류의 빈 자리가 있으면 거기에 ② 이 페이지에 빈 공간이 있으면 거기에 ③ 없을 때만 새 페이지
 function addMediaPage(kind,src,name,mediaId){
-  endEdit(); snap();
-  const finish=(w,h)=>{ // 페이지 안에 가운데 정렬
+  endEdit();
+  const p0=page(), slot=p0.els.find(e=>e.type==='slot'&&(e.kind||'image')===kind);
+  if(slot) return fillSlot(slot.id,kind,src,name,mediaId);
+  snap();
+  const onThisPage=(w,h)=>{
+    const filled=p0.els.filter(e=>!(e.type==='text'&&!plain(e.html)));           // 빈 글상자는 빈 공간으로 본다
+    const bottom=filled.reduce((m,e)=>Math.max(m,e.y+e.h),MT-6), avail=LIM.y1-(bottom+6);
+    if(avail<Math.min(h,40)) return false;
+    if(h>avail){ const r=h/w; h=avail; w=kind==='image'?h/r:w; }
+    const y = filled.length ? bottom+6 : Math.max(MT,(PH-h)/2-14);
+    const m={id:uid(),type:kind,x:(PW-w)/2,y,w,h,src,name}; if(mediaId) m.media_id=mediaId;
+    p0.els=p0.els.filter(e=>!(e.type==='text'&&!plain(e.html)&&e.y<y+h&&e.y+e.h>y)); // 겹치는 빈 글상자는 치운다
+    p0.els.push(m); state.sel=m.id; state.editing=false; renderAll();
+    toast('이 페이지에 담았어요. 「설명 글 넣기」로 설명을 적을 수 있어요'); return true;
+  };
+  const finish=(w,h)=>{ if(onThisPage(w,h)) return; // 페이지 안에 가운데 정렬
     const m={id:uid(),type:kind,x:(PW-w)/2,y:Math.max(MT,(PH-h)/2-14),w,h,src,name}; if(mediaId) m.media_id=mediaId;
     const p={id:uid(),name:`${KIND_KO[kind]} 페이지`,bg:'#FFFFFF',els:[m]};
     state.pages.splice(state.cur+1,0,p); state.cur++; state.sel=m.id; state.editing=false; renderAll();
@@ -598,7 +639,7 @@ const endDrag=()=>{ if(!drag) return; const e=selEl(); const d=drag; drag=null;
   else if(d.moved){ renderThumbs(); renderPanels(); } };
 $('center').addEventListener('pointerup',endDrag); $('center').addEventListener('pointercancel',endDrag);
 $('center').addEventListener('dblclick',ev=>{ const node=ev.target.closest('#canvas .el.t'); if(node&&!state.editing){ select(node.dataset.id); startEdit(node.dataset.id); } });
-$('center').addEventListener('input',ev=>{ const tx=ev.target.closest&&ev.target.closest('.tx'); if(!tx||!state.editing) return; const e=selEl(); if(!e) return; e.html=tx.innerHTML; autoGrow(e); if(!flowOverflow(e)){ clearTimeout(input._t); input._t=setTimeout(renderThumbs,250); } });
+$('center').addEventListener('input',ev=>{ const tx=ev.target.closest&&ev.target.closest('.tx'); if(!tx||!state.editing) return; const e=selEl(); if(!e) return; e.html=tx.innerHTML; autoGrow(e); if(!flowOverflow(e) && !pullBack(e)){ clearTimeout(input._t); input._t=setTimeout(renderThumbs,250); } });
 // 붙여넣기는 글자만(다른 곳의 서식·위험한 코드가 들어오지 않게)
 $('center').addEventListener('paste',ev=>{ if(!ev.target.closest||!ev.target.closest('.tx')) return; ev.preventDefault(); document.execCommand('insertText',false,(ev.clipboardData||window.clipboardData).getData('text/plain')); });
 function input(){}
@@ -620,7 +661,25 @@ document.addEventListener('pointerdown',ev=>{ if(!ev.target.closest('#fslist,#fs
 
 /* ═══════════════ 페이지 다루기 (파워포인트 방식) ═══════════════ */
 const blankPage = () => ({id:uid(),name:`새 페이지 ${state.pages.length+1}`,bg:'#FFFFFF',els:[T(MX,MT,CW,PH-MT-MB,'')]});
-function insertPageAt(i){ endEdit(); snap(); const p=blankPage(); state.pages.splice(i,0,p); state.cur=i; state.sel=p.els[0].id; renderAll(); startEdit(p.els[0].id); }
+// 사진·영상·노래 페이지 틀: 제목 · 콘텐츠(자리) · 설명
+const TITLE = ph => T(MX,24,CW,12,'',{fs:18,b:true,color:'#0B4536',ph});
+const DESC = (y,h,ph,o={}) => T(MX,y,CW,h,'',{fs:11,align:'center',color:'#3D4B45',ph,...o});
+function mediaPageTemplate(kind, name){
+  const slot=(y,h)=>({id:uid(),type:'slot',kind,x:MX,y,w:CW,h});
+  if(kind==='image') return {id:uid(),name:name||'사진 페이지',bg:'#FFFFFF',els:[TITLE('사진 제목 (예: 그해 여름의 바다)'),slot(44,110),DESC(160,40,'사진 설명을 적어 보세요\n(예: 2026년 여름, 동해. 파도 소리가 오래 남았다.)')]};
+  if(kind==='video') return {id:uid(),name:name||'영상 페이지',bg:'#FFFFFF',els:[TITLE('영상 제목 (예: 그날의 바다)'),slot(48,CW*9/16),DESC(48+CW*9/16+8,40,'영상 설명을 적어 보세요\n(종이로 인쇄하면 이 자리에 QR 코드가 들어가요)')]};
+  return {id:uid(),name:name||'노래 페이지',bg:'#FBF1EA',els:[TITLE('노래 제목 (예: 너라는 등대)'),slot(44,34),DESC(86,PH-MB-86,'노래에 담긴 이야기나 가사를 적어 보세요\n\n(예)\n어두운 바다 위 작은 불빛 하나\n너라는 등대가 나를 불렀지')]};
+}
+function insertPageAt(i, kind='text'){
+  endEdit(); snap(); const p = kind==='text' ? blankPage() : mediaPageTemplate(kind);
+  state.pages.splice(i,0,p); state.cur=i;
+  if(kind==='text'){ state.sel=p.els[0].id; renderAll(); startEdit(p.els[0].id); }
+  else { state.sel=null; renderAll(); toast(`줄무늬 자리를 눌러 ${kind==='image'?'사진':kind==='video'?'영상':'노래'}을(를) 넣으세요`); }
+}
+let ptIndex=0;
+function askPageType(i){ endEdit(); ptIndex=i; $('ptDlg').hidden=false; $('ptDlg').querySelector('.opt').focus(); }
+$('ptDlg').addEventListener('click',ev=>{ if(ev.target.id==='ptDlg'||ev.target.id==='ptClose'){ $('ptDlg').hidden=true; return; }
+  const o=ev.target.closest('[data-pt]'); if(o){ $('ptDlg').hidden=true; insertPageAt(ptIndex,o.dataset.pt); } });
 function dupPage(i){ endEdit(); snap(); const c=JSON.parse(JSON.stringify(state.pages[i])); c.id=uid(); c.name=state.pages[i].name+' (복제)'; c.els.forEach(e=>e.id=uid()); state.pages.splice(i+1,0,c); state.cur=i+1; state.sel=null; renderAll(); toast('페이지를 복제했어요'); }
 function delPageAt(i, ask=true){
   if(state.pages.length<2){ toast('마지막 한 페이지는 지울 수 없어요'); return; }
@@ -635,15 +694,17 @@ function openCtx(i,x,y){ ctxIndex=i; const m=$('ctx'); m.hidden=false;
   m.style.left=Math.min(innerWidth-m.offsetWidth-8,x)+'px'; m.style.top=Math.min(innerHeight-m.offsetHeight-8,y)+'px'; }
 function closeCtx(){ $('ctx').hidden=true; }
 $('ctx').addEventListener('click',ev=>{ const b=ev.target.closest('[data-c]'); if(!b||b.disabled) return; const i=ctxIndex; closeCtx();
-  ({newAfter:()=>insertPageAt(i+1), newBefore:()=>insertPageAt(i), dup:()=>dupPage(i), up:()=>{state.cur=i;movePage(i,i-1);}, down:()=>{state.cur=i;movePage(i,i+1);}, del:()=>delPageAt(i)})[b.dataset.c](); });
+  ({newAfter:()=>askPageType(i+1), newBefore:()=>askPageType(i), dup:()=>dupPage(i), up:()=>{state.cur=i;movePage(i,i-1);}, down:()=>{state.cur=i;movePage(i,i+1);}, del:()=>delPageAt(i)})[b.dataset.c](); });
 
 /* ═══════════════ 워드처럼 넘친 글을 다음 페이지로 ═══════════════ */
 function textPositions(root){ const out=[]; const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT); let n; while((n=w.nextNode())) for(let k=0;k<n.length;k++) out.push([n,k]); return out; }
-function flowOverflow(e){
+function flowOverflow(e, quiet=false){
   const n=elNode(e.id); if(!n) return false; const tx=n.querySelector('.tx');
   if(tx.scrollHeight<=tx.clientHeight+2 || e.y+e.h < LIM.y1-0.05) return false;   // 아래 여백까지 자란 뒤에도 넘칠 때만
+  tx.scrollTop=0; // 커서를 따라 상자 속이 스크롤되어 있으면 글자 위치가 어긋나므로 맨 위로 되돌린 뒤 잰다
   const bottom=tx.getBoundingClientRect().bottom-2, pos=textPositions(tx); if(pos.length<2) return false;
-  const fits=i=>{ const r=document.createRange(); r.setStart(pos[i][0],pos[i][1]); r.setEnd(pos[i][0],pos[i][1]+1); const b=r.getBoundingClientRect(); return b.height===0 || b.bottom<=bottom; };
+  // 글자 하나의 아래끝이 상자 안에 있는지. 줄 끝 공백처럼 크기가 0인 글자는 가까운 앞 글자로 판단(그래야 긴 글을 붙여 넣어도 정확히 자른다)
+  const fits=i=>{ for(let j=i;j>=Math.max(0,i-8);j--){ const r=document.createRange(); r.setStart(pos[j][0],pos[j][1]); r.setEnd(pos[j][0],pos[j][1]+1); const rects=r.getClientRects(); const b=rects.length?rects[rects.length-1]:null; if(b&&b.height>0) return b.bottom<=bottom; } return true; };
   let lo=0, hi=pos.length-1; if(!fits(0)) return false;
   while(lo<hi){ const mid=Math.ceil((lo+hi)/2); if(fits(mid)) lo=mid; else hi=mid-1; }
   let cut=lo+1; if(cut>=pos.length) return false;
@@ -663,9 +724,29 @@ function flowOverflow(e){
     Object.assign(target,{html:moved,fs:e.fs,font:e.font,color:e.color,align:e.align,b:e.b,i:e.i,u:e.u}); state.pages.splice(state.cur+1,0,np); }
   if(caretAfter){ state.editing=false; state.cur++; state.sel=target.id; renderAll(); startEdit(target.id); placeCaretAt(elNode(target.id).querySelector('.tx'), Math.max(0, caretOffsetInMoved - holder.textContent.match(/^\s*/)[0].length)); }
   else { renderThumbs(); autoGrow(e); }
-  toast('글이 넘쳐서 다음 페이지로 이어졌어요');
+  if(!quiet) toast('글이 넘쳐서 다음 페이지로 이어졌어요');
   const t2=selEl(); if(t2&&t2.id===target.id) requestAnimationFrame(()=>{ autoGrow(t2); flowOverflow(t2); }); // 다음 페이지도 넘치면 계속
   return true;
+}
+// 워드처럼: 앞 페이지 글을 지워 자리가 생기면 다음 「(이어서)」 페이지의 글을 끌어 온다
+function caretOffset(tx){ const s=getSelection(); if(!s.rangeCount||!tx.contains(s.anchorNode)) return null; const r=document.createRange(); r.selectNodeContents(tx); r.setEnd(s.anchorNode,s.anchorOffset); return r.toString().length; }
+function pullBack(e){
+  const pi=state.cur, me=page(), next=state.pages[pi+1];
+  if(!next || next.flowFrom!==me.id || e.type!=='text' || e.y+e.h < LIM.y1-0.05) return false;
+  const n=elNode(e.id); if(!n) return false; const tx=n.querySelector('.tx');
+  const lineH=parseFloat(getComputedStyle(tx).lineHeight)||20;
+  tx.scrollTop=0; const rr=document.createRange(); rr.selectNodeContents(tx);
+  const textBottom = tx.textContent.trim() ? rr.getBoundingClientRect().bottom : tx.getBoundingClientRect().top;
+  if(tx.getBoundingClientRect().bottom - textBottom < lineH) return false;  // 한 줄 이상 빈자리가 있을 때만
+  const t=next.els.find(x=>x.type==='text');
+  const dropNext=()=>{ const after=state.pages[pi+2]; if(after&&after.flowFrom===next.id) after.flowFrom=me.id; state.pages.splice(pi+1,1); };
+  if(!t || !plain(t.html)){ if(next.els.every(x=>x.type==='text'&&!plain(x.html))){ snap(); dropNext(); renderThumbs(); renderBottom(); } return false; }
+  snap(); const off=caretOffset(tx);
+  tx.innerHTML = sanitizeText(tx.innerHTML) + (plain(tx.innerHTML)?' ':'') + sanitizeText(t.html); t.html='';
+  e.html=tx.innerHTML; if(off!=null) placeCaretAt(tx,off);
+  const split=flowOverflow(e,true);                                          // 다시 넘치는 만큼은 다음 페이지로 돌려보낸다
+  if(!split && next.els.every(x=>x.type==='text'&&!plain(x.html))){ dropNext(); toast('다음 페이지 글을 모두 끌어 왔어요'); }
+  renderThumbs(); renderBottom(); return true;
 }
 function placeCaretAt(tx, offset){ const pos=textPositions(tx); const r=document.createRange();
   if(!pos.length||offset>=pos.length){ r.selectNodeContents(tx); r.collapse(false); } else { const [n,k]=pos[Math.max(0,offset)]; r.setStart(n,k); r.collapse(true); }
@@ -705,12 +786,18 @@ $('secSel').addEventListener('mousedown',ev=>{ if(ev.target.closest('button')&&s
 
 /* ═══════════════ 이벤트 연결 ═══════════════ */
 document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{ const k=b.dataset.add; k==='text'?addText():pickMedia(k); });
-$('addPage').onclick=addPageBlank; $('addTop').onclick=addPageBlank;
+$('addPage').onclick=()=>askPageType(state.cur+1); $('addTop').onclick=()=>askPageType(state.cur+1);
 $('thumbs').addEventListener('click',ev=>{
-  const ins=ev.target.closest('[data-ins]'); if(ins) return insertPageAt(+ins.dataset.ins);
+  const ins=ev.target.closest('[data-ins]'); if(ins) return askPageType(+ins.dataset.ins);
   const t=ev.target.closest('.th'); if(!t) return; const i=+t.dataset.i; const a=ev.target.closest('[data-act]');
   if(a){ ev.stopPropagation(); return a.dataset.act==='del' ? delPageAt(i) : dupPage(i); }
-  goPage(i); });
+  const id=state.pages[i].id;
+  if(ev.target.closest('[data-pick]') || ev.ctrlKey || ev.metaKey){ // 한 쪽씩 더하고 빼기
+    if(!state.picked.size) state.picked.add(page().id);
+    state.picked.has(id) ? state.picked.delete(id) : state.picked.add(id); renderThumbs(); renderPanels(); return; }
+  if(ev.shiftKey){ const [a1,b1]=[Math.min(state.cur,i),Math.max(state.cur,i)]; state.picked=new Set(state.pages.slice(a1,b1+1).map(p=>p.id)); renderThumbs(); renderPanels(); return; }
+  state.picked.clear(); goPage(i); });
+$('pickAll').onclick=()=>{ state.picked = state.picked.size===state.pages.length ? new Set() : new Set(state.pages.map(p=>p.id)); renderThumbs(); renderPanels(); };
 $('thumbs').addEventListener('contextmenu',ev=>{ const t=ev.target.closest('.th'); if(!t) return; ev.preventDefault(); openCtx(+t.dataset.i,ev.clientX,ev.clientY); });
 $('thumbs').addEventListener('keydown',ev=>{ const t=ev.target.closest('.th'); if(!t||ev.target!==t) return; const i=+t.dataset.i;
   if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); goPage(i); }
@@ -751,7 +838,12 @@ $('secPage').addEventListener('click',ev=>{
   const b=ev.target.closest('button'); if(!b) return;
   if(b.id==='pUp') movePage(state.cur,state.cur-1); else if(b.id==='pDn') movePage(state.cur,state.cur+1);
   else if(b.id==='delPage') delPage();
-  else if(b.dataset.c){ snap(); page().bg=b.dataset.c; renderCanvas(); renderThumbs(); renderPanels(); }
+  else if(b.dataset.c){ snap(); const targets = state.picked.size>1 ? state.pages.filter(q=>state.picked.has(q.id)) : [page()];
+    targets.forEach(q=>q.bg=b.dataset.c); renderCanvas(); renderThumbs(); renderPanels(); if(targets.length>1) toast(`${targets.length}쪽의 배경을 바꿨어요`); }
+  else if(b.id==='unpick'){ state.picked.clear(); renderThumbs(); renderPanels(); }
+  else if(b.id==='delPicked'){ const ids=[...state.picked]; if(ids.length>=state.pages.length){ toast('모든 쪽을 지울 수는 없어요'); return; }
+    if(!confirm(`고른 ${ids.length}쪽을 삭제할까요?\n(Ctrl+Z로 되돌릴 수 있어요)`)) return;
+    endEdit(); snap(); state.pages=state.pages.filter(q=>!state.picked.has(q.id)); state.picked.clear(); state.cur=Math.min(state.cur,state.pages.length-1); state.sel=null; renderAll(); toast(`${ids.length}쪽을 삭제했어요`); }
 });
 $('secPage').addEventListener('input',ev=>{ if(ev.target.id==='pname'){ page().name=ev.target.value; $('pglabel').textContent=`${String(state.cur+1).padStart(2,'0')}  ${page().name}`; clearTimeout(input._n); input._n=setTimeout(renderThumbs,300); } });
 $('secPage').addEventListener('focusin',ev=>{ if(ev.target.id==='pname') snap(); });
@@ -763,7 +855,7 @@ $('back').onclick=async()=>{ if(!ONLINE) return toast('시안이라 내 서재�
 $('btnPublish').onclick=()=>ONLINE ? togglePublic() : toast('시안이라 공개는 동작하지 않아요. 실제 에디터에서는 서가에 올라가요');
 document.addEventListener('keydown',ev=>{
   const typing = state.editing || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
-  if(ev.key==='Escape'){ if(!$('ctx').hidden||!$('fslist').hidden){ closeCtx(); closeFsList(); return; } if(!$('pv').hidden){ closePV(); return; } if(state.editing) endEdit(); else if(state.sel){ state.sel=null; decorate('__none'); renderPanels(); } return; }
+  if(ev.key==='Escape'){ ['ptDlg','exDlg','shDlg'].forEach(id=>$(id).hidden=true); if(!$('ctx').hidden||!$('fslist').hidden){ closeCtx(); closeFsList(); return; } if(!$('pv').hidden){ closePV(); return; } if(state.editing) endEdit(); else if(state.sel){ state.sel=null; decorate('__none'); renderPanels(); } return; }
   if((ev.ctrlKey||ev.metaKey)&&!typing){ if(ev.key.toLowerCase()==='z'&&!ev.shiftKey){ ev.preventDefault(); undo(); } else if(ev.key.toLowerCase()==='y'||(ev.key.toLowerCase()==='z'&&ev.shiftKey)){ ev.preventDefault(); redo(); } return; }
   if(typing) return;
   const e=selEl(); if(!e) return;
@@ -774,8 +866,8 @@ document.addEventListener('focusout',ev=>{ if(state.editing&&ev.target.classList
 window.addEventListener('resize',()=>{ clearTimeout(window._rz); window._rz=setTimeout(()=>{ state.zoom=fitZoom(); renderCanvas(); },150); });
 
 /* 미리보기 · 내려받기 */
-function openPV(){ endEdit(); $('pvBody').innerHTML=state.pages.map(p=>pageHTML(p,'view')).join(''); $('pv').hidden=false; }
-function closePV(){ $('pv').hidden=true; $('pvBody').innerHTML=''; }
+function openPV(){ endEdit(); $('pv').hidden=false; if(window.BookViewer){ BookViewer.injectCSS(); BookViewer.flip($('pvBody'), state.pages.map(p=>pageHTML(p,'view')), {idPrefix:'pv'}); BookViewer.wireAudio($('pvBody')); BookViewer.wireVideo($('pvBody')); } else $('pvBody').innerHTML=state.pages.map(p=>pageHTML(p,'view')).join(''); }
+function closePV(){ $('pv').hidden=true; ($('pvBody').querySelectorAll('audio,video')).forEach(m=>m.pause()); (window.__bvAudios||[]).forEach(a=>a.pause()); $('pvBody').innerHTML=''; }
 $('btnPreview').onclick=openPV; $('pvClose').onclick=closePV;
 const blobToDataURL = b => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(b); });
 async function exportPages(forPrint=false){
@@ -794,9 +886,31 @@ function openExport(){
 }
 $('exDlg').addEventListener('click',ev=>{ if(ev.target.id==='exDlg'||ev.target.id==='exClose'){ $('exDlg').hidden=true; return; }
   const o=ev.target.closest('[data-ex]'); if(o){ $('exDlg').hidden=true; exportHTML(o.dataset.ex); } });
+// 화면용 전자책: 책장을 가로로 넘기는 한 파일(쪽 번호·노래 재생 막대 포함). 인터넷 없이 열린다.
+const EXPORT_BASE_CSS = `*{box-sizing:border-box}body{margin:0;background:#EEF1EE;font-family:'Noto Serif KR','Batang',serif;color:#1B2B25}
+.pg{position:relative;aspect-ratio:152/225;container-type:inline-size;overflow:hidden;background:#fff}.el{position:absolute}.el .tx{width:100%;height:100%;overflow:hidden;line-height:1.85;word-break:keep-all;overflow-wrap:anywhere;white-space:pre-wrap}
+.el .tx.sans{font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif}.el img,.el video{width:100%;height:100%;object-fit:cover;display:block}`;
+async function exportFlipBook(ep){
+  let lib=''; try{ lib=await (await fetch(new URL('../lib/book-viewer.js',location.href))).text(); }catch(err){ console.error(err); }
+  const pages=ep.map(p=>pageHTML(p,'view'));
+  const data=JSON.stringify(pages).replace(/</g,'\\u003c');                 // 글 속에 스크립트 닫는 태그가 있어도 코드를 끊지 못하게
+  const html=`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(state.title)}</title>
+<style>${EXPORT_BASE_CSS}
+header{text-align:center;padding:18px 12px 4px}header h1{margin:0;font-size:20px;color:#0B4536}header p{margin:4px 0 0;font:13px sans-serif;color:#7B8A83}
+footer{text-align:center;color:#7B8A83;font:12.5px sans-serif;padding:6px 0 26px}
+@media print{@page{size:152mm 225mm;margin:0}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{background:#fff}header,footer,.bv-nav,.bv-num{display:none!important}.bv-track{display:block!important;overflow:visible!important}.bv-page{padding:0!important;break-after:page}.bv-page .pg{width:152mm!important;box-shadow:none!important}}</style></head>
+<body><header><h1>${esc(state.title)}</h1><p>← → 키나 화면을 밀어 책장을 넘겨 보세요</p></header><main id="book"></main>
+<footer>인물대백과사에서 만든 나의 책 · ${new Date().toLocaleDateString('ko-KR')} 내려받음 · 이 파일 하나로 언제든 열어볼 수 있어요.</footer>
+<script>${lib.replace(/<\/script/gi,'<\\/script')}<\/script>
+<script>(function(){var P=${data};BookViewer.injectCSS();BookViewer.flip(document.getElementById('book'),P);BookViewer.wireAudio(document.body);BookViewer.wireVideo(document.body);})();<\/script>
+</body></html>`;
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([html],{type:'text/html'})); a.download=(state.title||'내책').replace(/[\\/:*?"<>|]/g,'')+'.html'; document.body.appendChild(a); a.click(); a.remove(); toast('내려받았어요 · 파일을 열면 책장을 넘겨 볼 수 있어요');
+}
 async function exportHTML(kind='screen'){
   endEdit(); const print=kind==='print'; if(ONLINE) toast('책을 묶는 중…');
-  const pages=(await exportPages(print)).map((p,i)=>`<section class="sheet" id="p${i+1}" aria-label="${i+1}쪽">${pageHTML(p,print?'print':'view')}</section>`).join('\n');
+  const ep=await exportPages(print);
+  if(!print) return exportFlipBook(ep);
+  const pages=ep.map((p,i)=>`<section class="sheet" id="p${i+1}" aria-label="${i+1}쪽">${pageHTML(p,'print')}</section>`).join('\n');
   const html=`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(state.title)}</title>
 <style>@page{size:152mm 225mm;margin:0}*{box-sizing:border-box}body{margin:0;background:#EEF1EE;font-family:'Noto Serif KR','Batang',serif;color:#1B2B25}
 .wrapbook{padding:28px 12px}.sheet{width:min(152mm,96vw);margin:0 auto 26px;box-shadow:0 8px 28px rgba(20,40,32,.12)}
@@ -863,17 +977,9 @@ function templatePages(){
     {id:uid(),name:'첫 번째 이야기',bg:'#FFFFFF',els:[
       T(MX,24,CW,12,'',{fs:18,b:true,color:'#0B4536',ph:'이야기 제목 (예: 이야기의 시작)'}),
       T(MX,44,CW,PH-MB-44,'',{ph:'여기를 눌러 첫 이야기를 써 보세요.\n\n잘 쓰려고 애쓰지 않아도 괜찮아요. 정확하지 않아도 돼요. 마음에 남은 대로가 진짜니까요.\n\n글이 페이지를 넘치면 다음 페이지로 저절로 이어져요.'})]},
-    {id:uid(),name:'기억하고 싶은 순간',bg:'#F3F8F5',els:[
-      {id:uid(),type:'slot',kind:'image',x:MX,y:30,w:CW,h:120},
-      T(MX,158,CW,24,'',{fs:11,align:'center',color:'#3D4B45',ph:'사진 설명을 적어 보세요\n(예: 2026년 여름, 동해. 파도 소리가 오래 남았다.)'})]},
-    {id:uid(),name:'8초의 영상',bg:'#FFFFFF',els:[
-      T(MX,24,CW,12,'',{fs:18,b:true,color:'#0B4536',ph:'영상 제목 (예: 그날의 바다)'}),
-      {id:uid(),type:'slot',kind:'video',x:MX,y:48,w:CW,h:CW*9/16},
-      T(MX,48+CW*9/16+8,CW,30,'',{fs:11,align:'center',color:'#3D4B45',ph:'영상에 담긴 순간을 적어 보세요\n(종이로 인쇄하면 이 자리에 QR 코드가 들어갈 예정이에요)'})]},
-    {id:uid(),name:'나의 노래',bg:'#FBF1EA',els:[
-      T(MX,24,CW,12,'',{fs:18,b:true,color:'#0B4536',ph:'노래 제목 (예: 너라는 등대)'}),
-      {id:uid(),type:'slot',kind:'audio',x:MX,y:44,w:CW,h:34},
-      T(MX,86,CW,PH-MB-86,'',{fs:11,align:'center',color:'#3D4B45',ph:'가사를 적어 보세요\n\n(예)\n어두운 바다 위 작은 불빛 하나\n너라는 등대가 나를 불렀지'})]}
+    {...mediaPageTemplate('image','기억하고 싶은 순간'),bg:'#F3F8F5'},
+    mediaPageTemplate('video','8초의 영상'),
+    mediaPageTemplate('audio','나의 노래')
   ];
 }
 function coverPage(){ return {id:uid(),name:'표지',bg:'#FFFFFF',els:[
@@ -961,6 +1067,7 @@ async function unpublish(){
 }
 $('btnUnpub').onclick=()=>unpublish();
 async function boot(){
+  if(window.BookViewer) BookViewer.injectCSS();
   if(!ONLINE){ setSave('demo'); renderAll(); return; }
   document.querySelector('.demo')?.remove(); setSave('load');
   if(!window.supabase){ fatal('화면을 불러오지 못했어요','인터넷 연결이나 차단 프로그램을 확인한 뒤 새로고침해 주세요.'); return; }
