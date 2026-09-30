@@ -287,7 +287,7 @@ function renderEditor(){
       <input id="ctitle" type="text" maxlength="120" placeholder="이 장의 제목" style="border-radius:0">
       <div id="cbody" contenteditable="true" role="textbox" aria-multiline="true" aria-label="본문"></div>
       <input type="file" id="file" class="hidden">
-      <p class="note" style="margin-top:10px">글은 쓰는 대로 자동 저장돼요. 사진 15MB, 영상·노래는 50MB까지 올릴 수 있어요.</p>
+      <p class="note" style="margin-top:10px">글은 쓰는 대로 자동 저장돼요. 사진 15MB · 노래 30MB · 영상 50MB(약 50초)까지, 책 한 권에 합쳐서 200MB까지 올릴 수 있어요.</p>
     </section>
   </div>`;
   bindEditor(); renderChapters(); loadChapter();
@@ -389,17 +389,19 @@ async function removeChapter(i){
 }
 
 /* ───────── 사진·영상·노래 ───────── */
-const LIMITS={ image:15*1024*1024, video:50*1024*1024, audio:50*1024*1024 };
+const LIMITS={ image:15*1024*1024, video:50*1024*1024, audio:30*1024*1024 }; // 책 한 권 합계 200MB는 서버가 확인
 async function uploadMedia(f, kind){
   if(f.size>LIMITS[kind]){ toast(`파일이 너무 커요 (${Math.round(LIMITS[kind]/1048576)}MB 이하)`); return; }
   if(!f.type.startsWith(kind+'/')){ toast('파일 종류가 맞지 않아요'); return; }
+  const used = Object.values(mediaMap).reduce((n,m)=>n+(m.size_bytes||0),0);
+  if(used + f.size > 200*1024*1024){ toast('이 책에 올릴 수 있는 용량(200MB)을 넘어요'); return; }
   setStatus('올리는 중…');
   const ext=(f.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,8)||'bin';
   const path=`${user.id}/${book.id}/${crypto.randomUUID()}.${ext}`;
   const up=await sb.storage.from(BUCKET).upload(path,f,{ contentType:f.type, upsert:false });
   if(up.error){ setStatus('⚠ 올리기 실패'); toast('올리지 못했어요'); return; }
   const { data, error } = await sb.from('media').insert({ book_id:book.id, owner_id:user.id, kind, storage_path:path, size_bytes:f.size }).select().single();
-  if(error){ setStatus('⚠ 올리기 실패'); return; }
+  if(error){ setStatus('⚠ 올리기 실패'); toast(error.code==='54000'?'이 책에 올릴 수 있는 용량(200MB)을 넘어요':'올리지 못했어요'); return; }
   mediaMap[data.id]=data;
   const body=document.getElementById('cbody'); body.focus();
   if(savedRange){ const s=getSelection(); s.removeAllRanges(); s.addRange(savedRange); }
