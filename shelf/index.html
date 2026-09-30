@@ -72,6 +72,20 @@
   .pages{max-width:620px;margin:26px auto 0}.pgwrap{margin:0 0 30px}.pgwrap .bk-pg{box-shadow:0 8px 28px rgba(20,40,32,.13)}
   .pno{text-align:center;font-size:13px;color:var(--gray-2);margin-top:8px}
   .slim{background:var(--green);color:var(--ivory-light);text-align:center;padding:22px 20px}.slim h1{margin:0;font-size:22px;color:var(--ivory-light)}.slim p{margin:4px 0 0;color:var(--gold);font-size:15px}
+  .printbar{max-width:620px;margin:18px auto 0;display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
+  .printbar .note{flex:1;min-width:200px}
+  .oldnote{max-width:720px;margin:18px auto 0;background:#FFF7E0;color:#7A5B0C;border-radius:10px;padding:11px 14px;font-size:14.5px}
+  /* 인쇄: 신국판 한 쪽 = 종이 한 장 */
+  @media print{
+    @page{size:152mm 225mm;margin:0}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    body{background:#fff}
+    header.top,footer,.slim,.actions,.printbar,.oldnote,dialog,.toast,.pno{display:none!important}
+    .wrap{padding:0;max-width:none}.reader{padding:0;max-width:none}
+    .pages{max-width:none;margin:0}.pgwrap{margin:0;break-after:page;page-break-after:always}
+    .pgwrap .bk-pg{width:152mm;box-shadow:none}
+    .ch img,.ch video,.ch audio,.ch blockquote{break-inside:avoid}
+  }
   footer{background:#071f16;color:rgba(250,248,242,.6);text-align:center;font-size:13.5px;padding:22px 18px}
 </style>
 </head>
@@ -127,9 +141,9 @@ let query = '', page = 0;
 window.addEventListener('hashchange', route);
 route();
 function route(){
-  const m = location.hash.match(/^#\/book\/([0-9a-f-]{36})$/);
+  const m = location.hash.match(/^#\/book\/([0-9a-f-]{36})(?:\/p\/(\d{1,4}))?$/);
   window.scrollTo(0,0);
-  m ? viewBook(m[1]) : viewList();
+  m ? viewBook(m[1], m[2]?+m[2]:0) : viewList();
 }
 
 /* ───────── 목록 ───────── */
@@ -162,7 +176,7 @@ async function loadPage(reset){
 }
 
 /* ───────── 책 읽기 ───────── */
-async function viewBook(id){
+async function viewBook(id, pageNo=0){
   $app.innerHTML = '<div class="wrap"><p class="note" style="padding-top:30px">책을 펴는 중…</p></div>';
   const [b,c,m] = await Promise.all([
     sb.from('shelf_books').select('id,title,subtitle,author_name,published_at,format').eq('id',id).maybeSingle(),
@@ -188,6 +202,8 @@ async function viewBook(id){
   const body = pagesHTML || `${chapters.length>1?`<ol class="toc" aria-label="목차">${chapters.map((x,i)=>`<li><a href="#" data-goto="c${i}">${esc(x.title||'(제목 없음)')}</a></li>`).join('')}</ol>`:''}
       ${chapters.map((x,i)=>`<section class="ch" id="c${i}"><h2 class="serif">${esc(x.title)}</h2><div class="body">${sanitize(x.content||'')}</div></section>`).join('')}`;
   $app.innerHTML = `${header}
+    ${pagesHTML?`<div class="printbar"><span class="note">종이로 뽑을 때는 인쇄 창에서 대상을 <b>「PDF로 저장」</b>으로 고르면 신국판 한 쪽이 종이 한 장이 돼요.</span><button class="ghost" id="printBtn">🖨 인쇄 · PDF</button></div>`
+      :`<div class="oldnote">이 책은 옛 형식이라 인쇄하면 쪽이 중간에서 잘릴 수 있어요. 작가가 새 편집기로 옮기면 페이지 단위로 볼 수 있어요.</div>`}
     <div class="wrap"><article class="reader">${body}
       <div class="actions"><a class="btn ghost" href="#/">← 서가로</a>
         <button class="ghost" id="share">🔗 주소 복사</button>
@@ -200,6 +216,8 @@ async function viewBook(id){
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px"><button type="button" class="ghost" id="rc">닫기</button><button type="submit" class="gold" id="rs">신고 보내기</button></div>
     </form></dialog>`;
   // 목차 이동
+  const pb=document.getElementById('printBtn'); if(pb) pb.onclick=()=>window.print();
+  if(pageNo){ const jump=()=>document.getElementById('c'+(pageNo-1))?.scrollIntoView({block:'start'}); [60,400,1000].forEach(t=>setTimeout(jump,t)); } // QR·공유용 쪽 바로가기: #/book/<id>/p/<쪽>
   $app.querySelectorAll('[data-goto]').forEach(a=>a.onclick=e=>{ e.preventDefault(); document.getElementById(a.dataset.goto).scrollIntoView({behavior:'smooth'}); });
   hydrateMedia($app, paths);
   document.getElementById('share').onclick=async()=>{ try{ await navigator.clipboard.writeText(location.href); toast('주소를 복사했어요'); }catch{ toast('주소창의 주소를 복사해 주세요'); } };

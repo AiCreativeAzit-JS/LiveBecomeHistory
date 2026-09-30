@@ -54,6 +54,19 @@
   .badge{display:inline-block;font-size:12px;font-weight:800;padding:3px 10px;border-radius:999px;background:var(--gold);color:var(--green)}
   .badge.off{background:transparent;color:var(--gold);border:1px solid var(--gold)}
   .badge.warn{background:var(--danger);color:#fff}
+  .libtabs{display:flex;gap:6px;margin:18px 0 4px;border-bottom:2px solid var(--line-2)}
+  .libtabs button{background:none;color:var(--gray-1);border-radius:8px 8px 0 0;padding:10px 16px;border-bottom:3px solid transparent;margin-bottom:-2px;font-size:15px}
+  .libtabs button:hover{background:rgba(11,51,36,.06)} .libtabs button[aria-selected=true]{color:var(--green);border-bottom-color:var(--gold)}
+  .libtabs span{font-size:12.5px;background:var(--line-2);color:var(--gray-1);border-radius:999px;padding:1px 8px;margin-left:4px}
+  .bk-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .book .more{background:rgba(250,248,242,.12);color:var(--ivory-light);min-height:0;width:34px;height:34px;padding:0;border-radius:9px;font-size:18px;line-height:1}
+  .book .more:hover{background:rgba(250,248,242,.28)}
+  .book.trashed{background:var(--ivory-light);color:var(--ink);border:1.5px dashed var(--line);cursor:default}
+  .book.trashed h3{color:var(--gray-1)} .book.trashed .meta{color:var(--gray-2)}
+  .bkmenu{position:fixed;z-index:80;background:#fff;border:1px solid var(--line-2);border-radius:12px;box-shadow:0 12px 34px rgba(20,40,32,.18);padding:6px;min-width:210px}
+  .bkmenu button{display:block;width:100%;text-align:left;background:none;color:var(--ink);font-weight:600;font-size:15px;padding:10px 12px;border-radius:8px;min-height:0}
+  .bkmenu button:hover{background:var(--ivory)} .bkmenu button.del{color:var(--danger)} .bkmenu button:disabled{opacity:.4}
+  .bkmenu hr{border:none;border-top:1px solid var(--line-2);margin:5px 4px}
   /* 편집기 */
   .editor{display:grid;grid-template-columns:260px 1fr;gap:22px;align-items:start}
   @media(max-width:820px){.editor{grid-template-columns:1fr}}
@@ -207,26 +220,85 @@ function detail(err){ // 원인 파악용 원문(문의할 때 함께 알려 주
 async function logout(){ await sb.auth.signOut(); user=null; book=null; route(); }
 
 /* ───────── 내 서재 ───────── */
+let libTab='books';
 async function viewLibrary(){
   clearTimeout(saveTimer);
   $top.innerHTML = `<span class="note">${esc(user.email)}</span><button class="ghost small" id="lo">로그아웃</button>`;
   document.getElementById('lo').onclick = logout;
   $app.innerHTML = `<div class="row between"><div><h1 class="serif">내 서재</h1><p class="sub">내가 쓰는 책들이에요. 책은 언제든 내려받아 간직할 수 있어요.</p></div>
-    <button class="gold" id="nb">＋ 새 책 만들기</button></div><div id="list" class="books">불러오는 중…</div>`;
+    <button class="gold" id="nb">＋ 새 책 만들기</button></div>
+    <div class="libtabs" role="tablist"><button role="tab" data-tab="books">📚 내 책 <span id="cBooks"></span></button><button role="tab" data-tab="trash">🗑 휴지통 <span id="cTrash"></span></button></div>
+    <div id="list" class="books">불러오는 중…</div>`;
   document.getElementById('nb').onclick = newBook;
-  const { data, error } = await sb.from('books').select('id,title,subtitle,is_public,admin_hidden,updated_at,format')
-    .eq('owner_id', user.id).is('deleted_at', null).order('updated_at',{ascending:false});
+  document.querySelectorAll('.libtabs [data-tab]').forEach(b=>b.onclick=()=>{ libTab=b.dataset.tab; viewLibrary(); });
+  const { data, error } = await sb.from('books').select('id,title,subtitle,is_public,admin_hidden,updated_at,format,deleted_at,published_at')
+    .eq('owner_id', user.id).order('updated_at',{ascending:false});
   const list=document.getElementById('list');
   if(error){ list.innerHTML=msgBox('err','책 목록을 불러오지 못했어요.'); return; }
-  if(!data.length){ list.innerHTML='<p class="note">아직 책이 없어요. “새 책 만들기”를 눌러 첫 페이지를 시작해 보세요.</p>'; return; }
-  list.innerHTML = data.map(b=>`<div class="book" tabindex="0" role="button" data-id="${b.id}">
-    <div>${b.admin_hidden?'<span class="badge warn">관리자에 의해 숨김</span>':b.is_public?'<span class="badge">서가에 공개 중</span>':'<span class="badge off">나만 보기</span>'}</div>
+  const live=data.filter(b=>!b.deleted_at), trash=data.filter(b=>b.deleted_at);
+  document.getElementById('cBooks').textContent=live.length; document.getElementById('cTrash').textContent=trash.length;
+  document.querySelectorAll('.libtabs [data-tab]').forEach(b=>b.setAttribute('aria-selected', b.dataset.tab===libTab));
+  const fmt = b => b.format==='pages' ? '새 편집기' : '옛 편집기';
+  if(libTab==='trash'){
+    if(!trash.length){ list.innerHTML='<p class="note">휴지통이 비어 있어요.</p>'; return; }
+    list.innerHTML = `<p class="note" style="grid-column:1/-1;margin:0">휴지통의 책은 서가에 보이지 않아요. 되살리거나, 완전히 지울 수 있어요.</p>` + trash.map(b=>`<div class="book trashed" data-id="${b.id}">
+      <div><span class="badge off">휴지통</span></div><h3>${esc(b.title)}</h3>
+      <div class="meta">${new Date(b.deleted_at).toLocaleDateString('ko-KR')} 삭제 · ${fmt(b)}</div>
+      <div class="row"><button class="small" data-act="restore">되살리기</button><button class="small danger" data-act="purge">완전히 지우기</button></div></div>`).join('');
+    list.onclick = async ev=>{ const btn=ev.target.closest('[data-act]'); if(!btn) return; const b=trash.find(x=>x.id===btn.closest('[data-id]').dataset.id); btn.disabled=true;
+      if(btn.dataset.act==='restore'){ const {error}=await sb.from('books').update({deleted_at:null}).eq('id',b.id); toast(error?'되살리지 못했어요':'책을 되살렸어요 (나만 보기 상태)'); }
+      else await purgeBook(b);
+      viewLibrary(); };
+    return;
+  }
+  if(!live.length){ list.innerHTML='<p class="note">아직 책이 없어요. “새 책 만들기”를 눌러 첫 페이지를 시작해 보세요.</p>'; return; }
+  list.innerHTML = live.map(b=>`<div class="book" tabindex="0" role="button" data-id="${b.id}">
+    <div class="bk-top"><span>${b.admin_hidden?'<span class="badge warn">관리자에 의해 숨김</span>':b.is_public?'<span class="badge">서가에 공개 중</span>':'<span class="badge off">나만 보기</span>'}</span>
+      <button class="more" data-more aria-label="“${esc(b.title)}” 책 관리" title="책 관리">⋯</button></div>
     <h3>${esc(b.title)}</h3><div>${esc(b.subtitle)}</div>
-    <div class="meta">${new Date(b.updated_at).toLocaleDateString('ko-KR')} 수정</div></div>`).join('');
-  list.querySelectorAll('.book').forEach(el=>{
-    const b=data.find(x=>x.id===el.dataset.id); const open=()=> b.format==='pages' ? (location.href=studioURL(b.id)) : openBook(b.id);
-    el.onclick=open; el.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(); } };
-  });
+    <div class="meta">${new Date(b.updated_at).toLocaleDateString('ko-KR')} 수정 · ${fmt(b)}</div></div>`).join('');
+  const openB = b => b.format==='pages' ? (location.href=studioURL(b.id)) : openBook(b.id);
+  list.onclick = ev=>{ const card=ev.target.closest('.book'); if(!card) return; const b=live.find(x=>x.id===card.dataset.id);
+    if(ev.target.closest('[data-more]')){ ev.stopPropagation(); const r=ev.target.getBoundingClientRect(); openBookMenu(b,r.right,r.bottom+4,openB); return; }
+    openB(b); };
+  list.onkeydown = ev=>{ const card=ev.target.closest('.book'); if(!card||ev.target!==card) return; const b=live.find(x=>x.id===card.dataset.id);
+    if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); openB(b); } else if(ev.key==='Delete'){ ev.preventDefault(); toTrash(b); } };
+}
+/* ───────── 책 관리 메뉴 (워드의 파일 관리처럼) ───────── */
+function closeBookMenu(){ document.getElementById('bkmenu')?.remove(); }
+document.addEventListener('pointerdown',ev=>{ if(!ev.target.closest('#bkmenu,[data-more]')) closeBookMenu(); },true);
+document.addEventListener('keydown',ev=>{ if(ev.key==='Escape') closeBookMenu(); });
+function openBookMenu(b,x,y,openB){
+  closeBookMenu(); const m=document.createElement('div'); m.id='bkmenu'; m.className='bkmenu'; m.setAttribute('role','menu');
+  m.innerHTML = `<button data-m="open">📖 열기</button><button data-m="rename">✏️ 이름 바꾸기</button>
+    <button data-m="pub" ${b.admin_hidden?'disabled':''}>${b.is_public?'📕 서가에서 내리기':'📗 서가에 공개하기'}</button>
+    ${b.is_public&&!b.admin_hidden?'<button data-m="view">🔗 서가에서 보기</button>':''}<hr><button data-m="trash" class="del">🗑 휴지통으로 옮기기</button>`;
+  document.body.appendChild(m); m.style.left=Math.max(8,Math.min(innerWidth-m.offsetWidth-8,x-m.offsetWidth))+'px'; m.style.top=Math.min(innerHeight-m.offsetHeight-8,y)+'px';
+  m.querySelector('button').focus();
+  m.onclick = async ev=>{ const k=ev.target.closest('[data-m]')?.dataset.m; if(!k) return; closeBookMenu();
+    if(k==='open') openB(b);
+    else if(k==='view') window.open('../shelf/#/book/'+b.id,'_blank','noopener');
+    else if(k==='rename'){ const t=prompt('새 책 제목을 적어 주세요', b.title); if(t===null) return; const v=t.trim().slice(0,120); if(!v){ toast('제목을 비울 수 없어요'); return; }
+      const {error}=await sb.from('books').update({title:v}).eq('id',b.id); toast(error?'바꾸지 못했어요':'제목을 바꿨어요'); viewLibrary(); }
+    else if(k==='pub'){ const next=!b.is_public; if(next&&!confirm(`“${b.title}”을(를) 서가에 공개할까요?\n다른 회원들이 읽을 수 있게 돼요.`)) return;
+      const {error}=await sb.from('books').update({is_public:next, published_at: next ? (b.published_at||new Date().toISOString()) : b.published_at}).eq('id',b.id);
+      toast(error?'바꾸지 못했어요':next?'서가에 공개했어요':'서가에서 내렸어요'); viewLibrary(); }
+    else if(k==='trash') toTrash(b); };
+}
+async function toTrash(b){
+  if(!confirm(`“${b.title}”을(를) 휴지통으로 옮길까요?\n서가에서도 내려가요. 휴지통에서 언제든 되살릴 수 있어요.`)) return;
+  const { error } = await sb.from('books').update({ deleted_at:new Date().toISOString(), is_public:false }).eq('id',b.id);
+  toast(error?'옮기지 못했어요':'휴지통으로 옮겼어요'); viewLibrary();
+}
+// 완전히 지우기: 사진·영상·노래 파일까지 지운다(되돌릴 수 없음)
+async function purgeBook(b){
+  if(!confirm(`“${b.title}”을(를) 완전히 지울까요?\n\n글·사진·영상·노래가 모두 사라지고 되돌릴 수 없어요.\n먼저 책을 열어 「내려받기」로 간직하시길 권해요.`)) return;
+  const v=prompt('정말 지우려면 「삭제」라고 적어 주세요'); if(v===null||v.trim()!=='삭제'){ toast('지우지 않았어요'); return; }
+  const {data:ms}=await sb.from('media').select('storage_path').eq('book_id',b.id);
+  const paths=(ms||[]).map(m=>m.storage_path).filter(Boolean);
+  for(let i=0;i<paths.length;i+=500){ await sb.storage.from(BUCKET).remove(paths.slice(i,i+500)); }
+  const {error}=await sb.from('books').delete().eq('id',b.id);
+  toast(error?'지우지 못했어요':'완전히 지웠어요');
 }
 const studioURL = id => '../studio/?book='+encodeURIComponent(id);
 async function newBook(){
@@ -425,10 +497,10 @@ async function togglePublic(){
   Object.assign(book,patch); renderEditor(); toast(next?'서가에 공개했어요':'서가에서 내렸어요');
 }
 async function deleteBook(){
-  if(!confirm(`“${book.title}” 책을 삭제할까요?\n삭제 전에 내려받기를 권해요.`)) return;
+  if(!confirm(`“${book.title}”을(를) 휴지통으로 옮길까요?\n휴지통에서 언제든 되살릴 수 있어요.`)) return;
   const { error } = await sb.from('books').update({ deleted_at:new Date().toISOString(), is_public:false }).eq('id',book.id);
   if(error){ toast('삭제하지 못했어요'); return; }
-  book=null; toast('삭제했어요'); viewLibrary();
+  book=null; toast('휴지통으로 옮겼어요'); viewLibrary();
 }
 
 /* ───────── 내 책 내려받기(HTML 한 파일) ───────── */
