@@ -261,6 +261,30 @@ function detail(err){ // 원인 파악용 원문(문의할 때 함께 알려 주
 }
 async function logout(){ await sb.auth.signOut(); user=null; book=null; route(); }
 
+/* ───────── 내 정보: 작가 이름·비밀번호 바꾸기 ───────── */
+async function openMe(){
+  const { data:prof } = await sb.from('profiles').select('display_name').eq('id',user.id).maybeSingle();
+  const d=document.createElement('dialog'); d.className='quitdlg';
+  d.innerHTML=`<h2 class="serif" style="margin-top:0">내 정보</h2><p class="note">${esc(user.email)}</p>
+    <label for="meName">작가 이름</label><input id="meName" type="text" maxlength="40" value="${esc(prof?.display_name||'')}">
+    <label for="mePw">새 비밀번호 (바꿀 때만, 8자 이상)</label><input id="mePw" type="password" minlength="8" autocomplete="new-password">
+    <label for="mePw2">새 비밀번호 확인</label><input id="mePw2" type="password" minlength="8" autocomplete="new-password">
+    <div id="meMsg"></div>
+    <div class="row" style="justify-content:flex-end;gap:10px;margin-top:14px"><button type="button" class="ghost" id="meNo">닫기</button><button type="button" class="gold" id="meOk">저장</button></div>`;
+  document.body.appendChild(d); d.showModal();
+  const close=()=>{ d.close(); d.remove(); }; d.querySelector('#meNo').onclick=close;
+  d.querySelector('#meOk').onclick=async()=>{
+    const out=d.querySelector('#meMsg'), name=d.querySelector('#meName').value.trim(), pw=d.querySelector('#mePw').value, pw2=d.querySelector('#mePw2').value;
+    if(pw||pw2){ if(pw.length<8){ out.innerHTML=msgBox('err','비밀번호는 8자 이상으로 해 주세요.'); return; } if(pw!==pw2){ out.innerHTML=msgBox('err','새 비밀번호가 서로 달라요.'); return; } }
+    const btn=d.querySelector('#meOk'); btn.disabled=true;
+    try{
+      if(name!==(prof?.display_name||'')){ const { error } = await sb.from('profiles').update({ display_name:name }).eq('id',user.id); if(error) throw error; }
+      if(pw){ const { error } = await sb.auth.updateUser({ password:pw }); if(error) throw error; }
+      close(); toast(pw?'저장했어요 · 다음 로그인부터 새 비밀번호를 쓰세요':'저장했어요');
+    }catch(err){ console.error(err); out.innerHTML=msgBox('err', friendly(err)); btn.disabled=false; }
+  };
+}
+
 /* ───────── 회원 탈퇴 ───────── */
 function openQuit(){
   const d=document.createElement('dialog'); d.className='quitdlg';
@@ -296,9 +320,10 @@ async function viewLibrary(){
     <button class="gold" id="nb">＋ 새 책 만들기</button></div>
     <div class="libtabs" role="tablist"><button role="tab" data-tab="books">📚 내 책 <span id="cBooks"></span></button><button role="tab" data-tab="trash">🗑 휴지통 <span id="cTrash"></span></button></div>
     <div id="list" class="books">불러오는 중…</div>
-    <div class="acct"><a href="../privacy/">개인정보 처리방침</a> · <a href="../terms/">이용약관</a> · <button type="button" class="link" id="quit">회원 탈퇴</button></div>`;
+    <div class="acct"><button type="button" class="link" id="me">내 정보(이름·비밀번호)</button> · <a href="../privacy/">개인정보 처리방침</a> · <a href="../terms/">이용약관</a> · <button type="button" class="link" id="quit">회원 탈퇴</button></div>`;
   document.getElementById('nb').onclick = newBook;
   document.getElementById('quit').onclick = openQuit;
+  document.getElementById('me').onclick = openMe;
   document.querySelectorAll('.libtabs [data-tab]').forEach(b=>b.onclick=()=>{ libTab=b.dataset.tab; viewLibrary(); });
   const { data, error } = await sb.from('books').select('id,title,subtitle,is_public,admin_hidden,updated_at,format,deleted_at,published_at')
     .eq('owner_id', user.id).order('updated_at',{ascending:false});
