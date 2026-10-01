@@ -32,3 +32,9 @@
   3. `private.is_approved()`, `admin_set_approved()` 4. RESTRICTIVE 정책 7개(books·pages·media·snapshots·shares·storage)
 - 남은 화면 작업: 내 서재 「승인 대기」 화면, 관리자 회원 탭 「승인」 버튼·대시보드 대기 인원.
 - ⚠️ 순서 주의: 4번(정책)은 반드시 1번 뒤에. 거꾸로 하면 운영자도 책을 못 쓴다.
+
+## 운영 방침 (2026-10-02)
+- 가입: Supabase「Allow new users to sign up」끔 → 운영자가 Authentication → Users → Add user(Auto Confirm)로만 계정 생성. 승인제 코드 개발은 문을 열 때 다시 검토.
+- [ ] 「내 정보」 화면: 작가 이름·비밀번호 바꾸기 (Add user로 만든 계정은 이름이 비어 있고 비밀번호를 못 바꿈)
+- 무료 요금제 잠듦 방지: 매주 1회 로그인·서가 열기. 남의 책이 생기면 Pro 전환(백업 포함), 그 전에 아스트라 mvp 프로젝트 삭제.
+- 메일: Gmail SMTP(archive4everyone.help) 연결. 회원이 늘면 Resend 등 거래 메일 서비스로.
