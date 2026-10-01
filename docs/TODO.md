@@ -24,3 +24,11 @@
 - 프로그램 등록: 위원회 상담(AI 활용 기재 방법·제출 형식) 후 진행
 - 약관·방침 노란 칸 채우기(오픈 전, docs/OPERATIONS.md 0번)
 - 도메인 연결, Supabase Pro·백업
+
+## ⏸ 가입 승인제 — DB 작업 중단(2026-10-01, Supabase 커넥터 쓰기 시간 초과 반복)
+- 적용됨: `profiles.approved` 컬럼(기본 false). 아직 아무 규칙도 이 값을 쓰지 않아 **서비스 영향 없음**.
+- 남은 DB 작업(파일 `supabase/migrations/20261001_0009_signup_approval.sql`의 나머지, 한 문장씩·lock_timeout 걸고):
+  1. `update profiles set approved=true` (운영자 계정 먼저 승인!) 2. 프로필 UPDATE 권한을 display_name만으로
+  3. `private.is_approved()`, `admin_set_approved()` 4. RESTRICTIVE 정책 7개(books·pages·media·snapshots·shares·storage)
+- 남은 화면 작업: 내 서재 「승인 대기」 화면, 관리자 회원 탭 「승인」 버튼·대시보드 대기 인원.
+- ⚠️ 순서 주의: 4번(정책)은 반드시 1번 뒤에. 거꾸로 하면 운영자도 책을 못 쓴다.
