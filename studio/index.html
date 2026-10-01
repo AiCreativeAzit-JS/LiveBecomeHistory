@@ -768,6 +768,37 @@ function pullBack(e){
   if(!split && next.els.every(x=>x.type==='text'&&!plain(x.html))){ dropNext(); toast('다음 페이지 글을 모두 끌어 왔어요'); }
   renderThumbs(); renderBottom(); return true;
 }
+// 줄 맨 앞에서 Backspace → 윗줄과 직접 합친다(브라우저 기본 동작은 숨은 서식 조각·빈칸을 남겨 연달아 누르면 막힘)
+function txNormalize(tx){
+  tx.querySelectorAll('span').forEach(sp=>{ const st=(sp.getAttribute('style')||'').trim(); if(!st || /^font-size:[^;]*;?$/.test(st)) sp.replaceWith(...sp.childNodes); });
+  const w=document.createTreeWalker(tx,NodeFilter.SHOW_TEXT); const ts=[]; let n; while((n=w.nextNode())) ts.push(n);
+  ts.forEach(t=>{ if(t.data.includes(' ')) t.data=t.data.replace(/ /g,' '); });
+  tx.normalize(); tx.querySelectorAll('div:empty').forEach(d=>d.remove());
+}
+function mergeLineUp(tx){
+  const s=getSelection(); if(!s.rangeCount||!s.isCollapsed||!tx.contains(s.anchorNode)) return false;
+  let blk=s.anchorNode; while(blk && blk.parentNode!==tx) blk=blk.parentNode;
+  if(!blk || blk.nodeType!==1 || !/^(DIV|P)$/.test(blk.tagName)) return false;      // 첫 줄(맨 앞 줄)은 합칠 윗줄이 없다
+  const r=document.createRange(); r.setStart(blk,0); r.setEnd(s.anchorNode,s.anchorOffset);
+  if(r.toString().length || r.cloneContents().querySelector('img,br')) return false;  // 줄 맨 앞이 아니면 기본 동작
+  let prev=blk.previousSibling; while(prev && prev.nodeType===3 && !prev.data.length){ const p=prev.previousSibling; prev.remove(); prev=p; }
+  if(!prev) return false;
+  const off=caretOffset(tx);
+  const body=[...blk.childNodes].filter(c=>!(c.nodeName==='BR' && blk.childNodes.length===1)); // 빈 줄(<br>뿐)이면 내용 없음
+  if(prev.nodeType===1 && /^(DIV|P)$/.test(prev.tagName)){
+    if(prev.lastChild && prev.lastChild.nodeName==='BR') prev.lastChild.remove();
+    prev.append(...body);
+  } else blk.before(...body);
+  blk.remove(); txNormalize(tx);
+  placeCaretAt(tx, off==null?0:off);
+  tx.dispatchEvent(new Event('input',{bubbles:true}));                           // 저장·넘침 처리는 평소처럼
+  return true;
+}
+$('center').addEventListener('keydown',ev=>{
+  if(ev.key!=='Backspace' || ev.isComposing || ev.keyCode===229 || !state.editing) return;   // 한글 조합 중에는 손대지 않음
+  const tx=ev.target.closest&&ev.target.closest('.tx'); if(!tx) return;
+  if(mergeLineUp(tx)) ev.preventDefault();
+});
 function placeCaretAt(tx, offset){ const pos=textPositions(tx); const r=document.createRange();
   if(!pos.length||offset>=pos.length){ r.selectNodeContents(tx); r.collapse(false); } else { const [n,k]=pos[Math.max(0,offset)]; r.setStart(n,k); r.collapse(true); }
   const s=getSelection(); s.removeAllRanges(); s.addRange(r); }
