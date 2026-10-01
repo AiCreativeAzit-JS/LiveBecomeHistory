@@ -6,6 +6,9 @@
 - 이 프로그램을 위해 작성한 코드만 넣는다. 외부 라이브러리(lib/supabase-js.umd.js, lib/qrcode.js)는 넣지 않는다.
 - 공개용 접속 키는 '<공개 키 생략>'으로 가린다.
 실행: python3 docs/registration/make_excerpt.py  →  docs/registration/소스코드_발췌본.txt
+PDF: python3 docs/registration/make_excerpt.py --html 발췌본.html --fonts <글꼴폴더>
+     글꼴폴더 = npm pack @fontsource/nanum-gothic-coding @fontsource/noto-sans-kr @fontsource/noto-serif-kr 를
+     각각 fontsource-<이름>/ 에 푼 곳(모두 SIL OFL 무료 글꼴). 그 HTML을 Chromium으로 A4 PDF 인쇄.
 """
 import os, re, unicodedata, datetime
 
@@ -124,8 +127,86 @@ def render(pages, toc):
     return '\n'.join(out).replace('\n\f\n', '\n\f') + '\n'
 
 
+def esc(t):
+    return t.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+
+
+def render_html(pages, toc, fonts):
+    """문서처럼 보이는 A4 HTML(→ PDF). 쪽마다 텍스트판과 똑같은 46줄을 담는다."""
+    today = datetime.date.today().strftime('%Y. %m. %d.')
+    css_links = ''.join(f'<link rel="stylesheet" href="{fonts}/{d}">' for d in (
+        'fontsource-nanum-gothic-coding/package/400.css', 'fontsource-nanum-gothic-coding/package/700.css',
+        'fontsource-noto-sans-kr/package/400.css', 'fontsource-noto-sans-kr/package/700.css',
+        'fontsource-noto-serif-kr/package/700.css'))
+    num_re = re.compile(r'^\s*(\d+)│(.*)$')
+    out = []
+    for i, chunk in enumerate(pages):
+        rows = []
+        for kind, text in chunk + [('blank', '')] * (BODY - len(chunk)):
+            if kind == 'intro':
+                if ' : ' in text and not text.startswith(' '):
+                    k, v = text.split(' : ', 1)
+                    rows.append(f'<div class="r intro"><span class="k">{esc(k.strip())}</span><span class="v">{esc(v)}</span></div>')
+                else:
+                    rows.append(f'<div class="r intro"><span class="k"></span><span class="v">{esc(text.strip())}</span></div>')
+            elif kind == 'title':
+                cls = 'sec' if text.startswith('■') else 'file'
+                rows.append(f'<div class="r {cls}">{esc(text.lstrip("■ ").strip())}</div>')
+            elif kind == 'gap':
+                rows.append(f'<div class="r gap"><span class="g">⋮</span><span class="c">{esc(text.strip().lstrip("⋮").strip())}</span></div>')
+            elif kind == 'code':
+                m = num_re.match(text)
+                if m:
+                    rows.append(f'<div class="r code"><span class="g">{m.group(1)}</span><span class="c">{esc(m.group(2))}</span></div>')
+                else:
+                    rows.append(f'<div class="r code cont"><span class="g">↳</span><span class="c">{esc(text[6:])}</span></div>')
+            else:
+                rows.append('<div class="r"></div>')
+        head = ('<div class="doc-title"><b>프로그램 저작권 등록 · 소스코드 발췌본</b></div>' if i == 0 else '')
+        out.append(f'''<section class="page">
+  <header><span>{esc(TITLE)} <em>{esc(VERSION)}</em></span><span>소스코드 발췌본</span></header>
+  {head}<div class="body{' first' if i == 0 else ''}">{''.join(rows)}</div>
+  <footer><span></span><span class="pn">{i + 1} / {PAGES}</span><span class="dt">{today}</span></footer>
+</section>''')
+    return f'''<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>{esc(TITLE)} 소스코드 발췌본</title>{css_links}
+<style>
+@page {{ size: A4; margin: 0 }}
+@font-face {{ font-family: 'CodeBar'; src: local('DejaVu Sans Mono'), local('Liberation Mono'); unicode-range: U+007C }}  /* 세로 막대 | 를 ¦ 로 그리지 않게 */
+* {{ box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact }}
+body {{ margin: 0; background: #fff; color: #1d2420 }}
+.page {{ width: 210mm; height: 297mm; padding: 14mm 16mm 12mm; display: flex; flex-direction: column; break-after: page; overflow: hidden }}
+.page:last-child {{ break-after: auto }}
+header {{ display: flex; justify-content: space-between; font: 700 8.5pt 'Noto Sans KR', sans-serif; color: #0B3324;
+  border-bottom: 1.2pt solid #C9A83A; padding-bottom: 2.2mm; margin-bottom: 3mm }}
+header em {{ font-style: normal; font-weight: 400; color: #6F6D63; margin-left: 2mm }}
+.doc-title {{ font: 700 12pt 'Noto Serif KR', serif; color: #0B3324; margin: 0 0 1.5mm }}
+.body {{ flex: 1; font: 8.6pt/1.0 'CodeBar', 'Nanum Gothic Coding', monospace }}
+.r {{ height: 5.05mm; display: flex; align-items: center; white-space: pre; overflow: hidden }}
+.body.first .r {{ height: 4.85mm }}
+.g {{ flex: none; width: 11mm; text-align: right; padding-right: 2mm; margin-right: 2mm; color: #9AA39E;
+  border-right: .6pt solid #DAD5C4; font-family: 'Noto Sans KR', sans-serif; font-size: 7.4pt; font-variant-numeric: tabular-nums; align-self: stretch; display: flex; align-items: center; justify-content: flex-end }}
+.c {{ flex: 1 }}
+.cont .g {{ color: #C9A83A }}
+.sec {{ font: 700 9.6pt 'Noto Sans KR', sans-serif; color: #fff; background: #0B3324; padding: 0 2.5mm; border-radius: .8mm }}
+.file {{ font: 400 8pt 'CodeBar', 'Nanum Gothic Coding', monospace; color: #6F6D63; padding-left: 2.5mm }}
+.gap .c {{ color: #9AA39E; font-family: 'Noto Sans KR', sans-serif; font-size: 8pt }}
+.intro {{ font: 8.4pt 'Noto Sans KR', sans-serif; background: #F7F4EA }}
+.intro .k {{ flex: none; width: 26mm; padding-left: 3mm; font-weight: 700; color: #0B3324 }}
+.intro .v {{ flex: 1; color: #2c332f }}
+footer {{ display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-top: .6pt solid #DAD5C4; padding-top: 2mm;
+  margin-top: 2mm; font: 8pt 'Noto Sans KR', sans-serif; color: #6F6D63 }}
+footer .pn {{ font-weight: 700; color: #0B3324 }} footer .dt {{ text-align: right }}
+</style></head><body>{''.join(out)}</body></html>'''
+
+
 if __name__ == '__main__':
+    import sys
     pages, toc = build()
+    if '--html' in sys.argv:  # 사용: --html 출력.html --fonts 글꼴폴더(@fontsource 패키지들을 푼 곳)
+        a = sys.argv
+        html_out, fonts = a[a.index('--html') + 1], a[a.index('--fonts') + 1]
+        open(html_out, 'w', encoding='utf-8').write(render_html(pages, toc, fonts))
+        print(f'HTML 저장: {html_out}')
     text = render(pages, toc)
     open(OUT, 'w', encoding='utf-8').write(text)
     widest = max(dw(l) for l in text.split('\n'))
