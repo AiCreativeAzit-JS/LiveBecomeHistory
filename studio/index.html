@@ -665,7 +665,7 @@ document.addEventListener('pointerdown',ev=>{ if(!ev.target.closest('#fslist,#fs
 /* ═══════════════ 페이지 다루기 (파워포인트 방식) ═══════════════ */
 const blankPage = () => ({id:uid(),name:`새 페이지 ${state.pages.length+1}`,bg:'#FFFFFF',els:[T(MX,MT,CW,PH-MT-MB,'')]});
 // 사진·영상·노래 페이지 틀: 제목 · 콘텐츠(자리) · 설명
-const TITLE = ph => T(MX,24,CW,12,'',{fs:18,b:true,color:'#0B4536',ph});
+const TITLE = ph => T(MX,24,CW,12,'',{fs:18,b:true,align:'center',color:'#0B4536',ph}); // 제목은 가운데 정렬
 const DESC = (y,h,ph,o={}) => T(MX,y,CW,h,'',{fs:11,align:'center',color:'#3D4B45',ph,...o});
 function mediaPageTemplate(kind, name){
   const slot=(y,h)=>({id:uid(),type:'slot',kind,x:MX,y,w:CW,h});
@@ -992,12 +992,12 @@ function templatePages(){
   return [
     {id:uid(),name:'표지',bg:'#FFFFFF',els:[
       T(MX,22,CW,8,'인물대백과사 · 나의 자서전',{fs:9,color:'#6B7A73',font:'sans'}),
-      T(MX,34,CW,42,title,{fs:30,color:'#0B4536',ph:'책 제목을 적어 보세요\n(예: 내 생애 최고의 순간)'}),
+      T(MX,34,CW,42,title,{fs:30,align:'center',color:'#0B4536',ph:'책 제목을 적어 보세요\n(예: 내 생애 최고의 순간)'}),
       T(MX,80,CW,16,'',{fs:12,color:'#3D4B45',font:'sans',ph:'부제를 적어 보세요 (예: 지나온 하루들이 한 권의 책이 되는 시간)'}),
       {id:uid(),type:'slot',kind:'image',x:MX,y:104,w:CW,h:84},
       T(MX,196,CW,8,author,{fs:9,color:'#6B7A73',font:'sans',ph:'지은이 이름'})]},
     {id:uid(),name:'첫 번째 이야기',bg:'#FFFFFF',els:[
-      T(MX,24,CW,12,'',{fs:18,b:true,color:'#0B4536',ph:'이야기 제목 (예: 이야기의 시작)'}),
+      T(MX,24,CW,12,'',{fs:18,b:true,align:'center',color:'#0B4536',ph:'이야기 제목 (예: 이야기의 시작)'}),
       T(MX,44,CW,PH-MB-44,'',{ph:'여기를 눌러 첫 이야기를 써 보세요.\n\n잘 쓰려고 애쓰지 않아도 괜찮아요. 정확하지 않아도 돼요. 마음에 남은 대로가 진짜니까요.\n\n글이 페이지를 넘치면 다음 페이지로 저절로 이어져요.'})]},
     {...mediaPageTemplate('image','기억하고 싶은 순간'),bg:'#F3F8F5'},
     mediaPageTemplate('video','8초의 영상'),

@@ -82,6 +82,9 @@
   .brandwrap{display:flex;align-items:center;min-width:0}
   .brandwrap .brand{white-space:nowrap}
   @media (max-width:420px){.brandwrap .brand span{display:none}}
+  /* 바닥글·동의 링크: 파란 기본색 대신 차분한 골드, 밑줄은 마우스를 올릴 때만 */
+  .acct a,.foot-links a,.agree a,.acct .link,footer a{color:#A88A2E!important;text-decoration:none!important;font-weight:500}
+  .acct a:hover,.foot-links a:hover,.agree a:hover,.acct .link:hover,footer a:hover{text-decoration:underline!important}
 </style>
 </head>
 <body>
@@ -90,7 +93,7 @@
   <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn ghost small" href="../editor/">✍️ 내 책 쓰기</a></div>
 </div></header>
 <div id="app"></div>
-<footer>인물대백과사 · 이름난 사람만 책을 남기던 시대는 지났습니다. · <a href="../terms/" style="color:rgba(250,248,242,.85)">이용약관</a> · <a href="../privacy/" style="color:rgba(250,248,242,.85)">개인정보 처리방침</a></footer>
+<footer>인물대백과사 · 이름난 사람만 책을 남기던 시대는 지났습니다. · <a href="../terms/">이용약관</a> · <a href="../privacy/">개인정보 처리방침</a></footer>
 <div class="toast" id="toast"></div>
 
 <script src="../lib/supabase-js.umd.js"></script>
@@ -141,6 +144,7 @@ let query = '', page = 0;
 window.addEventListener('hashchange', route);
 route();
 function route(){
+  if(window.BookViewer && BookViewer.stopAll) BookViewer.stopAll(); // 책을 떠나면 노래도 멈춤
   // #/book/<책>  ·  #/book/<책>/p/<쪽>  ·  #/book/<책>/m/<영상·노래 번호>(인쇄본 QR)
   const m = location.hash.match(/^#\/book\/([0-9a-f-]{36})(?:\/p\/(\d{1,4})|\/m\/([0-9a-f-]{36}))?$/);
   const sh = location.hash.match(/^#\/s\/([A-Za-z0-9_-]{32,64})(?:\/m\/([0-9a-f-]{36}))?$/); // 비밀 링크
