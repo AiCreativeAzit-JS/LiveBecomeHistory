@@ -538,7 +538,9 @@ function autoGrow(e){
   n.classList.toggle('empty',!tx.textContent.trim()); checkOver(e.id);
 }
 const HINT = $('hint').textContent;
-function delEl(){ const e=selEl(); if(!e) return; snap(); page().els=page().els.filter(x=>x.id!==e.id); state.sel=null; state.editing=false; renderThumbs(); renderCanvas(); renderPanels(); }
+function delEl(){ const e=selEl(); if(!e) return; snap();
+  const sl=e.slot; // 견본 자리에 넣었던 사진·영상·노래를 지우면 그 자리를 되살린다(제목·설명 틀 유지)
+  page().els=page().els.flatMap(x=>x.id!==e.id ? [x] : (sl ? [{id:uid(),type:'slot',kind:e.type,x:sl.x,y:sl.y,w:sl.w,h:sl.h}] : [])); state.sel=null; state.editing=false; renderThumbs(); renderCanvas(); renderPanels(); }
 function addPageBlank(){ state.zoom=state.zoom||fitZoom(); insertPageAt(state.cur+1,'text'); } // 워드처럼 새 페이지 = 본문 전체가 글상자
 function goPage(i){ if(i<0||i>=state.pages.length) return; endEdit(); state.cur=i; state.sel=null; renderAll(); }
 function movePage(from,to){ if(to<0||to>=state.pages.length||from===to) return; snap(); const [p]=state.pages.splice(from,1); state.pages.splice(to,0,p); state.cur=to; renderAll(); }
@@ -577,7 +579,7 @@ function fillSlot(slotId,kind,src,name,mediaId){
   const pi=state.pages.findIndex(p=>p.els.some(e=>e.id===slotId)); if(pi<0) return addMediaPage(kind,src,name,mediaId);
   const put=r=>{ const pg=state.pages[pi], i=pg.els.findIndex(e=>e.id===slotId); if(i<0) return; const sl=pg.els[i];
     let w=sl.w, h=w*r; if(h>sl.h){ h=sl.h; w=h/r; }
-    endEdit(); snap(); const m={id:uid(),type:kind,x:sl.x+(sl.w-w)/2,y:sl.y+(sl.h-h)/2,w,h,src,name}; if(mediaId) m.media_id=mediaId;
+    endEdit(); snap(); const m={id:uid(),type:kind,x:sl.x+(sl.w-w)/2,y:sl.y+(sl.h-h)/2,w,h,src,name,slot:{x:sl.x,y:sl.y,w:sl.w,h:sl.h}}; if(mediaId) m.media_id=mediaId;
     pg.els.splice(i,1,m); state.cur=pi; state.sel=m.id; renderAll(); toast('사진을 넣었어요'); };
   if(kind==='image'){ const im=new Image(); im.onload=()=>put(im.naturalHeight/im.naturalWidth||.75); im.onerror=()=>put(.75); im.src=src; }
   else put(kind==='video'?9/16:Math.min(.3, 34/CW));
@@ -589,13 +591,13 @@ function addMediaPage(kind,src,name,mediaId){
   if(slot) return fillSlot(slot.id,kind,src,name,mediaId);
   snap();
   const onThisPage=(w,h)=>{
-    const filled=p0.els.filter(e=>!(e.type==='text'&&!plain(e.html)));           // 빈 글상자는 빈 공간으로 본다
+    const filled=p0.els.filter(e=>!(e.type==='text'&&!plain(e.html)&&!e.ph));     // 빈 글상자는 빈 공간으로 본다(안내 글이 있는 틀 상자는 제외)
     const bottom=filled.reduce((m,e)=>Math.max(m,e.y+e.h),MT-6), avail=LIM.y1-(bottom+6);
     if(avail<Math.min(h,40)) return false;
     if(h>avail){ const r=h/w; h=avail; w=kind==='image'?h/r:w; }
     const y = filled.length ? bottom+6 : Math.max(MT,(PH-h)/2-14);
     const m={id:uid(),type:kind,x:(PW-w)/2,y,w,h,src,name}; if(mediaId) m.media_id=mediaId;
-    p0.els=p0.els.filter(e=>!(e.type==='text'&&!plain(e.html)&&e.y<y+h&&e.y+e.h>y)); // 겹치는 빈 글상자는 치운다
+    p0.els=p0.els.filter(e=>!(e.type==='text'&&!plain(e.html)&&!e.ph&&e.y<y+h&&e.y+e.h>y)); // 겹치는 빈 글상자는 치운다(틀 상자는 남김)
     p0.els.push(m); state.sel=m.id; state.editing=false; renderAll();
     toast('이 페이지에 담았어요. 「설명 글 넣기」로 설명을 적을 수 있어요'); return true;
   };
@@ -989,7 +991,7 @@ function fatal(title,msg,link){ $('center').innerHTML=`<div class="fatal"><h2>${
 const cleanEl = e => e.type==='slot' ? {id:e.id,type:'slot',kind:e.kind||'image',x:e.x,y:e.y,w:e.w,h:e.h}
   : e.type==='text'
   ? {id:e.id,type:'text',x:e.x,y:e.y,w:e.w,h:e.h,html:sanitizeText(e.html),fs:e.fs,align:e.align,color:e.color,font:e.font,b:!!e.b,i:!!e.i,u:!!e.u,...(e.ph?{ph:String(e.ph).slice(0,200)}:{})}
-  : {id:e.id,type:e.type,x:e.x,y:e.y,w:e.w,h:e.h,name:e.name||'',media_id:e.media_id};
+  : {id:e.id,type:e.type,x:e.x,y:e.y,w:e.w,h:e.h,name:e.name||'',media_id:e.media_id,...(e.slot&&[e.slot.x,e.slot.y,e.slot.w,e.slot.h].every(Number.isFinite)?{slot:{x:e.slot.x,y:e.slot.y,w:e.slot.w,h:e.slot.h}}:{})};
 function serialize(){ return JSON.stringify({title:state.title,pages:state.pages.map((p,i)=>({id:p.id,position:i,name:String(p.name||'').slice(0,60),bg:/^#[0-9a-f]{6}$/i.test(p.bg)?p.bg:'#FFFFFF',flow_from:p.flowFrom||null,els:p.els.filter(e=>e.type==='text'||e.type==='slot'||e.media_id).map(cleanEl)}))}); }
 // 새 책: 처음 저장할 때 books 행을 만든다(들어왔다 그냥 나가면 아무것도 생기지 않음)
 let creating=null;
