@@ -243,7 +243,7 @@ function viewAuth(mode='login'){
         if(error) throw error;
       }
       const { data } = await sb.auth.getSession(); user=data.session?.user; route();
-    }catch(err){ console.error(err); out.innerHTML=msgBox('err', friendly(err))+`<p class="note">오류 원문: ${esc(detail(err))}</p>`; go.disabled=false; }
+    }catch(err){ console.error(err); { const f=friendly(err); out.innerHTML=msgBox('err', f)+(f.startsWith('문제가 생겼어요')?`<p class="note">오류 원문: ${esc(detail(err))}</p>`:''); } go.disabled=false; }
   };
 }
 function friendly(err){
