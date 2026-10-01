@@ -412,6 +412,7 @@ function sanitizeText(html){
       if(/^(bold|[6-9]00)$/.test(st.fontWeight)) keep['font-weight']='700';
       if(st.fontStyle==='italic') keep['font-style']='italic';
       if(/underline/.test(st.textDecoration||st.textDecorationLine||'')) keep['text-decoration']='underline'; }
+    if(c.tagName==='DIV'||c.tagName==='P'){ const ta=(c.style.textAlign||c.getAttribute('align')||'').toLowerCase(); if(['left','center','right','justify'].includes(ta)) keep['text-align']=ta; } // 문단 정렬
     [...c.attributes].forEach(a=>c.removeAttribute(a.name));
     const css=Object.entries(keep).map(([k,v])=>`${k}:${v}`).join(';'); if(css) c.setAttribute('style',css);
     w(c); }); })(d.body);
@@ -825,6 +826,7 @@ function applyToSelection(cmd,val){
   if(!r||r.collapsed) return false;
   snap();
   if(cmd==='color'){ document.execCommand('styleWithCSS',false,true); document.execCommand('foreColor',false,val); document.execCommand('styleWithCSS',false,false); }
+  else if(cmd==='align'){ document.execCommand('styleWithCSS',false,true); document.execCommand({left:'justifyLeft',center:'justifyCenter',right:'justifyRight',justify:'justifyFull'}[val]); document.execCommand('styleWithCSS',false,false); } // 고른 글이 있는 줄(문단)만 정렬
   else if(cmd==='clear'){ document.execCommand('removeFormat'); }
   else document.execCommand(cmd);
   const e=selEl(); e.html=tx.innerHTML; autoGrow(e); clearTimeout(input._t); input._t=setTimeout(renderThumbs,250);
@@ -876,6 +878,7 @@ $('secSel').addEventListener('click',ev=>{
     if(b.id==='bB' && applyToSelection('bold')) return;
     if(b.id==='bI' && applyToSelection('italic')) return;
     if(b.id==='bU' && applyToSelection('underline')) return;
+    if(b.dataset.a && applyToSelection('align',b.dataset.a)) return;
   }
   snap();
   if(b.dataset.f) e.font=b.dataset.f;
