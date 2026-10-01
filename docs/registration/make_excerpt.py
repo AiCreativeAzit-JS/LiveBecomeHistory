@@ -3,7 +3,7 @@
 
 - 쪽마다 50줄(머리말 2줄 + 본문 46줄 + 빈 줄 + 쪽 번호), 한 줄 화면 폭 100칸(한글은 2칸으로 셈)
 - 줄 앞 숫자 = 원본 파일의 줄 번호(나중에 원본과 대조할 수 있게)
-- 직접 작성한 코드만 넣는다. 외부 라이브러리(lib/supabase-js.umd.js, lib/qrcode.js)는 넣지 않는다.
+- 이 프로그램을 위해 작성한 코드만 넣는다. 외부 라이브러리(lib/supabase-js.umd.js, lib/qrcode.js)는 넣지 않는다.
 - 공개용 접속 키는 '<공개 키 생략>'으로 가린다.
 실행: python3 docs/registration/make_excerpt.py  →  docs/registration/소스코드_발췌본.txt
 """
@@ -34,14 +34,26 @@ def dw(s):  # 화면 폭(한글·전각 = 2칸)
     return sum(2 if unicodedata.east_asian_width(c) in 'WF' else 1 for c in s)
 
 
+BREAK_AFTER = set(' ,;({[=+-*/<>&|?:')  # 이 글자 뒤에서 끊으면 단어·이름이 쪼개지지 않는다
+
+
 def wrap(text, width):
-    out, cur, w = [], '', 0
-    for c in text:
-        cw = 2 if unicodedata.east_asian_width(c) in 'WF' else 1
-        if w + cw > width:
-            out.append(cur); cur, w = '', 0
-        cur += c; w += cw
-    out.append(cur)
+    """화면 폭에 맞춰 줄을 나누되, 단어·변수 이름 한가운데서는 자르지 않는다."""
+    out = []
+    while dw(text) > width:
+        w, cut, last_ok = 0, 0, 0
+        for i, c in enumerate(text):
+            w += 2 if unicodedata.east_asian_width(c) in 'WF' else 1
+            if w > width:
+                break
+            cut = i + 1
+            if c in BREAK_AFTER or unicodedata.east_asian_width(c) in 'WF':
+                last_ok = i + 1
+        if last_ok >= cut * 0.5:  # 너무 앞쪽이 아니면 그 경계에서 자른다
+            cut = last_ok
+        out.append(text[:cut].rstrip())
+        text = text[cut:].lstrip(' ')
+    out.append(text)
     return out
 
 
@@ -73,9 +85,10 @@ def build():
         '작성 언어     : JavaScript, HTML/CSS, TypeScript(Deno), SQL(PostgreSQL)',
         '실행 환경     : 웹 브라우저 + Supabase(데이터베이스·인증·파일 저장·서버 함수)',
         f'발췌 작성일   : {today}',
-        '발췌 기준     : 직접 작성한 소스코드 가운데 프로그램의 특징을 이루는 부분을 순서대로 발췌함.',
+        '발췌 기준     : 이 프로그램을 위해 작성한 소스코드 가운데 프로그램의 특징을 이루는 부분을 순서대로 발췌함.',
         '                외부 공개 라이브러리(supabase-js, qrcode-generator)는 제외함.',
-        '                각 줄 앞의 숫자는 원본 파일의 줄 번호, ↳ 는 지면 폭 때문에 이어 쓴 줄, ⋮ 는 중략.',
+        '                각 줄 앞의 숫자는 원본 파일의 줄 번호, ⋮ 는 중략.',
+        '                ↳ 는 코드가 아님: 원본의 한 줄이 지면 폭(100칸)을 넘어 다음 줄로 이어 적었다는 표시.',
         '                보안을 위해 접속 키 값은 <공개 키 생략>으로 가림.',
         '',
     ]
