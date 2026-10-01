@@ -108,6 +108,10 @@
   .quitdlg{max-width:460px;border:1px solid var(--line-2);border-radius:12px;padding:24px}
   .quitdlg::backdrop{background:rgba(0,0,0,.35)}.quitdlg ul{padding-left:20px;margin:6px 0 10px}
   .quitdlg input{width:100%;font:inherit;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;margin-top:6px}
+  .docdlg{width:min(860px,96vw);height:min(88vh,900px);padding:0;border:none;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+  .docdlg:not([open]){display:none}.docdlg::backdrop{background:rgba(0,0,0,.45)}
+  .docbar{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#F2EEE2;border-bottom:1px solid #E4DDCB}
+  .docdlg iframe{flex:1;border:none;width:100%}
   .agree{margin-top:14px;padding:12px 14px;border:1px solid var(--line-2);border-radius:8px;background:#fff}
   .agree .showpw{margin:6px 0 0;align-items:flex-start}.agree .showpw input{flex:none;margin-top:3px}
   .agnote{font-size:13px;color:var(--gray-2);margin:8px 0 0;line-height:1.55}
@@ -186,6 +190,12 @@ async function init(){
 function route(){ user ? viewLibrary() : viewAuth(); }
 
 /* ───────── 로그인 ───────── */
+function openDoc(url){
+  const d=document.createElement('dialog'); d.className='docdlg';
+  d.innerHTML=`<div class="docbar"><b>${url.includes('privacy')?'개인정보 처리방침':'이용약관'}</b><button type="button" class="gold">닫기 ✕</button></div><iframe src="${url}?embed=1" title="문서"></iframe>`;
+  document.body.appendChild(d); d.showModal(); const close=()=>{ d.close(); d.remove(); };
+  d.querySelector('button').onclick=close; d.addEventListener('cancel',close);
+}
 const TERMS_VERSION='2026-10'; // 이용약관 버전(동의 기록용). 약관을 바꾸면 올린다.
 function viewAuth(mode='login'){
   $top.innerHTML='';
@@ -201,8 +211,8 @@ function viewAuth(mode='login'){
       <label class="showpw"><input type="checkbox" id="showpw"> 비밀번호 보이기</label>
       ${signup?`<div class="agree">
         <label class="showpw"><input type="checkbox" id="agAll"> <span><b>모두 동의해요</b></span></label>
-        <label class="showpw"><input type="checkbox" id="agTerms" class="ag"> <span>(필수) 만 14세 이상이며, <a href="../terms/" target="_blank" rel="noopener">이용약관</a>에 동의해요</span></label>
-        <label class="showpw"><input type="checkbox" id="agPriv" class="ag"> <span>(필수) <a href="../privacy/" target="_blank" rel="noopener">개인정보 수집·이용</a>에 동의해요</span></label>
+        <label class="showpw"><input type="checkbox" id="agTerms" class="ag"> <span>(필수) 만 14세 이상이며, <a href="../terms/" data-doc="../terms/">이용약관</a>에 동의해요</span></label>
+        <label class="showpw"><input type="checkbox" id="agPriv" class="ag"> <span>(필수) <a href="../privacy/" data-doc="../privacy/">개인정보 수집·이용</a>에 동의해요</span></label>
         <p class="agnote">수집 항목: 이메일, 작가 이름, 비밀번호(암호화 저장) · 목적: 회원 확인·로그인·중요 안내 · 보관: 탈퇴할 때까지(법령이 정한 경우 그 기간). 동의하지 않으면 가입할 수 없어요.</p>
       </div>`:''}
       <div class="row" style="margin-top:20px"><button type="submit" class="gold" id="go">${signup?'가입하기':'로그인'}</button>
@@ -211,6 +221,7 @@ function viewAuth(mode='login'){
     </form></div>`;
   document.getElementById('showpw').onchange = e=>{ ['pw','pw2'].forEach(id=>{ const el=document.getElementById(id); if(el) el.type = e.target.checked ? 'text' : 'password'; }); };
   document.getElementById('sw').onclick = ()=>viewAuth(signup?'login':'signup');
+  document.querySelectorAll('[data-doc]').forEach(a=>a.onclick=ev=>{ ev.preventDefault(); openDoc(a.dataset.doc); }); // 가입 정보가 사라지지 않게 같은 화면의 창으로
   if(signup){ const all=document.getElementById('agAll'), ags=[...document.querySelectorAll('.ag')];
     all.onchange=()=>ags.forEach(a=>a.checked=all.checked); ags.forEach(a=>a.onchange=()=>all.checked=ags.every(x=>x.checked)); }
   document.getElementById('f').onsubmit = async e=>{

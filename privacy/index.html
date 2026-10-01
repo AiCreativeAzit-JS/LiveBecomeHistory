@@ -47,11 +47,15 @@
   /* 바닥글·동의 링크: 파란 기본색 대신 차분한 골드, 밑줄은 마우스를 올릴 때만 */
   .acct a,.foot-links a,.agree a,.acct .link,footer a{color:#A88A2E!important;text-decoration:none!important;font-weight:500}
   .acct a:hover,.foot-links a:hover,.agree a:hover,.acct .link:hover,footer a:hover{text-decoration:underline!important}
+  .backbtn{font:600 14px 'Pretendard',sans-serif;border:1.5px solid var(--line);background:#fff;color:var(--green);border-radius:999px;padding:7px 14px;cursor:pointer;white-space:nowrap}
+  .embed header.top,.embed footer{display:none}
 </style>
 </head>
 <body>
+<script>if(/[?&]embed=1/.test(location.search))document.body.classList.add('embed');</script>
 <header class="top"><div class="top-in">
   <a class="homeico" href="https://archive4everyone.com/" title="인물대백과사 홈으로" aria-label="인물대백과사 홈으로"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></a>
+  <button type="button" class="backbtn" onclick="if(history.length>1)history.back();else location.href='../'">← 돌아가기</button>
   <a class="brand" href="../shelf/">인물대백과사 <span>· 개인정보 처리방침</span></a>
 </div></header>
 
