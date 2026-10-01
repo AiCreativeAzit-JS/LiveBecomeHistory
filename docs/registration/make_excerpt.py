@@ -7,8 +7,9 @@
 - 공개용 접속 키는 '<공개 키 생략>'으로 가린다.
 실행: python3 docs/registration/make_excerpt.py  →  docs/registration/소스코드_발췌본.txt
 PDF: python3 docs/registration/make_excerpt.py --html 발췌본.html --fonts <글꼴폴더>
-     글꼴폴더 = npm pack @fontsource/nanum-gothic-coding @fontsource/noto-sans-kr @fontsource/noto-serif-kr 를
-     각각 fontsource-<이름>/ 에 푼 곳(모두 SIL OFL 무료 글꼴). 그 HTML을 Chromium으로 A4 PDF 인쇄.
+     글꼴폴더 = npm pack @fontsource/nanum-gothic-coding 을 fontsource-nanum-gothic-coding/ 에 푼 곳(SIL OFL).
+     영문·숫자는 시스템의 Liberation Mono(Courier 계열)로 찍힌다.
+     그 HTML을 Chromium으로 A4 PDF 인쇄.
 """
 import os, re, unicodedata, datetime
 
@@ -28,7 +29,9 @@ SECTIONS = [
     ('6. 책 보기: 두 쪽 펼침 · 3D 책장 넘김 · 노래 재생기 · 복사 방지', 'lib/book-viewer.js', [(1, 7), (30, 198)]),
     ('7. 서버: 비밀 링크로 책 보기', 'supabase/functions/shared-book/index.ts', [(1, 47)]),
     ('8. 서버: 회원 탈퇴(계정·책·파일 삭제)', 'supabase/functions/delete-account/index.ts', [(1, 59)]),
-    ('9. 데이터 구조와 접근 규칙', 'supabase/migrations/20260930_0001_core_schema.sql', [(1, 204)]),
+    ('9. 데이터 구조와 접근 규칙', 'supabase/migrations/20260930_0001_core_schema.sql',
+     [(1, 6), (13, 19), (45, 65), (81, 107), (109, 120), (142, 169), (176, 181), (191, 204)]),
+    ('10. 쪽 단위 저장 표(편집기의 쪽을 그대로 저장)', 'supabase/migrations/20260930_0005_pages.sql', [(1, 36)]),
 ]
 KEY_RE = re.compile(r"sb_publishable_[A-Za-z0-9_\-]+")
 
@@ -61,9 +64,10 @@ def wrap(text, width):
 
 
 def code_lines():
-    """(구분 제목, 표시 줄) 목록을 만든다."""
-    rows = []
+    """구분마다 (종류, 표시 줄) 묶음 목록을 만든다."""
+    blocks = []
     for title, path, ranges in SECTIONS:
+        rows = []
         src = open(os.path.join(ROOT, path), encoding='utf-8').read().split('\n')
         rows.append(('title', f'■ {title}'))
         rows.append(('title', f'  파일: {path}'))
@@ -76,8 +80,8 @@ def code_lines():
                 rows.append(('code', f'{n:5d}│' + parts[0]))
                 for p in parts[1:]:
                     rows.append(('code', '     ↳' + p))
-        rows.append(('blank', ''))
-    return rows
+        blocks.append(rows)
+    return blocks
 
 
 def build():
@@ -95,18 +99,33 @@ def build():
         '                보안을 위해 접속 키 값은 <공개 키 생략>으로 가림.',
         '',
     ]
-    rows = [('intro', x) for x in intro] + code_lines()
-    cap = PAGES * BODY
-    if len(rows) > cap:  # 20쪽에 맞게 뒤에서 자르되, 잘렸다는 표시를 남긴다
-        rows = rows[:cap - 1] + [('gap', '      ⋮  (이하 생략)')]
-    pages, toc = [], {}
-    for p in range(PAGES):
-        chunk = rows[p * BODY:(p + 1) * BODY]
+    # 쪽 나누기: 여기서 시작하면 새 쪽에서 시작할 때보다 더 많은 쪽에 걸치게 되는 구분은
+    # 다음 쪽 첫 줄부터 시작한다(짧은 구분이 쪽 사이에서 잘리지 않게). 남은 줄이 MIN_START 미만이어도 넘긴다.
+    MIN_START = 10
+    span = lambda n, first: 1 if n <= first else 1 + -(-(n - first) // BODY)
+    pages, cur = [], [('intro', x) for x in intro]
+    for block in code_lines():
+        room = BODY - len(cur)
+        if cur and cur[-1][0] != 'intro':
+            room -= 1                                   # 구분 사이 빈 줄
+        if room < MIN_START or span(len(block), room) > span(len(block), BODY):
+            pages.append(cur); cur = []
+        elif cur and cur[-1][0] != 'intro':
+            cur.append(('blank', ''))
+        for r in block:
+            if len(cur) == BODY:
+                pages.append(cur); cur = []
+            cur.append(r)
+    if cur:
+        pages.append(cur)
+    if len(pages) > PAGES:                              # 20쪽에 맞게 뒤를 자르고 표시를 남긴다
+        pages = pages[:PAGES]
+        pages[-1] = pages[-1][:BODY - 1] + [('gap', '      ⋮  (이하 생략)')]
+    toc = {}
+    for i, chunk in enumerate(pages):
         for kind, text in chunk:
             if kind == 'title' and text.startswith('■'):
-                toc.setdefault(text[2:], p + 1)
-        pages.append(chunk)
-    # 목차를 첫 쪽 소개 바로 뒤에 넣을 자리가 없으므로 따로 반환
+                toc.setdefault(text[2:], i + 1)
     return pages, toc
 
 
@@ -132,70 +151,32 @@ def esc(t):
 
 
 def render_html(pages, toc, fonts):
-    """문서처럼 보이는 A4 HTML(→ PDF). 쪽마다 텍스트판과 똑같은 46줄을 담는다."""
-    today = datetime.date.today().strftime('%Y. %m. %d.')
+    """텍스트판을 그대로 인쇄한 것 같은 A4 HTML(→ PDF). 꾸밈 없이 검은 글자만, 번호 구분 제목만 크고 굵게."""
     css_links = ''.join(f'<link rel="stylesheet" href="{fonts}/{d}">' for d in (
-        'fontsource-nanum-gothic-coding/package/400.css', 'fontsource-nanum-gothic-coding/package/700.css',
-        'fontsource-noto-sans-kr/package/400.css', 'fontsource-noto-sans-kr/package/700.css',
-        'fontsource-noto-serif-kr/package/700.css'))
-    num_re = re.compile(r'^\s*(\d+)│(.*)$')
+        'fontsource-nanum-gothic-coding/package/400.css', 'fontsource-nanum-gothic-coding/package/700.css'))
     out = []
     for i, chunk in enumerate(pages):
         rows = []
         for kind, text in chunk + [('blank', '')] * (BODY - len(chunk)):
-            if kind == 'intro':
-                if ' : ' in text and not text.startswith(' '):
-                    k, v = text.split(' : ', 1)
-                    rows.append(f'<div class="r intro"><span class="k">{esc(k.strip())}</span><span class="v">{esc(v)}</span></div>')
-                else:
-                    rows.append(f'<div class="r intro"><span class="k"></span><span class="v">{esc(text.strip())}</span></div>')
-            elif kind == 'title':
-                cls = 'sec' if text.startswith('■') else 'file'
-                rows.append(f'<div class="r {cls}">{esc(text.lstrip("■ ").strip())}</div>')
-            elif kind == 'gap':
-                rows.append(f'<div class="r gap"><span class="g">⋮</span><span class="c">{esc(text.strip().lstrip("⋮").strip())}</span></div>')
-            elif kind == 'code':
-                m = num_re.match(text)
-                if m:
-                    rows.append(f'<div class="r code"><span class="g">{m.group(1)}</span><span class="c">{esc(m.group(2))}</span></div>')
-                else:
-                    rows.append(f'<div class="r code cont"><span class="g">↳</span><span class="c">{esc(text[6:])}</span></div>')
+            if kind == 'title' and text.startswith('■'):
+                rows.append(f'<div class="r h">{esc(text)}</div>')
+            elif kind == 'intro':  # 한글 1자 = 영문 2자 폭인 글꼴로 찍어야 ':' 줄이 맞는다
+                rows.append(f'<div class="r i">{esc(text)}</div>')
             else:
-                rows.append('<div class="r"></div>')
-        head = ('<div class="doc-title"><b>프로그램 저작권 등록 · 소스코드 발췌본</b></div>' if i == 0 else '')
-        out.append(f'''<section class="page">
-  <header><span>{esc(TITLE)} <em>{esc(VERSION)}</em></span><span>소스코드 발췌본</span></header>
-  {head}<div class="body{' first' if i == 0 else ''}">{''.join(rows)}</div>
-  <footer><span></span><span class="pn">{i + 1} / {PAGES}</span><span class="dt">{today}</span></footer>
-</section>''')
+                rows.append(f'<div class="r">{esc(text)}</div>')
+        foot = f'- {i + 1} / {PAGES} -'
+        out.append(f'''<section class="page"><div class="r">{esc(TITLE)} {esc(VERSION)} · 소스코드 발췌본</div><div class="r">{'─' * (WIDTH // 2)}</div>{''.join(rows)}<div class="r"></div><div class="r f">{esc(foot)}</div></section>''')
     return f'''<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>{esc(TITLE)} 소스코드 발췌본</title>{css_links}
 <style>
 @page {{ size: A4; margin: 0 }}
-@font-face {{ font-family: 'CodeBar'; src: local('DejaVu Sans Mono'), local('Liberation Mono'); unicode-range: U+007C }}  /* 세로 막대 | 를 ¦ 로 그리지 않게 */
-* {{ box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact }}
-body {{ margin: 0; background: #fff; color: #1d2420 }}
-.page {{ width: 210mm; height: 297mm; padding: 14mm 16mm 12mm; display: flex; flex-direction: column; break-after: page; overflow: hidden }}
+body {{ margin: 0; background: #fff; color: #000 }}
+.page {{ width: 210mm; height: 297mm; padding: 15mm 15mm 0 17mm; break-after: page; overflow: hidden;
+  font: 8.2pt/1 'Liberation Mono', 'Nanum Gothic Coding', monospace }}
 .page:last-child {{ break-after: auto }}
-header {{ display: flex; justify-content: space-between; font: 700 8.5pt 'Noto Sans KR', sans-serif; color: #0B3324;
-  border-bottom: 1.2pt solid #C9A83A; padding-bottom: 2.2mm; margin-bottom: 3mm }}
-header em {{ font-style: normal; font-weight: 400; color: #6F6D63; margin-left: 2mm }}
-.doc-title {{ font: 700 12pt 'Noto Serif KR', serif; color: #0B3324; margin: 0 0 1.5mm }}
-.body {{ flex: 1; font: 8.6pt/1.0 'CodeBar', 'Nanum Gothic Coding', monospace }}
-.r {{ height: 5.05mm; display: flex; align-items: center; white-space: pre; overflow: hidden }}
-.body.first .r {{ height: 4.85mm }}
-.g {{ flex: none; width: 11mm; text-align: right; padding-right: 2mm; margin-right: 2mm; color: #9AA39E;
-  border-right: .6pt solid #DAD5C4; font-family: 'Noto Sans KR', sans-serif; font-size: 7.4pt; font-variant-numeric: tabular-nums; align-self: stretch; display: flex; align-items: center; justify-content: flex-end }}
-.c {{ flex: 1 }}
-.cont .g {{ color: #C9A83A }}
-.sec {{ font: 700 9.6pt 'Noto Sans KR', sans-serif; color: #fff; background: #0B3324; padding: 0 2.5mm; border-radius: .8mm }}
-.file {{ font: 400 8pt 'CodeBar', 'Nanum Gothic Coding', monospace; color: #6F6D63; padding-left: 2.5mm }}
-.gap .c {{ color: #9AA39E; font-family: 'Noto Sans KR', sans-serif; font-size: 8pt }}
-.intro {{ font: 8.4pt 'Noto Sans KR', sans-serif; background: #F7F4EA }}
-.intro .k {{ flex: none; width: 26mm; padding-left: 3mm; font-weight: 700; color: #0B3324 }}
-.intro .v {{ flex: 1; color: #2c332f }}
-footer {{ display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-top: .6pt solid #DAD5C4; padding-top: 2mm;
-  margin-top: 2mm; font: 8pt 'Noto Sans KR', sans-serif; color: #6F6D63 }}
-footer .pn {{ font-weight: 700; color: #0B3324 }} footer .dt {{ text-align: right }}
+.r {{ height: 5.2mm; line-height: 5.2mm; white-space: pre; overflow: hidden }}
+.h {{ font-size: 10.5pt; font-weight: 700 }}
+.f {{ text-align: center }}
+.i {{ font-family: 'Nanum Gothic Coding', monospace }}
 </style></head><body>{''.join(out)}</body></html>'''
 
 
