@@ -547,9 +547,26 @@ function delPage(){ delPageAt(state.cur); }
 /* 사진·영상·음악 → 새 페이지 */
 let pendingKind=null, pendingSlot=null;
 function pickMedia(kind, slotId=null){ pendingKind=kind; pendingSlot=slotId; const f=$('file'); f.accept=kind+'/*'; f.value=''; f.click(); }
-$('file').onchange = ()=>{ const f=$('file').files[0]; if(!f) return; const kind=pendingKind;
+// 올리기 전 손질: 사진은 긴 변 1920px·JPEG로 줄여 장당 약 1.5MB 이하로(원본이 이미 작으면 그대로), 영상은 60초 이하만
+const IMG_MAX_SIDE=1920, IMG_TARGET=1.5*1048576, VIDEO_MAX_SEC=60;
+async function shrinkImage(f){
+  if(f.type==='image/gif' || f.type==='image/svg+xml') return f;                 // 움직이는 그림·벡터는 그대로
+  let bmp; try{ bmp=await createImageBitmap(f); }catch{ return f; }
+  const sc=Math.min(1, IMG_MAX_SIDE/Math.max(bmp.width,bmp.height));
+  if(sc===1 && f.size<=IMG_TARGET){ bmp.close&&bmp.close(); return f; }
+  const c=document.createElement('canvas'); c.width=Math.round(bmp.width*sc); c.height=Math.round(bmp.height*sc);
+  const g=c.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height); g.drawImage(bmp,0,0,c.width,c.height); bmp.close&&bmp.close();
+  let out=null; for(const q of [0.82,0.72,0.62]){ out=await new Promise(r=>c.toBlob(r,'image/jpeg',q)); if(out && out.size<=IMG_TARGET) break; }
+  if(!out) return f;
+  return (sc<1 || out.size<f.size) ? new File([out],'photo.jpg',{type:'image/jpeg'}) : f;   // 1920px보다 크면 항상 줄인 것을 쓴다
+}
+function videoSeconds(f){ return new Promise(res=>{ const v=document.createElement('video'); v.preload='metadata'; const u=URL.createObjectURL(f);
+  v.onloadedmetadata=()=>{ URL.revokeObjectURL(u); res(v.duration||0); }; v.onerror=()=>{ URL.revokeObjectURL(u); res(0); }; v.src=u; }); }
+$('file').onchange = async ()=>{ let f=$('file').files[0]; if(!f) return; const kind=pendingKind;
   if(!f.type.startsWith(kind+'/')){ toast(`${KIND_KO[kind]} 파일을 골라 주세요`); return; }
-  if(f.size>LIMIT[kind]*1048576){ toast(`${KIND_KO[kind]}은(는) ${LIMIT[kind]}MB 이하만 올릴 수 있어요${kind==='video'?' (약 50초)':''}`); return; }
+  if(f.size>LIMIT[kind]*1048576){ toast(`${KIND_KO[kind]}은(는) ${LIMIT[kind]}MB 이하만 올릴 수 있어요${kind==='video'?' (약 50초 · 720p 권장)':''}`); return; }
+  if(kind==='video'){ const sec=await videoSeconds(f); if(sec>VIDEO_MAX_SEC){ toast(`영상은 ${VIDEO_MAX_SEC}초 이하만 올릴 수 있어요 (지금 ${Math.round(sec)}초). 휴대폰 편집에서 잘라 주세요`); return; } }
+  if(kind==='image'){ const before=f.size; f=await shrinkImage(f); if(f.size<before) toast(`사진을 책에 맞게 줄였어요 (${(before/1048576).toFixed(1)}MB → ${(f.size/1048576).toFixed(1)}MB)`); }
   const name=''; // 파일 이름은 저장하지 않는다(썸네일·QR·서가에 드러나지 않게)
   const slot=pendingSlot; pendingSlot=null; const place=(src,id)=> slot ? fillSlot(slot,kind,src,name,id) : addMediaPage(kind,src,name,id);
   if(ONLINE){ toast(`${KIND_KO[kind]} 올리는 중…`); uploadMedia(f,kind).then(r=>place(r.src,r.id))
