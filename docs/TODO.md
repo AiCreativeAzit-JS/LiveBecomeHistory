@@ -39,7 +39,8 @@
 - 무료 요금제 잠듦 방지: 매주 1회 로그인·서가 열기. 남의 책이 생기면 Pro 전환(백업 포함), 그 전에 아스트라 mvp 프로젝트 삭제.
 - 메일: 문의 메일함은 Zoho Mail(contact@archive4everyone.com, 가비아 DNS 연결 완료). Gmail SMTP는 실패해서 쓰지 않음(지금 인증 메일은 Supabase 기본 발신).
 - [ ] 가입 열기 전: 인증 메일 발신을 noreply@archive4everyone.com(Resend 또는 Zoho ZeptoMail)으로, Reply-To는 contact@. 한국어 메일 문구. 개인정보 처리방침 위탁 표에 발송 업체 추가.
-- [ ] 개인정보 처리방침 위탁 표에 Zoho(문의 메일)·Google(문의 구글폼) 추가 — Zoho 데이터센터·구글폼 수집 항목 확인 후
+- [x] 개인정보 처리방침에 문의 수집 항목·1년 보관·Zoho(미국 DC)·Google Forms 위탁 추가(10-20 개정에 포함)
+- [ ] 구글폼 설명에 개인정보 안내 문구 넣기(정선C)
 
 ## 📦 파일 저장소 R2 전환 (2026-10-13 코드 완료)
 - [x] Edge Function `media` + `_shared/r2.ts`·`_shared/sign.ts`, shared-book·delete-account R2 대응, 화면 4곳(studio·editor·shelf·admin) 연결
