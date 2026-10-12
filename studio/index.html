@@ -23,7 +23,7 @@
   .app{display:grid;grid-template-rows:60px 1fr 44px;grid-template-columns:232px minmax(0,1fr) 300px;height:100vh;height:100dvh}
   /* 상단 */
   .top{min-width:0;grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:0 18px;background:var(--panel);border-bottom:1px solid var(--line);z-index:5}
-  .logo{display:flex;align-items:center;gap:9px;font-family:var(--serif);font-weight:700;font-size:17px;color:var(--brand-2);white-space:nowrap}
+  .logo{text-decoration:none;display:flex;align-items:center;gap:9px;font-family:var(--serif);font-weight:700;font-size:17px;color:var(--brand-2);white-space:nowrap}
   .logo i{width:30px;height:30px;border-radius:9px;background:var(--brand);color:#fff;display:grid;place-items:center}
   .logo i svg{width:17px;height:17px}
   .titlein{font:inherit;font-weight:600;font-size:15px;border:1.5px solid transparent;border-radius:8px;padding:7px 10px;min-width:0;width:min(280px,30vw);background:transparent;color:var(--ink)}
@@ -210,7 +210,7 @@
   <header class="top">
     <a class="btn homebtn" id="home" href="https://archive4everyone.com/" title="인물대백과사 홈으로" aria-label="인물대백과사 홈으로"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></a>
     <button class="btn" id="back" title="내 서재로"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>내 책</button>
-    <div class="logo"><i><svg viewBox="0 0 24 24"><path d="M2 5h6a4 4 0 014 4v11a3 3 0 00-3-3H2z"/><path d="M22 5h-6a4 4 0 00-4 4v11a3 3 0 013-3h7z"/></svg></i>인물대백과사</div>
+    <a class="logo" href="https://archive4everyone.com/" title="인물대백과사 홈으로"><i><svg viewBox="0 0 24 24"><path d="M2 5h6a4 4 0 014 4v11a3 3 0 00-3-3H2z"/><path d="M22 5h-6a4 4 0 00-4 4v11a3 3 0 013-3h7z"/></svg></i>인물대백과사</a>
     <input class="titlein" id="title" aria-label="책 제목" maxlength="60" spellcheck="false">
     <span class="save" id="save"></span>
     <button class="btn" id="btnSave" hidden title="지금 내용을 내 서재에 보관해요">임시저장</button>
@@ -312,6 +312,7 @@
 <script src="../lib/supabase-js.umd.js"></script>
 <script src="../lib/qrcode.js"></script>
 <script src="../lib/book-viewer.js"></script>
+<script src="../lib/media-client.js"></script>
 <script>
 'use strict';
 /* ═══════════════ 기본 값 ═══════════════
@@ -573,7 +574,7 @@ $('file').onchange = async ()=>{ let f=$('file').files[0]; if(!f) return; const 
   const name=''; // 파일 이름은 저장하지 않는다(썸네일·QR·서가에 드러나지 않게)
   const slot=pendingSlot; pendingSlot=null; const place=(src,id)=> slot ? fillSlot(slot,kind,src,name,id) : addMediaPage(kind,src,name,id);
   if(ONLINE){ toast(`${KIND_KO[kind]} 올리는 중…`); uploadMedia(f,kind).then(r=>place(r.src,r.id))
-      .catch(err=>{ console.error(err); toast(err.message==='quota'||err.code==='54000'?'이 책에 올릴 수 있는 용량(200MB)을 넘어요':'올리지 못했어요. 다시 시도해 주세요'); }); return; }
+      .catch(err=>{ console.error(err); toast(err.message==='quota'||err.code==='54000'?'이 책에 올릴 수 있는 용량(200MB)을 넘어요':err.code==='too_big'?'파일이 너무 커요 (사진 15MB · 영상 50MB · 노래 30MB 이하)':err.code==='type'?'파일 종류가 맞지 않아요':'올리지 못했어요. 다시 시도해 주세요'); }); return; }
   const r=new FileReader(); r.onload=()=>place(r.result); r.readAsDataURL(f); };
 // 견본 사진 자리에 넣기: 자리 안에 비율을 지켜 가운데 맞춤
 function fillSlot(slotId,kind,src,name,mediaId){
@@ -929,8 +930,8 @@ const blobToDataURL = b => new Promise((res,rej)=>{ const r=new FileReader(); r.
 async function exportPages(forPrint=false){
   const copy=JSON.parse(JSON.stringify(state.pages)); if(!ONLINE) return copy;
   for(const p of copy) for(const e of p.els){ if(!e.media_id) continue; if(forPrint&&e.type!=='image') continue; const info=mediaInfo[e.media_id]; if(!info) continue;
-    try{ if(info.size_bytes<=15*1048576){ const r=await sb.storage.from(BUCKET).download(info.storage_path); if(r.data) e.src=await blobToDataURL(r.data); }
-         else { const u=await sb.storage.from(BUCKET).createSignedUrl(info.storage_path,604800); if(u.data) e.src=u.data.signedUrl; } }catch(err){ console.error(err); } }
+    try{ if(info.size_bytes<=15*1048576) e.src=await blobToDataURL(await MediaClient.download(sb,info));
+         else { const u=(await MediaClient.sign(sb,[info],604800))[info.id]; if(u) e.src=u; } }catch(err){ console.error(err); } }
   return copy;
 }
 function openExport(){
@@ -987,7 +988,7 @@ let BOOK = QS.get('book');
 // ?new=1: 아직 책을 만들지 않은 새 책. 처음 저장(글쓰기·사진 올리기·임시저장)할 때 비로소 책이 만들어진다.
 const NEW = !BOOK && QS.get('new')==='1';
 const ONLINE = (!!BOOK && /^[0-9a-f-]{36}$/i.test(BOOK)) || NEW;
-const SUPABASE_URL='https://qsucbnvicaviatdpnfxx.supabase.co', SUPABASE_KEY='sb_publishable_DR6vaBdtzLjicYQ8X-u9bA_6U8mzJuY', BUCKET='book-media'; // 공개용 키: 권한은 DB 규칙이 지킨다
+const SUPABASE_URL='https://qsucbnvicaviatdpnfxx.supabase.co', SUPABASE_KEY='sb_publishable_DR6vaBdtzLjicYQ8X-u9bA_6U8mzJuY'; // 공개용 키: 권한은 DB 규칙이 지킨다
 let sb=null, user=null, bookRow=null, mediaInfo={}, lastSaved=null, saving=false;
 function setSave(k){ const m={fresh:'아직 저장 전 · 쓰기 시작하면 저장돼요',saving:'저장 중…',ok:'✓ 모든 변경사항 저장됨',err:'⚠ 저장 실패 · 인터넷 연결을 확인해 주세요',demo:'시안(저장 안 됨)',load:'불러오는 중…'}; $('save').textContent=m[k]; $('save').dataset.state=k; }
 function fatal(title,msg,link){ $('center').innerHTML=`<div class="fatal"><h2>${esc(title)}</h2><p>${esc(msg)}</p>${link?`<a class="btn primary" href="${link[1]}">${esc(link[0])}</a>`:''}</div>`; }
@@ -1024,19 +1025,12 @@ async function saveNow(force){
   }catch(err){ console.error(err); setSave('err'); }
   saving=false;
 }
-async function signAll(list){ const urls={}; const withPath=list.filter(m=>m.storage_path); if(!withPath.length) return urls;
-  const {data}=await sb.storage.from(BUCKET).createSignedUrls(withPath.map(m=>m.storage_path),21600);
-  (data||[]).forEach((d,i)=>{ if(d&&d.signedUrl) urls[withPath[i].id]=d.signedUrl; }); return urls; }
+async function signAll(list){ try{ return await MediaClient.sign(sb,list,21600); }catch(err){ console.error(err); return {}; } }
 async function uploadMedia(f,kind){
   if(!(await ensureBook())) throw new Error('no book');
   const used=Object.values(mediaInfo).reduce((n,m)=>n+(m.size_bytes||0),0); if(used+f.size>200*1048576) throw new Error('quota');
-  const ext=(f.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,8)||'bin';
-  const path=`${user.id}/${BOOK}/${uid()}.${ext}`;
-  const up=await sb.storage.from(BUCKET).upload(path,f,{contentType:f.type,upsert:false}); if(up.error) throw up.error;
-  const {data,error}=await sb.from('media').insert({book_id:BOOK,owner_id:user.id,kind,storage_path:path,size_bytes:f.size}).select().single();
-  if(error){ await sb.storage.from(BUCKET).remove([path]); throw error; }
-  mediaInfo[data.id]=data; const s=await sb.storage.from(BUCKET).createSignedUrl(path,21600);
-  return {id:data.id, src:(s.data&&s.data.signedUrl)||URL.createObjectURL(f)};
+  const {media,url}=await MediaClient.upload(sb,f,{book_id:BOOK,kind,ttl:21600});
+  mediaInfo[media.id]=media; return {id:media.id, src:url||URL.createObjectURL(f)};
 }
 // 새 책에 들어가는 견본 3쪽: 회색 안내 글(쓰면 사라짐)과 사진 자리로 '어떻게 채우면 되는지' 보여준다
 function templatePages(){

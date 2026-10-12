@@ -1,9 +1,10 @@
 // 회원 탈퇴: 로그인한 본인의 계정과 모든 데이터를 지운다.
 // - verify_jwt=true: 로그인한 사람만 부를 수 있고, 지우는 대상은 "토큰의 주인" 하나뿐이다(다른 사람 번호를 보낼 방법이 없음).
 // - 실수 방지: 요청 본문에 { confirm: "탈퇴" } 가 있어야 한다.
-// - 순서: ① 저장소 파일(사진·영상·노래) → ② 계정 삭제. 계정을 지우면 DB 규칙(on delete cascade)으로
+// - 순서: ① 저장소 파일(사진·영상·노래: Cloudflare R2 + 예전 Supabase 저장소) → ② 계정 삭제. 계정을 지우면 DB 규칙(on delete cascade)으로
 //   프로필·책·페이지·발행본·비밀 링크·미디어 기록·신고가 함께 지워진다.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { R2_PREFIX, r2Ready, r2DeletePrefix } from "../_shared/r2.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -34,7 +35,7 @@ Deno.serve(async (req: Request) => {
   const paths = new Set<string>();
   const { data: ms, error: mErr } = await admin.from("media").select("storage_path").eq("owner_id", uid);
   if (mErr) return json({ error: "list_failed" }, 500);
-  (ms ?? []).forEach((m) => m.storage_path && paths.add(m.storage_path));
+  (ms ?? []).forEach((m) => m.storage_path && !m.storage_path.startsWith(R2_PREFIX) && paths.add(m.storage_path));
   const { data: folders } = await admin.storage.from(BUCKET).list(uid, { limit: 1000 });
   for (const f of folders ?? []) {
     let offset = 0;
@@ -52,8 +53,14 @@ Deno.serve(async (req: Request) => {
     if (error) return json({ error: "storage_failed" }, 500);
   }
 
+  // R2: 내 폴더(uid/) 아래 파일 전부
+  let r2Files = 0;
+  if (r2Ready()) {
+    try { r2Files = await r2DeletePrefix(uid + "/"); } catch { return json({ error: "storage_failed" }, 500); }
+  } else if ((ms ?? []).some((m) => m.storage_path?.startsWith(R2_PREFIX))) return json({ error: "storage_failed" }, 500);
+
   // ② 계정 삭제(연결된 DB 기록은 cascade로 함께 삭제)
   const { error: delErr } = await admin.auth.admin.deleteUser(uid);
   if (delErr) return json({ error: "delete_failed" }, 500);
-  return json({ ok: true, files: list.length });
+  return json({ ok: true, files: list.length + r2Files });
 });

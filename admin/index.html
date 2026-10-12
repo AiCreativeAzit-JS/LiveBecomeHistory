@@ -88,12 +88,13 @@
   .homeico:hover{background:var(--green);color:#fff}
   .brandwrap{display:flex;align-items:center;min-width:0}
   .brandwrap .brand{white-space:nowrap}
+  .brandhome{color:inherit;text-decoration:none}.brandhome:hover{text-decoration:underline;text-decoration-color:var(--gold-deep);text-underline-offset:4px}
   @media (max-width:420px){.brandwrap .brand span{display:none}}
 </style>
 </head>
 <body>
 <header class="top"><div class="top-in">
-  <div class="brandwrap"><a class="homeico" href="https://archive4everyone.com/" title="인물대백과사 홈으로" aria-label="인물대백과사 홈으로"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></a><div class="brand">인물대백과사 <span>· 관리자</span></div></div>
+  <div class="brandwrap"><a class="homeico" href="https://archive4everyone.com/" title="인물대백과사 홈으로" aria-label="인물대백과사 홈으로"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></a><div class="brand"><a class="brandhome" href="https://archive4everyone.com/" title="인물대백과사 홈으로">인물대백과사</a> <span>· 관리자</span></div></div>
   <div class="row" id="topRight"></div>
 </div></header>
 <main class="wrap" id="app"></main>
@@ -197,7 +198,7 @@ function render(){
 }
 
 /* ───────── 한눈에 보기(대시보드) ───────── */
-const LIMIT = { db: 500*1024**2, storage: 1024**3 }; // Supabase 무료 요금제 기준
+const LIMIT = { db: 500*1024**2, storage: 10*1024**3 }; // 데이터베이스: Supabase 무료 500MB · 파일: Cloudflare R2 무료 10GB
 const DAY = 86400000;
 const mb = n => n>=1024**3 ? (n/1024**3).toFixed(2)+'GB' : (n/1024**2).toFixed(n<10*1024**2?1:0)+'MB';
 const dayKey = d => { const x=new Date(d); return x.getFullYear()+'-'+(x.getMonth()+1)+'-'+x.getDate(); };
@@ -228,7 +229,7 @@ function paneDash(){
   const openReports=data.reports.filter(r=>r.status==='open').length;
   const trash=data.books.filter(b=>b.deleted_at).length;
   const u=data.usage;
-  const storageUsed = u ? Number(u.storage_bytes) : data.media.reduce((s,m)=>s+Number(m.size_bytes||0),0);
+  const storageUsed = data.media.reduce((s,m)=>s+Number(m.size_bytes||0),0); // 파일은 R2에 있어서 미디어 기록의 크기를 더한다
   // 할 일
   const todo=[];
   todo.push(openReports?`<li class="warn">처리할 신고 ${openReports}건 → <a href="#" data-go="reports">신고 탭</a></li>`:`<li class="ok">✅ 처리할 신고 없음</li>`);
@@ -251,8 +252,8 @@ function paneDash(){
     <section class="panel"><h2>오늘 할 일</h2><p class="meta">관리자가 확인할 것만 모았어요.</p><ul class="todo">${todo.join('')}</ul></section>
     <section class="panel"><h2>새 회원 · 최근 30일</h2><p class="meta"><span class="big">${sum(mem)}</span>명 · 이번 주 ${week(mem)}명</p>${barChart(mem,'최근 30일 날짜별 새 회원 수')}</section>
     <section class="panel"><h2>새 책 · 최근 30일</h2><p class="meta"><span class="big">${sum(bk)}</span>권 · 이번 주 ${week(bk)}권 · 30일 사이 서가 공개 ${sum(pub)}권</p>${barChart(bk,'최근 30일 날짜별 새 책 수')}</section>
-    <section class="panel"><h2>저장 공간</h2><p class="meta">Supabase 무료 요금제 한도 기준이에요. 80%가 넘으면 빨간색으로 바뀌어요.</p>
-      <div class="row" style="justify-content:space-between"><b>사진·영상·노래 파일</b><span class="meta" style="margin:0">${mb(storageUsed)} / ${mb(LIMIT.storage)}${u?` · ${Number(u.storage_files).toLocaleString()}개`:''}</span></div>${meter(storageUsed,LIMIT.storage)}
+    <section class="panel"><h2>저장 공간</h2><p class="meta">파일은 Cloudflare R2, 데이터베이스는 Supabase 무료 한도 기준이에요. 80%가 넘으면 빨간색으로 바뀌어요.</p>
+      <div class="row" style="justify-content:space-between"><b>사진·영상·노래 파일</b><span class="meta" style="margin:0">${mb(storageUsed)} / ${mb(LIMIT.storage)} · ${data.media.length.toLocaleString()}개</span></div>${meter(storageUsed,LIMIT.storage)}
       ${kTotal?`<div class="kinds" aria-hidden="true">${Object.entries(byKind).map(([k,v])=>v?`<i style="width:${(v/kTotal*100).toFixed(1)}%;background:${K[k][1]}"></i>`:'').join('')}</div>
       <div class="legend">${Object.entries(byKind).map(([k,v])=>`<span><b style="background:${K[k][1]}"></b>${K[k][0]} ${mb(v)}</span>`).join('')}</div>`:''}
       <div class="row" style="justify-content:space-between;margin-top:14px"><b>데이터베이스(글·페이지)</b><span class="meta" style="margin:0">${u?`${mb(Number(u.db_bytes))} / ${mb(LIMIT.db)}`:'확인 못 함'}</span></div>${u?meter(Number(u.db_bytes),LIMIT.db):''}

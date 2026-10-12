@@ -81,6 +81,8 @@
   .homeico:hover{background:var(--green);color:#fff}
   .brandwrap{display:flex;align-items:center;min-width:0}
   .brandwrap .brand{white-space:nowrap}
+  .brandhome{color:inherit;text-decoration:none}.brandhome:hover{text-decoration:underline;text-decoration-color:var(--gold-deep);text-underline-offset:4px}
+  .brandsub{text-decoration:none}
   @media (max-width:420px){.brandwrap .brand span{display:none}}
   /* 바닥글·동의 링크: 파란 기본색 대신 차분한 골드, 밑줄은 마우스를 올릴 때만 */
   .acct a,.foot-links a,.agree a,.acct .link,footer a{color:#A88A2E!important;text-decoration:none!important;font-weight:500}
@@ -89,21 +91,21 @@
 </head>
 <body>
 <header class="top"><div class="top-in">
-  <div class="brandwrap"><a class="homeico" href="https://archive4everyone.com/" title="인물대백과사 홈으로" aria-label="인물대백과사 홈으로"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></a><a class="brand" href="./">인물대백과사 <span>· 서가</span></a></div>
+  <div class="brandwrap"><a class="homeico" href="https://archive4everyone.com/" title="인물대백과사 홈으로" aria-label="인물대백과사 홈으로"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></a><div class="brand"><a class="brandhome" href="https://archive4everyone.com/" title="인물대백과사 홈으로">인물대백과사</a> <a class="brandsub" href="./"><span>· 서가</span></a></div></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn ghost small" href="../editor/">✍️ 내 책 쓰기</a></div>
 </div></header>
 <div id="app"></div>
-<footer>인물대백과사 · 이름난 사람만 책을 남기던 시대는 지났습니다. · <a href="../terms/">이용약관</a> · <a href="../privacy/">개인정보 처리방침</a></footer>
+<footer>인물대백과사 · AI와 함께, 여러분의 삶을 작품으로 피워냅니다. · <a href="../terms/">이용약관</a> · <a href="../privacy/">개인정보 처리방침</a></footer>
 <div class="toast" id="toast"></div>
 
 <script src="../lib/supabase-js.umd.js"></script>
 <script src="../lib/book-render.js"></script>
 <script src="../lib/book-viewer.js"></script>
+<script src="../lib/media-client.js"></script>
 <script>
 'use strict';
 const SUPABASE_URL = 'https://qsucbnvicaviatdpnfxx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_DR6vaBdtzLjicYQ8X-u9bA_6U8mzJuY'; // 공개용 키: 보안은 DB 규칙(RLS)이 담당
-const BUCKET = 'book-media';
 const PAGE = 12;
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 if(window.BookRender){ const st=document.createElement('style'); st.textContent=BookRender.CSS; document.head.appendChild(st); }
@@ -221,8 +223,7 @@ async function viewBook(id, pageNo=0, mediaId=null){
   }
   if(shelfPages){
     const pg = {data: Array.isArray(shelfPages)?shelfPages:[]};
-    const list=(m.data||[]).filter(x=>x.storage_path), urls={};
-    if(list.length){ const sg=await sb.storage.from(BUCKET).createSignedUrls(list.map(x=>x.storage_path),3600); (sg.data||[]).forEach((d,i)=>{ if(d&&d.signedUrl) urls[list[i].id]=d.signedUrl; }); }
+    let urls={}; try{ urls=await MediaClient.sign(sb,m.data||[],3600); }catch(err){ console.error(err); }
     pagesHTML = pg.data.map(p=>BookRender.pageHTML(p,urls)); // 쪽마다 HTML → 가로 넘김 보기
   }
   if(b.error||c.error){ $app.innerHTML='<div class="wrap"><div class="msg err" style="margin-top:30px">책을 불러오지 못했어요.</div><p><a href="#/">← 서가로</a></p></div>'; return; }
@@ -277,13 +278,13 @@ async function viewBook(id, pageNo=0, mediaId=null){
   };
 }
 async function hydrateMedia(root, paths){
-  await Promise.all([...root.querySelectorAll('[data-media]')].map(async n=>{
-    const p=paths[n.getAttribute('data-media')]; if(!p){ n.remove(); return; }
-    const { data } = await sb.storage.from(BUCKET).createSignedUrl(p, 3600);
-    if(!data?.signedUrl){ n.remove(); return; }
-    if(n.tagName==='AUDIO'){ const w=document.createElement('div'); w.className='oldap'; w.innerHTML=BookRender.audioPlayer(esc(data.signedUrl)); n.replaceWith(w); return; }
-    n.src=data.signedUrl; if(n.tagName==='VIDEO') n.controls=true; if(n.tagName==='IMG'){ n.loading='lazy'; n.draggable=false; }
-  }));
+  const nodes=[...root.querySelectorAll('[data-media]')];
+  let urls={}; try{ urls=await MediaClient.sign(sb,nodes.map(n=>({id:n.getAttribute('data-media'),storage_path:paths[n.getAttribute('data-media')]})),3600); }catch(err){ console.error(err); }
+  nodes.forEach(n=>{
+    const u=urls[n.getAttribute('data-media')]; if(!u){ n.remove(); return; }
+    if(n.tagName==='AUDIO'){ const w=document.createElement('div'); w.className='oldap'; w.innerHTML=BookRender.audioPlayer(esc(u)); n.replaceWith(w); return; }
+    n.src=u; if(n.tagName==='VIDEO') n.controls=true; if(n.tagName==='IMG'){ n.loading='lazy'; n.draggable=false; }
+  });
 }
 </script>
 </body>

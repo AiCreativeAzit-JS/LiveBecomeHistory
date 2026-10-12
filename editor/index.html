@@ -102,6 +102,7 @@
   .homeico:hover{background:var(--green);color:#fff}
   .brandwrap{display:flex;align-items:center;min-width:0}
   .brandwrap .brand{white-space:nowrap}
+  .brandhome{color:inherit;text-decoration:none}.brandhome:hover{text-decoration:underline;text-decoration-color:var(--gold-deep);text-underline-offset:4px}
   @media (max-width:420px){.brandwrap .brand span{display:none}}
   .acct{margin:40px 0 0;text-align:center;font-size:14px;color:var(--gray-2)}
   .acct .link{font-size:14px;color:var(--gray-2);text-decoration:underline;padding:0;min-height:0}
@@ -128,7 +129,7 @@
 </head>
 <body>
 <header class="top"><div class="top-in">
-  <div class="brandwrap"><a class="homeico" href="https://archive4everyone.com/" title="인물대백과사 홈으로" aria-label="인물대백과사 홈으로"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></a><div class="brand">인물대백과사 <span>· 내 책 쓰기</span></div></div>
+  <div class="brandwrap"><a class="homeico" href="https://archive4everyone.com/" title="인물대백과사 홈으로" aria-label="인물대백과사 홈으로"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></a><div class="brand"><a class="brandhome" href="https://archive4everyone.com/" title="인물대백과사 홈으로">인물대백과사</a> <span>· 내 책 쓰기</span></div></div>
   <div class="row" id="topRight"></div>
 </div></header>
 <main class="wrap" id="app"></main>
@@ -136,12 +137,12 @@
 <div class="toast" id="toast"></div>
 
 <script src="../lib/supabase-js.umd.js"></script>
+<script src="../lib/media-client.js"></script>
 <script>
 'use strict';
 /* ───────── 설정 ───────── */
 const SUPABASE_URL = 'https://qsucbnvicaviatdpnfxx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_DR6vaBdtzLjicYQ8X-u9bA_6U8mzJuY'; // 공개용 키: 보안은 DB 규칙(RLS)이 담당
-const BUCKET = 'book-media';
 const INLINE_LIMIT = 15 * 1024 * 1024; // 내보내기 시 HTML 안에 넣는 파일 상한
 
 const $app = document.getElementById('app');
@@ -394,9 +395,7 @@ async function toTrash(b){
 async function purgeBook(b){
   if(!confirm(`“${b.title}”을(를) 완전히 지울까요?\n\n글·사진·영상·노래가 모두 사라지고 되돌릴 수 없어요.\n먼저 책을 열어 「내려받기」로 간직하시길 권해요.`)) return;
   const v=prompt('정말 지우려면 「삭제」라고 적어 주세요'); if(v===null||v.trim()!=='삭제'){ toast('지우지 않았어요'); return; }
-  const {data:ms}=await sb.from('media').select('storage_path').eq('book_id',b.id);
-  const paths=(ms||[]).map(m=>m.storage_path).filter(Boolean);
-  for(let i=0;i<paths.length;i+=500){ await sb.storage.from(BUCKET).remove(paths.slice(i,i+500)); }
+  try{ await MediaClient.purgeBook(sb,b.id); }catch(err){ console.error(err); toast('파일을 지우지 못했어요. 잠시 후 다시 시도해 주세요'); return; }
   const {error}=await sb.from('books').delete().eq('id',b.id);
   toast(error?'지우지 못했어요':'완전히 지웠어요');
 }
@@ -517,12 +516,9 @@ async function loadChapter(){
   await hydrateMedia(body);
 }
 async function hydrateMedia(root){
-  const nodes=[...root.querySelectorAll('[data-media]')];
-  await Promise.all(nodes.map(async n=>{
-    const m=mediaMap[n.getAttribute('data-media')]; if(!m||!m.storage_path) return;
-    const { data } = await sb.storage.from(BUCKET).createSignedUrl(m.storage_path, 3600);
-    if(data?.signedUrl){ n.src=data.signedUrl; if(n.tagName!=='IMG') n.controls=true; }
-  }));
+  const nodes=[...root.querySelectorAll('[data-media]')].filter(n=>mediaMap[n.getAttribute('data-media')]?.storage_path);
+  let urls={}; try{ urls=await MediaClient.sign(sb,nodes.map(n=>mediaMap[n.getAttribute('data-media')]),3600); }catch(err){ console.error(err); }
+  nodes.forEach(n=>{ const u=urls[n.getAttribute('data-media')]; if(u){ n.src=u; if(n.tagName!=='IMG') n.controls=true; } });
 }
 
 /* ───────── 저장 ───────── */
@@ -569,12 +565,9 @@ async function uploadMedia(f, kind){
   const used = Object.values(mediaMap).reduce((n,m)=>n+(m.size_bytes||0),0);
   if(used + f.size > 200*1024*1024){ toast('이 책에 올릴 수 있는 용량(200MB)을 넘어요'); return; }
   setStatus('올리는 중…');
-  const ext=(f.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,8)||'bin';
-  const path=`${user.id}/${book.id}/${crypto.randomUUID()}.${ext}`;
-  const up=await sb.storage.from(BUCKET).upload(path,f,{ contentType:f.type, upsert:false });
-  if(up.error){ setStatus('⚠ 올리기 실패'); toast('올리지 못했어요'); return; }
-  const { data, error } = await sb.from('media').insert({ book_id:book.id, owner_id:user.id, kind, storage_path:path, size_bytes:f.size }).select().single();
-  if(error){ setStatus('⚠ 올리기 실패'); toast(error.code==='54000'?'이 책에 올릴 수 있는 용량(200MB)을 넘어요':'올리지 못했어요'); return; }
+  let data;
+  try{ data=(await MediaClient.upload(sb,f,{ book_id:book.id, kind })).media; }
+  catch(err){ console.error(err); setStatus('⚠ 올리기 실패'); toast(err.code==='quota'?'이 책에 올릴 수 있는 용량(200MB)을 넘어요':'올리지 못했어요'); return; }
   mediaMap[data.id]=data;
   const body=document.getElementById('cbody'); body.focus();
   if(savedRange){ const s=getSelection(); s.removeAllRanges(); s.addRange(savedRange); }
@@ -612,12 +605,11 @@ async function exportBook(){
         const m=mediaMap[n.getAttribute('data-media')];
         if(!m?.storage_path){ n.remove(); continue; }
         if(m.size_bytes<=INLINE_LIMIT){
-          const { data, error } = await sb.storage.from(BUCKET).download(m.storage_path);
-          if(!error){ n.setAttribute('src', await blobToDataURL(data)); if(n.tagName!=='IMG') n.setAttribute('controls',''); continue; }
+          try{ n.setAttribute('src', await blobToDataURL(await MediaClient.download(sb,m))); if(n.tagName!=='IMG') n.setAttribute('controls',''); continue; }catch(err){ console.error(err); }
         }
-        const { data } = await sb.storage.from(BUCKET).createSignedUrl(m.storage_path, 60*60*24*7);
+        let big=''; try{ big=(await MediaClient.sign(sb,[m],60*60*24*7))[m.id]||''; }catch(err){ console.error(err); }
         const p=document.createElement('p'); p.className='big';
-        p.innerHTML = `[용량이 커서 이 파일은 따로 받아 주세요] <a href="${esc(data?.signedUrl||'')}">파일 내려받기 (7일간 유효)</a>`;
+        p.innerHTML = `[용량이 커서 이 파일은 따로 받아 주세요] <a href="${esc(big)}">파일 내려받기 (7일간 유효)</a>`;
         n.replaceWith(p);
       }
       parts.push(`<section class="ch" id="c${parts.length}"><h2>${esc(c.title)}</h2>${wrap.innerHTML}</section>`);

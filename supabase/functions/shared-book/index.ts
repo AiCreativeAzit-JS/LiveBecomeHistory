@@ -3,6 +3,7 @@
 // - 서비스 키는 이 함수 안에서만 쓰이고 브라우저로 나가지 않는다.
 // - 휴지통에 있거나 관리자가 숨긴 책은 열리지 않는다. 작가가 링크를 끊으면(열쇠 삭제) 바로 막힌다.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { signRows } from "../_shared/sign.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -36,12 +37,8 @@ Deno.serve(async (req: Request) => {
   }
   const urls: Record<string, string> = {};
   if (ids.size) {
-    const { data: ms } = await sb.from("media").select("id,storage_path").eq("book_id", book.id).in("id", [...ids]);
-    const list = (ms ?? []).filter((m) => m.storage_path);
-    if (list.length) {
-      const { data: signed } = await sb.storage.from("book-media").createSignedUrls(list.map((m) => m.storage_path), 3600);
-      (signed ?? []).forEach((s, i) => { if (s?.signedUrl) urls[list[i].id] = s.signedUrl; });
-    }
+    const { data: ms } = await sb.from("media").select("id,owner_id,storage_path").eq("book_id", book.id).in("id", [...ids]);
+    Object.assign(urls, await signRows(sb, ms ?? [], 3600)); // R2 파일·예전 저장소 파일 모두
   }
   return json({ title: snap.title, author_name: snap.author_name, pages: snap.pages, urls });
 });

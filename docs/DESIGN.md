@@ -12,6 +12,12 @@
 - 호스팅: GitHub Pages(정적). 에디터는 HTML/JS + supabase-js, 서버 없음.
 - 백엔드: Supabase 프로젝트 `archive4everyone-editor` (서울). 무료 플랜은 개발용. **실제 회원을 받기 전 유료 전환 필수.**
 - 경로: `/editor`(작성) · `/shelf`(서가) · `/admin`(관리자)
+- 파일 저장: Cloudflare R2(버킷 `book-media`, 위치 APAC). 브라우저는 열쇠 없이 Edge Function `media`(verify_jwt=false)를 거쳐서만 오간다.
+  - `sign`: 부른 사람 권한(RLS)으로 media를 읽어 보이는 것만 서명(남의 책 1시간, 내 책 최대 7일). 경로가 주인 폴더 밖이면 서명 안 함.
+  - `upload`→PUT→`commit`: 10분짜리 PUT 서명(content-type·content-length 고정) → HEAD로 실제 크기·종류 확인 후 media 기록(RLS·용량 트리거 적용).
+  - `purge`(책 완전 삭제 전), `migrate`(관리자: 예전 Supabase 파일 → R2, 경로에 `r2:` 접두어).
+  - storage_path가 `r2:`로 시작하면 R2, 아니면 예전 Supabase 저장소. R2 비밀 값이 없으면 자동으로 예전 저장소에 올린다.
+  - 비밀 값(Edge Function Secrets): `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`. 서명은 `_shared/r2.ts`(Web Crypto SigV4, AWS 예제 값으로 검증).
 
 ## DB
 | 테이블 | 용도 |
@@ -152,7 +158,7 @@
 - 서가·비밀 링크·스튜디오 미리보기·화면용 전자책(HTML) 모두 같은 부품(`lib/book-viewer.js`).
 
 ## 개인정보 처리방침 · 회원 탈퇴 (완료)
-- `privacy/`: 13개 항목. 실제 구성 그대로 적음 — 데이터 저장 위치 대한민국 서울(Supabase, AWS ap-northeast-2), 위탁·국외 이전(Supabase·GitHub·Google Fonts), 광고·분석 도구 없음, 나만 보기 책 미열람.
+- `privacy/`: 13개 항목. 실제 구성 그대로 적음 — 데이터 저장 위치 대한민국 서울(Supabase, AWS ap-northeast-2) + 파일은 Cloudflare R2(APAC, 2026-10-20 시행), 위탁·국외 이전(Supabase·Cloudflare·GitHub·Google Fonts), 광고·분석 도구 없음, 나만 보기 책 미열람.
 - 회원 탈퇴: 내 서재 아래 「회원 탈퇴」 → 「탈퇴」 입력 → Edge Function `delete-account`(verify_jwt, 토큰 주인만, confirm 필수)가 저장소 파일(내 폴더만) 삭제 후 계정 삭제 → DB cascade로 프로필·책·페이지·발행본·비밀 링크·미디어·신고 삭제.
 - 실제 서버 검증(시험 계정): 확인 없이 400, 로그인 없이 401, 정상 200 → 시험 계정의 사용자·로그인 기록·프로필·책·페이지·비밀 링크·미디어·실제 파일 모두 0, 기존 데이터(회원 1·책 6·페이지 15·미디어 15·파일 15) 그대로. 시험용 표·http 확장은 삭제.
 - 오픈 전 채울 칸은 `docs/OPERATIONS.md` 0번 목록.
