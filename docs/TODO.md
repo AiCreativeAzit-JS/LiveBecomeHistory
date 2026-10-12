@@ -36,7 +36,7 @@
 ## 운영 방침 (2026-10-02)
 - 가입: Supabase「Allow new users to sign up」끔 → 운영자가 Authentication → Users → Add user(Auto Confirm)로만 계정 생성. 승인제 코드 개발은 문을 열 때 다시 검토.
 - [x] (완료 2026-10-02) 「내 정보」 화면: 작가 이름·비밀번호 바꾸기 (Add user로 만든 계정은 이름이 비어 있고 비밀번호를 못 바꿈)
-- 무료 요금제 잠듦 방지: 매주 1회 로그인·서가 열기. 남의 책이 생기면 Pro 전환(백업 포함), 그 전에 아스트라 mvp 프로젝트 삭제.
+- 무료 요금제 잠듦 방지: 매주 1회 로그인·서가 열기. 남의 책이 생기면 Pro 전환(백업 포함). (아스트라 mvp 프로젝트는 삭제 확인 2026-10-13)
 - 메일: 문의 메일함은 Zoho Mail(contact@archive4everyone.com, 가비아 DNS 연결 완료). Gmail SMTP는 실패해서 쓰지 않음(지금 인증 메일은 Supabase 기본 발신).
 - [ ] 가입 열기 전: 인증 메일 발신을 noreply@archive4everyone.com(Resend 또는 Zoho ZeptoMail)으로, Reply-To는 contact@. 한국어 메일 문구. 개인정보 처리방침 위탁 표에 발송 업체 추가.
 - [x] 개인정보 처리방침에 문의 수집 항목·1년 보관·Zoho(미국 DC)·Google Forms 위탁 추가(10-20 개정에 포함)
@@ -50,3 +50,11 @@
 - [ ] 등록 후: 실제 올리기·보기·지우기 확인 → 관리자로 `migrate` 실행해서 예전 파일 옮기기(남은 수 0까지) → Supabase 저장소 비었는지 확인
 - [ ] 올리기만 하고 commit하지 않은 R2 고아 파일 정리(가끔 목록 비교) — 회원이 늘면 자동화
 - 참고: `shrink-test`(큰 사진 1920px 줄이기) 2건은 R2 작업 전부터 실패하던 테스트. 실제 화면에서 확인 필요
+
+## 🔐 가입한 서비스 점검 (2026-10-13 시작)
+- 핵심(2단계 인증 필수): GitHub(AiCreativeAzit-JS) · 가비아 · Supabase · Cloudflare
+- 운영: Zoho Mail(contact@) · Google(구글폼) · 0502 고객센터 번호 업체(업체명 확인)
+- 나중: Resend(가입 문 열 때)
+- 안 씀: Vercel(프로젝트·도메인 0개 확인) → 삭제 또는 2FA만
+- 확인: archive4everyone.help@gmail.com 정리 여부, 아스트라 시절 계정·결제 수단
+- [ ] GitHub: 2FA·복구 코드, Pages(브랜치·도메인·Enforce HTTPS), 도메인 인증(TXT), 연결된 앱, 아스트라 저장소 정리
