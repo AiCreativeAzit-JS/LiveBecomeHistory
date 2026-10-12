@@ -84,6 +84,8 @@
   .addpage:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
   /* 가운데: 캔버스 */
   .center{position:relative;overflow:auto;display:flex;flex-direction:column;align-items:center;padding:34px 30px 60px}
+  .demobar{max-width:640px;margin:0 auto 12px;background:#FFF7E0;color:#5c4a14;border:1px solid #F0DDA8;border-radius:12px;padding:9px 14px;font-size:13.5px;line-height:1.55;text-align:center}
+  .demobar a{color:#0B3324;font-weight:700;white-space:nowrap}
   .pglabel{font-size:12.5px;color:var(--muted);margin-bottom:12px;font-weight:600;letter-spacing:.02em}
   .hint{font-size:13px;color:var(--muted);margin-top:16px;text-align:center;max-width:560px}
   /* 페이지(신국판 152×225mm) — 모든 크기는 페이지 너비 기준 비율이라 어디서든 똑같이 보인다 */
@@ -234,6 +236,7 @@
 
   <main class="center" id="center">
     <div class="pglabel" id="pglabel"></div>
+    <div class="demobar" id="demoBar" hidden></div>
     <div id="canvasWrap"></div>
     <p class="hint" id="hint">오른쪽 <b>글</b>을 누르면 글상자가 생기고 커서가 깜빡여요. 상자를 끌어 옮기고, 모서리를 잡아 크기를 바꿀 수 있어요.</p>
   </main>
@@ -403,7 +406,7 @@ function elHTML(e, mode){ // mode: edit | thumb | view | print
   if(e.type==='slot'){ if(view) return ''; inner = `<div class="slot">${e.kind==='video'?ICON.video:e.kind==='audio'?ICON.music:ICON.image}${mode==='edit'?`<span>눌러서 ${e.kind==='image'?'사진':e.kind==='audio'?'노래':'영상'} 넣기</span>`:''}</div>`; }
   else if(e.type==='text') inner = `<div class="tx ${e.font}" style="${txStyle(e)}" ${ed?`data-ph="${esc(e.ph||'여기를 눌러 글을 입력하세요')}" spellcheck="false"`:(mode==='thumb'&&e.ph?`data-ph="${esc(e.ph)}"`:'')}>${sanitizeText(e.html)}</div>`;
   else if(e.type==='image') inner = `<img src="${e.src}" alt="${esc(e.name||'')}" draggable="false">`;
-  else if(e.type==='video') inner = view ? `<video src="${e.src}" controls playsinline preload="metadata"></video>`
+  else if(e.type==='video') inner = view ? `<video src="${e.src}" controls controlslist="nodownload" playsinline preload="metadata"></video>`
     : `<video src="${e.src}#t=0.1" preload="metadata" muted playsinline style="pointer-events:none"></video><div class="vplay"><i>${ICON.play}</i></div>`;
   else if(e.type==='audio') inner = view ? `<div class="ap" data-src="${esc(e.src)}"><button type="button" class="ap-btn" aria-label="재생">▶</button><div class="ap-bar" aria-hidden="true"><i></i></div><span class="ap-t">0:00</span></div>`
     : `<div class="audio"><div class="ic">${ICON.music}</div><div class="bars">${bars()}</div><div class="lb">노래</div></div>`;
@@ -944,7 +947,8 @@ function closePV(){ $('pv').hidden=true; ($('pvBody').querySelectorAll('audio,vi
 $('btnPreview').onclick=openPV; $('pvClose').onclick=closePV;
 const blobToDataURL = b => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(b); });
 async function exportPages(forPrint=false){
-  const copy=JSON.parse(JSON.stringify(state.pages)); if(!ONLINE) return copy;
+  const copy=JSON.parse(JSON.stringify(state.pages));
+  if(!ONLINE){ copy.forEach(p=>{ p.els=p.els.filter(e=>!sampleIds.has(e.media_id)); }); return copy; } // 견본 책의 사진·영상·노래는 작가 저작권 보호를 위해 빼고 내려받기
   for(const p of copy) for(const e of p.els){ if(!e.media_id) continue; if(forPrint&&e.type!=='image') continue; const info=mediaInfo[e.media_id]; if(!info) continue;
     try{ if(info.size_bytes<=15*1048576) e.src=await blobToDataURL(await MediaClient.download(sb,info));
          else { const u=(await MediaClient.sign(sb,[info],604800))[info.id]; if(u) e.src=u; } }catch(err){ console.error(err); } }
@@ -955,6 +959,7 @@ function openExport(){
   if(ONLINE && !bookRow.is_public && !shareToken) w='⚠ 아직 발행하지 않은 책이에요. 인쇄용 QR 코드는 서가에 발행하거나 「🔗 비밀 링크」를 만들어야 열려요.';
   else if(ONLINE && !bookRow.is_public && shareToken) w='🔒 서가에 올리지 않은 책이라, QR 코드는 비밀 링크로 열려요(링크를 끊으면 QR도 열리지 않아요).'+(pubDirty()?' 발행 뒤 고친 영상·노래는 링크의 「지금 내용으로 새로 고침」을 눌러야 열려요.':'');
   else if(ONLINE && pubDirty()) w='ℹ QR 코드는 서가의 발행본을 보여줘요. 발행 뒤에 새로 넣은 영상·노래는 「다시 발행」해야 QR로 열려요.';
+  else if(!ONLINE && sampleIds.size) w='ℹ 견본 책의 사진·영상·노래는 작가의 저작권 보호를 위해 내려받기에서 빠져요. 직접 넣은 사진·영상·노래와 글은 그대로 담겨요.';
   $('exWarn').textContent=w; $('exDlg').hidden=false; $('exDlg').querySelector('.opt').focus();
 }
 $('exDlg').addEventListener('click',ev=>{ if(ev.target.id==='exDlg'||ev.target.id==='exClose'){ $('exDlg').hidden=true; return; }
@@ -1151,9 +1156,30 @@ async function unpublish(){
   bookRow.is_public=false; updPublish(); toast('서가에서 내렸어요');
 }
 $('btnUnpub').onclick=()=>unpublish();
+// 체험 편집기: 서가에 공개된 견본 책을 펼쳐 둔다(고친 내용은 방문자 브라우저에만 남고 원본은 그대로). ?blank=1 이면 빈 견본 3쪽.
+const SAMPLE_BOOK='26ac5df5-b3f1-400c-a03f-e77ccb6f0d39';
+let sampleIds=new Set(), sampleTitle='';
+async function loadSample(){
+  if(QS.get('blank')==='1'||!window.supabase||!window.MediaClient) return false;
+  try{
+    sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+    const [sn,md]=await Promise.all([sb.from('book_snapshots').select('title,pages').eq('book_id',SAMPLE_BOOK).maybeSingle(), sb.from('media').select('id,storage_path').eq('book_id',SAMPLE_BOOK)]);
+    const pages=sn.data&&Array.isArray(sn.data.pages)?sn.data.pages:[]; if(!pages.length) return false;
+    const urls=await MediaClient.sign(sb,md.data||[],3600);
+    state.pages=pages.map(r=>({id:r.id||uid(),name:r.name||'',bg:/^#[0-9a-f]{6}$/i.test(r.bg)?r.bg:'#FFFFFF',flowFrom:r.flow_from||null,
+      els:(Array.isArray(r.els)?r.els:[]).filter(e=>!e.media_id||urls[e.media_id]).map(e=>{ if(e.media_id){ sampleIds.add(e.media_id); return {...e,src:urls[e.media_id]}; } return e.type==='text'?{...e,html:sanitizeText(e.html||'')}:e; })}));
+    sampleTitle=String(sn.data.title||''); state.title=sampleTitle||state.title; state.cur=0; state.sel=null; history=[]; future=[];
+    return true;
+  }catch(err){ console.error(err); return false; }
+}
+function showDemoBar(sample){ const d=$('demoBar'); d.hidden=false;
+  d.innerHTML = sample ? `📖 서가에 실린 견본 책 「${esc(sampleTitle)}」을 펼쳐 놓았어요. 마음껏 고치고 넘겨 보세요 (원본은 그대로예요) · <a href="?blank=1">빈 책으로 시작하기 →</a>`
+                       : `✏️ 빈 책으로 시작했어요. 글·사진·영상·노래를 넣어 보세요 · <a href="./">견본 책 보기 →</a>`; }
+// 체험 편집기에서는 사진·영상에서 오른쪽 클릭(저장하기) 메뉴를 막는다
+if(!ONLINE) document.addEventListener('contextmenu',ev=>{ if(ev.target.closest&&ev.target.closest('img,video,audio')) ev.preventDefault(); });
 async function boot(){
   if(window.BookViewer) BookViewer.injectCSS();
-  if(!ONLINE){ setSave('demo'); renderAll(); const start=serialize();
+  if(!ONLINE){ setSave('demo'); const sample=await loadSample(); renderAll(); showDemoBar(sample); const start=serialize();
     window.addEventListener('beforeunload',ev=>{ if(serialize()!==start){ ev.preventDefault(); ev.returnValue=''; } }); // 체험 내용은 저장되지 않아서, 떠나기 전에 한 번 묻는다
     return; }
   document.querySelector('.demo')?.remove(); setSave('load');
