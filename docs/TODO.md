@@ -37,7 +37,9 @@
 - 가입: Supabase「Allow new users to sign up」끔 → 운영자가 Authentication → Users → Add user(Auto Confirm)로만 계정 생성. 승인제 코드 개발은 문을 열 때 다시 검토.
 - [x] (완료 2026-10-02) 「내 정보」 화면: 작가 이름·비밀번호 바꾸기 (Add user로 만든 계정은 이름이 비어 있고 비밀번호를 못 바꿈)
 - 무료 요금제 잠듦 방지: 매주 1회 로그인·서가 열기. 남의 책이 생기면 Pro 전환(백업 포함), 그 전에 아스트라 mvp 프로젝트 삭제.
-- 메일: Gmail SMTP(archive4everyone.help) 연결. 회원이 늘면 Resend 등 거래 메일 서비스로.
+- 메일: 문의 메일함은 Zoho Mail(contact@archive4everyone.com, 가비아 DNS 연결 완료). Gmail SMTP는 실패해서 쓰지 않음(지금 인증 메일은 Supabase 기본 발신).
+- [ ] 가입 열기 전: 인증 메일 발신을 noreply@archive4everyone.com(Resend 또는 Zoho ZeptoMail)으로, Reply-To는 contact@. 한국어 메일 문구. 개인정보 처리방침 위탁 표에 발송 업체 추가.
+- [ ] 개인정보 처리방침 위탁 표에 Zoho(문의 메일)·Google(문의 구글폼) 추가 — Zoho 데이터센터·구글폼 수집 항목 확인 후
 
 ## 📦 파일 저장소 R2 전환 (2026-10-13 코드 완료)
 - [x] Edge Function `media` + `_shared/r2.ts`·`_shared/sign.ts`, shared-book·delete-account R2 대응, 화면 4곳(studio·editor·shelf·admin) 연결
