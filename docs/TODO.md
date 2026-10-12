@@ -34,7 +34,7 @@
 - ⚠️ 순서 주의: 4번(정책)은 반드시 1번 뒤에. 거꾸로 하면 운영자도 책을 못 쓴다.
 
 ## 운영 방침 (2026-10-02)
-- 표기: 대표 영문 이름 **Jeongsun Kim** (김정선). 영문 서비스명 Archive for Everyone. 대외 문서·신청서에 이 표기 사용.
+- 표기: 대표 영문 이름 **Jeongsun Kim** (김정선). 영문 회사명 **Archive for Everyone** (인물대백과사), Seoul, Republic of Korea, 설립 2026-09-23. 대외 문서·신청서에 이 표기 사용(랜딩 하단·구조화 데이터에도 같은 표기).
 - 가입: Supabase「Allow new users to sign up」끔 → 운영자가 Authentication → Users → Add user(Auto Confirm)로만 계정 생성. 승인제 코드 개발은 문을 열 때 다시 검토.
 - [x] (완료 2026-10-02) 「내 정보」 화면: 작가 이름·비밀번호 바꾸기 (Add user로 만든 계정은 이름이 비어 있고 비밀번호를 못 바꿈)
 - 무료 요금제 잠듦 방지: 매주 1회 로그인·서가 열기. 남의 책이 생기면 Pro 전환(백업 포함). (아스트라 mvp 프로젝트는 삭제 확인 2026-10-13)
