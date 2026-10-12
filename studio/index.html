@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>책 만들기 시안 — 인물대백과사</title>
+<title>모아 편집기 — 인물대백과사</title>
 <meta name="robots" content="noindex">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Pretendard:wght@400;500;600;700&display=swap');
@@ -38,7 +38,9 @@
   .btn:disabled{opacity:.4;cursor:not-allowed}
   .iconbtn{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--muted)}
   .iconbtn:hover:not(:disabled){background:var(--bg);color:var(--ink)} .iconbtn:disabled{opacity:.35;cursor:default}
-  .demo{background:#FFF7E0;color:#7A5B0C;font-size:12.5px;padding:5px 11px;border-radius:999px;font-weight:600;white-space:nowrap}
+  .demo{background:#FFF7E0;color:#7A5B0C;font-size:12.5px;padding:5px 11px;border-radius:999px;font-weight:600;white-space:nowrap;border:1px solid #F0DDA8;cursor:pointer;font-family:inherit}
+  .demo:hover{background:#FFEFC7}
+  .joinacts{display:flex;flex-direction:column;gap:8px;margin-top:6px}.joinacts .btn{justify-content:center;width:100%;text-decoration:none;color:var(--ink)}.joinacts .btn.primary{color:#fff}
   /* 왼쪽: 페이지 목록 */
   .left{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:14px 12px 18px}
   .lh{display:flex;align-items:center;justify-content:space-between;padding:2px 6px 12px;font-weight:700}
@@ -215,7 +217,7 @@
     <span class="save" id="save"></span>
     <button class="btn" id="btnSave" hidden title="지금 내용을 내 서재에 보관해요">임시저장</button>
     <span class="sp"></span>
-    <span class="demo">시안 · 저장되지 않아요</span>
+    <button type="button" class="demo" id="demoChip" title="체험 모드 안내">체험 중 · 저장하려면 ›</button>
     <button class="btn" id="btnPreview"><svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>미리보기</button>
     <button class="btn" id="btnExport"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>내려받기</button>
     <span class="pubstate" id="pubState" hidden></span>
@@ -287,6 +289,16 @@
   <p class="sub" style="color:var(--muted);font-size:14px;margin:0 0 14px">서가에 올리지 않고, <b>이 링크를 받은 사람만</b> 책을 볼 수 있어요. 가족·친구에게 카카오톡으로 보내기 좋아요. 링크는 언제든 끊을 수 있어요.</p>
   <div id="shBody"></div>
   <div style="text-align:right;margin-top:12px"><button class="btn" id="shClose">닫기</button></div>
+</div></div>
+<div class="modal" id="joinDlg" hidden role="dialog" aria-modal="true" aria-labelledby="joinT"><div class="mbox">
+  <h3 id="joinT">모아 편집기를 체험하고 계세요 ✨</h3>
+  <p id="joinWhy" style="color:var(--muted);font-size:14.5px;margin:0 0 10px;line-height:1.65"></p>
+  <p style="color:var(--muted);font-size:14.5px;margin:0 0 14px;line-height:1.65">지금은 <b>베타 기간</b>이라, 신청해 주신 분께 계정을 만들어 드려요. 계정이 있으면 책이 <b>내 서재에 자동 저장</b>되고, 서가에 공개하거나 비밀 링크로 가족에게 보낼 수 있어요.<br><small>체험하며 만든 책은 「내려받기」로 내 컴퓨터에 간직할 수 있어요. 체험 내용은 서버에 올라가지 않아요.</small></p>
+  <div class="joinacts">
+    <a class="btn primary" href="https://docs.google.com/forms/d/e/1FAIpQLSf85PiWM0yACEhrDPvW6Th8j9zX9bA3oSDz9338bjfT6SxOog/viewform" target="_blank" rel="noopener noreferrer">베타 참여 신청하기 ↗</a>
+    <a class="btn" href="../editor/">이미 계정이 있어요 · 로그인</a>
+    <button class="btn" id="joinClose">계속 체험하기</button>
+  </div>
 </div></div>
 <div class="modal" id="exDlg" hidden role="dialog" aria-modal="true" aria-labelledby="exT"><div class="mbox">
   <h3 id="exT">어떻게 내려받을까요?</h3>
@@ -423,7 +435,7 @@ const plain = html => { const t=document.createElement('div'); t.innerHTML=sanit
 
 /* ═══════════════ 화면 갱신 ═══════════════ */
 function renderAll(){ renderThumbs(); renderCanvas(); renderPanels(); renderBottom(); $('title').value=state.title; updUndo(); }
-function flagSaved(){ $('save').innerHTML = '<svg viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M20 6L9 17l-5-5"/></svg> 시안(저장 안 됨)'; }
+function flagSaved(){ $('save').innerHTML = '<svg viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M20 6L9 17l-5-5"/></svg> 체험 중(저장 안 됨)'; }
 
 function renderThumbs(){
   const ins=i=>`<button class="ins" data-ins="${i}" title="여기에 새 페이지 끼워 넣기" aria-label="${i}쪽 뒤에 새 페이지"></button>`;
@@ -908,8 +920,12 @@ $('title').addEventListener('input',()=>{ state.title=$('title').value; });
 $('pPrev').onclick=()=>goPage(state.cur-1); $('pNext').onclick=()=>goPage(state.cur+1);
 $('zIn').onclick=()=>{ state.zoom=Math.min(1.6,state.zoom+.1); renderCanvas(); }; $('zOut').onclick=()=>{ state.zoom=Math.max(.4,state.zoom-.1); renderCanvas(); };
 $('uUndo').onclick=undo; $('uRedo').onclick=redo;
-$('back').onclick=async()=>{ if(!ONLINE) return toast('시안이라 내 서재로는 이동하지 않아요'); endEdit(); await saveNow(); location.href='../editor/'; };
-$('btnPublish').onclick=()=>ONLINE ? togglePublic() : toast('시안이라 공개는 동작하지 않아요. 실제 에디터에서는 서가에 올라가요');
+// 체험 모드(로그인 없이 /studio/): 모든 작업은 방문자 브라우저 안에서만. 저장·공개·비밀 링크는 베타 신청 안내
+function openJoin(why){ endEdit(); $('joinWhy').textContent=why||''; $('joinWhy').hidden=!why; $('joinDlg').hidden=false; }
+$('joinClose').onclick=()=>{ $('joinDlg').hidden=true; };
+$('demoChip').onclick=()=>openJoin('');
+$('back').onclick=async()=>{ if(!ONLINE) return openJoin('「내 책」(내 서재)은 계정이 있어야 열 수 있어요.'); endEdit(); await saveNow(); location.href='../editor/'; };
+$('btnPublish').onclick=()=>ONLINE ? togglePublic() : openJoin('서가에 공개하려면 계정이 필요해요.');
 document.addEventListener('keydown',ev=>{
   const typing = state.editing || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
   if(ev.key==='Escape'){ ['ptDlg','exDlg','shDlg'].forEach(id=>$(id).hidden=true); if(!$('ctx').hidden||!$('fslist').hidden){ closeCtx(); closeFsList(); return; } if(!$('pv').hidden){ closePV(); return; } if(state.editing) endEdit(); else if(state.sel){ state.sel=null; decorate('__none'); renderPanels(); } return; }
@@ -990,7 +1006,7 @@ const NEW = !BOOK && QS.get('new')==='1';
 const ONLINE = (!!BOOK && /^[0-9a-f-]{36}$/i.test(BOOK)) || NEW;
 const SUPABASE_URL='https://qsucbnvicaviatdpnfxx.supabase.co', SUPABASE_KEY='sb_publishable_DR6vaBdtzLjicYQ8X-u9bA_6U8mzJuY'; // 공개용 키: 권한은 DB 규칙이 지킨다
 let sb=null, user=null, bookRow=null, mediaInfo={}, lastSaved=null, saving=false;
-function setSave(k){ const m={fresh:'아직 저장 전 · 쓰기 시작하면 저장돼요',saving:'저장 중…',ok:'✓ 모든 변경사항 저장됨',err:'⚠ 저장 실패 · 인터넷 연결을 확인해 주세요',demo:'시안(저장 안 됨)',load:'불러오는 중…'}; $('save').textContent=m[k]; $('save').dataset.state=k; }
+function setSave(k){ const m={fresh:'아직 저장 전 · 쓰기 시작하면 저장돼요',saving:'저장 중…',ok:'✓ 모든 변경사항 저장됨',err:'⚠ 저장 실패 · 인터넷 연결을 확인해 주세요',demo:'',load:'불러오는 중…'}; $('save').textContent=m[k]; $('save').dataset.state=k; }
 function fatal(title,msg,link){ $('center').innerHTML=`<div class="fatal"><h2>${esc(title)}</h2><p>${esc(msg)}</p>${link?`<a class="btn primary" href="${link[1]}">${esc(link[0])}</a>`:''}</div>`; }
 const cleanEl = e => e.type==='slot' ? {id:e.id,type:'slot',kind:e.kind||'image',x:e.x,y:e.y,w:e.w,h:e.h}
   : e.type==='text'
@@ -1105,7 +1121,7 @@ function renderShare(){
     ${pubDirty()?`<div class="exwarn">링크를 만든 뒤 고친 내용이 있어요. 받는 분은 아직 이전 내용을 봐요.</div><button class="btn" id="shRefresh" style="width:100%;justify-content:center;margin-bottom:8px">지금 내용으로 새로 고침</button>`:''}
     <div class="row" style="justify-content:space-between"><button class="btn" id="shRotate" title="예전 링크는 더 이상 열리지 않아요">새 링크로 바꾸기</button><button class="btn" id="shCut" style="color:var(--danger)">링크 끊기</button></div>`;
 }
-async function openShare(){ if(!ONLINE) return toast('시안이라 비밀 링크는 만들 수 없어요'); endEdit(); await saveNow(true); renderShare(); $('shDlg').hidden=false; }
+async function openShare(){ if(!ONLINE) return openJoin('비밀 링크를 만들려면 계정이 필요해요.'); endEdit(); await saveNow(true); renderShare(); $('shDlg').hidden=false; }
 $('btnShare').onclick=openShare;
 $('shDlg').addEventListener('click',async ev=>{
   if(ev.target.id==='shDlg'||ev.target.id==='shClose'){ $('shDlg').hidden=true; return; }
@@ -1137,7 +1153,9 @@ async function unpublish(){
 $('btnUnpub').onclick=()=>unpublish();
 async function boot(){
   if(window.BookViewer) BookViewer.injectCSS();
-  if(!ONLINE){ setSave('demo'); renderAll(); return; }
+  if(!ONLINE){ setSave('demo'); renderAll(); const start=serialize();
+    window.addEventListener('beforeunload',ev=>{ if(serialize()!==start){ ev.preventDefault(); ev.returnValue=''; } }); // 체험 내용은 저장되지 않아서, 떠나기 전에 한 번 묻는다
+    return; }
   document.querySelector('.demo')?.remove(); setSave('load');
   if(!window.supabase){ fatal('화면을 불러오지 못했어요','인터넷 연결이나 차단 프로그램을 확인한 뒤 새로고침해 주세요.'); return; }
   sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
