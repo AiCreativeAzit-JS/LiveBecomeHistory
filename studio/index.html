@@ -1179,7 +1179,11 @@ function showDemoBar(sample){ const d=$('demoBar'); d.hidden=false;
 if(!ONLINE) document.addEventListener('contextmenu',ev=>{ if(ev.target.closest&&ev.target.closest('img,video,audio')) ev.preventDefault(); });
 async function boot(){
   if(window.BookViewer) BookViewer.injectCSS();
-  if(!ONLINE){ setSave('demo'); const sample=await loadSample(); renderAll(); showDemoBar(sample); const start=serialize();
+  if(!ONLINE){ setSave('demo'); const sample=await loadSample();
+    if(!sample){ // 빈 책: 로그인한 작가가 「새 책」을 만들 때와 같은 견본 틀(표지·이야기·사진·영상·노래 자리)
+      const blank={id:null,title:'제목 없는 책',author_name:''}; const keep=bookRow; bookRow=blank;
+      state.title=blank.title; state.pages=templatePages(); state.cur=0; state.sel=null; history=[]; future=[]; bookRow=keep; }
+    renderAll(); showDemoBar(sample); const start=serialize();
     window.addEventListener('beforeunload',ev=>{ if(serialize()!==start){ ev.preventDefault(); ev.returnValue=''; } }); // 체험 내용은 저장되지 않아서, 떠나기 전에 한 번 묻는다
     return; }
   document.querySelector('.demo')?.remove(); setSave('load');
