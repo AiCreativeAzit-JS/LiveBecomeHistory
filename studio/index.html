@@ -1157,10 +1157,16 @@ const blobToDataURL = b => new Promise((res,rej)=>{ const r=new FileReader(); r.
 async function exportPages(forPrint=false){
   const copy=JSON.parse(JSON.stringify(state.pages));
   if(!ONLINE){ copy.forEach(p=>{ p.els=p.els.filter(e=>!sampleIds.has(e.media_id)); }); return copy; } // 견본 책의 사진·영상·노래는 작가 저작권 보호를 위해 빼고 내려받기
-  for(const p of copy) for(const e of p.els){ if(!e.media_id) continue; if(forPrint&&e.type!=='image') continue; const info=mediaInfo[e.media_id]; if(!info) continue;
+  // 사진·영상·노래는 크기와 상관없이 모두 파일 안에 담는다(만료되는 링크를 남기면 「이 파일 하나로 언제든」이 거짓이 된다)
+  const failed=[];
+  for(const p of copy) for(const e of p.els){ if(!e.media_id) continue; if(forPrint&&e.type!=='image') continue; const info=mediaInfo[e.media_id];
     const v=forPrint&&e.type==='image'?'print':undefined;                              // 인쇄용은 사진의 인쇄용 원본(없으면 화면용)
-    try{ if(e.type==='image'||info.size_bytes<=15*1048576) e.src=await blobToDataURL(await MediaClient.download(sb,info,v));
-         else { const u=(await MediaClient.sign(sb,[info],604800,v))[info.id]; if(u) e.src=u; } }catch(err){ console.error(err); } }
+    try{ if(!info) throw new Error('no_media'); e.src=await blobToDataURL(await MediaClient.download(sb,info,v)); }
+    catch(err){ console.error(err); failed.push(e); } }
+  if(failed.length){ const n={image:0,video:0,audio:0}; failed.forEach(e=>n[e.type]++);
+    const what=[n.image&&`사진 ${n.image}개`,n.video&&`영상 ${n.video}개`,n.audio&&`노래 ${n.audio}개`].filter(Boolean).join(' · ');
+    if(!confirm(`${what}를 파일에 담지 못했어요(인터넷 연결을 확인해 주세요).\n\n확인: 그것만 빼고 내려받기\n취소: 내려받지 않기(잠시 뒤 다시 시도)`)) return null;
+    copy.forEach(p=>{ p.els=p.els.filter(e=>!failed.includes(e)); }); copy.missing=failed.length; }   // 깨진 링크 대신 아예 뺀다
   return copy;
 }
 function openExport(){
@@ -1173,6 +1179,8 @@ function openExport(){
   else { if(!bookRow.is_public) w.push('🔒 서가에 올리지 않은 책이라, QR 코드는 비밀 링크로 열려요(링크를 끊으면 QR도 열리지 않아요).');
     if(noQR) w.push(`⚠ 발행 뒤에 새로 넣은 영상·노래 ${noQR}개는 아직 QR 코드가 없어요. ${NOQR} ${bookRow.is_public?'「다시 발행」':'비밀 링크의 「지금 내용으로 새로 고침」'}을 누르면 생겨요.`);
     else if(pubDirty()) w.push(`ℹ QR 코드는 ${bookRow.is_public?'서가의 발행본':'비밀 링크의 내용'}을 보여줘요. 발행 뒤에 고친 내용은 ${bookRow.is_public?'「다시 발행」':'「지금 내용으로 새로 고침」'}해야 보여요.`); }
+  if(ONLINE){ const ids=new Set(state.pages.flatMap(p=>p.els).filter(e=>e.type==='video'||e.type==='audio').map(e=>e.media_id)), mb=[...ids].reduce((t,id)=>t+((mediaInfo[id]||{}).size_bytes||0),0)/1048576;
+    if(mb>80) w.push(`ℹ 영상·노래를 모두 파일 안에 담아서 화면용 전자책이 약 ${Math.round(mb)}MB가 돼요. 휴대폰보다 컴퓨터에서 여는 걸 권해요.`); }
   $('exWarn').textContent=w.join(' '); $('exDlg').hidden=false; $('exDlg').querySelector('.opt').focus();
 }
 $('exDlg').addEventListener('click',ev=>{ if(ev.target.id==='exDlg'||ev.target.id==='exClose'){ $('exDlg').hidden=true; return; }
@@ -1195,11 +1203,11 @@ footer{text-align:center;color:#7B8A83;font:12.5px sans-serif;padding:6px 0 26px
 <script>${lib.replace(/<\/script/gi,'<\\/script')}<\/script>
 <script>(function(){var P=${data};BookViewer.injectCSS();BookViewer.flip(document.getElementById('book'),P);BookViewer.wireAudio(document.body);BookViewer.wireVideo(document.body);})();<\/script>
 </body></html>`;
-  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([html],{type:'text/html'})); a.download=(state.title||'내책').replace(/[\\/:*?"<>|]/g,'')+'.html'; document.body.appendChild(a); a.click(); a.remove(); toast('내려받았어요 · 파일을 열면 책장을 넘겨 볼 수 있어요');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([html],{type:'text/html'})); a.download=(state.title||'내책').replace(/[\\/:*?"<>|]/g,'')+'.html'; document.body.appendChild(a); a.click(); a.remove(); toast('내려받았어요 · 파일을 열면 책장을 넘겨 볼 수 있어요'+(ep.missing?` · 담지 못한 ${ep.missing}개는 빠졌어요`:''));
 }
 async function exportHTML(kind='screen'){
   endEdit(); const print=kind==='print'; if(ONLINE) toast('책을 묶는 중…');
-  const ep=await exportPages(print);
+  const ep=await exportPages(print); if(!ep){ toast('내려받기를 멈췄어요. 잠시 뒤 다시 눌러 주세요'); return; }
   if(!print) return exportFlipBook(ep);
   const pages=ep.map((p,i)=>`<section class="sheet" id="p${i+1}" aria-label="${i+1}쪽">${pageHTML(p,'print')}</section>`).join('\n');
   const html=`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(state.title)}</title>
@@ -1212,7 +1220,7 @@ async function exportHTML(kind='screen'){
 .qr.noqr{border-style:dashed;text-align:center}.qrt{font:2.8cqw/1.6 'Pretendard',sans-serif;color:#3D4B45}.qrt b{font-size:3.2cqw;color:#0B4536}
 footer{text-align:center;color:#7B8A83;font:13px sans-serif;padding:8px 0 40px}@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{background:#fff}.wrapbook{padding:0}.sheet{width:152mm;margin:0;box-shadow:none;break-after:page}footer{display:none}}</style></head>
 <body><main class="wrapbook">${pages}</main><footer>인물대백과사에서 만든 나의 책 · ${new Date().toLocaleDateString('ko-KR')} 내려받음 · 이 파일 하나로 언제든 열어볼 수 있어요.</footer></body></html>`;
-  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([html],{type:'text/html'})); a.download=(state.title||'내책').replace(/[\\/:*?"<>|]/g,'')+(print?' (인쇄용)':'')+'.html'; document.body.appendChild(a); a.click(); a.remove(); toast(print?'인쇄용을 내려받았어요 · 열고 Ctrl+P → PDF로 저장':'내려받았어요');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([html],{type:'text/html'})); a.download=(state.title||'내책').replace(/[\\/:*?"<>|]/g,'')+(print?' (인쇄용)':'')+'.html'; document.body.appendChild(a); a.click(); a.remove(); toast((print?'인쇄용을 내려받았어요 · 열고 Ctrl+P → PDF로 저장':'내려받았어요')+(ep.missing?` · 담지 못한 사진 ${ep.missing}개는 빠졌어요`:''));
 }
 $('btnExport').onclick=openExport;
 
