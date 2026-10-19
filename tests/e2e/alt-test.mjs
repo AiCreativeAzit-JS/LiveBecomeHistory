@@ -21,7 +21,7 @@ await pg.setInputFiles('#file',{name:'p.png',mimeType:'image/png',buffer:Buffer.
 const id=await st(()=>state.pages[2].els.find(e=>e.type==='image').id);
 await st(id=>select(id),id);
 /* ① 사진 설명 */
-ok('사진을 고르면 오른쪽 칸에 「사진 설명 · 화면 읽기용」 입력란', await pg.locator('#altIn').isVisible() && /화면 읽기용/.test(await pg.locator('#secSel').innerText()));
+ok('사진을 고르면 오른쪽 칸에 「사진을 말로 설명하기 · 눈이 불편한 분께 읽어 줘요」 입력란', await pg.locator('#altIn').isVisible() && /사진을 말로 설명하기/.test(await pg.locator('#secSel').innerText()) && /눈이 불편한 분께 읽어 줘요/.test(await pg.locator('#secSel').innerText()));
 await pg.fill('#altIn','할머니 댁 빨간 대문 앞 가족사진'); await pg.waitForTimeout(100);
 ok('쓴 설명이 편집 화면 사진의 대체 텍스트로', await st(id=>elNode(id).querySelector('img').alt==='할머니 댁 빨간 대문 앞 가족사진',id));
 ok('저장되는 원고(로그인 책의 저장 형식)에도 담김', await st(id=>{ const e=state.pages[2].els.find(e=>e.id===id); return cleanEl({...e,media_id:'m1'}).alt==='할머니 댁 빨간 대문 앞 가족사진' && !('alt' in cleanEl({...e,alt:'',media_id:'m1'})); },id));
