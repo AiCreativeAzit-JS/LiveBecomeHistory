@@ -20,6 +20,7 @@ const qrs=h=>(h.match(/<div class="qr"><svg/g)||[]).length, noqrs=h=>(h.match(/c
 
 /* ═════ 1) 체험 책(로그인 없음) ═════ */
 { const ctx=await b.newContext({viewport:{width:1440,height:1000},acceptDownloads:true});
+  await ctx.addInitScript(()=>{ try{ indexedDB.deleteDatabase('moa-demo'); }catch{} }); // 매번 새 기기처럼(체험 원고 「이어 쓰기」 창이 끼지 않게)
   await ctx.route(/fonts\.|supabase-js|jsdelivr|unpkg/,r=>r.abort());
   const pg=await open(ctx); const st=(f,a)=>pg.evaluate(f,a);
   await pg.goto(`${U}/studio/?blank=1`); await pg.waitForSelector('#canvas .pg');

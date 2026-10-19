@@ -296,13 +296,19 @@
 <div class="modal" id="joinDlg" hidden role="dialog" aria-modal="true" aria-labelledby="joinT"><div class="mbox">
   <h3 id="joinT">모아 편집기를 체험하고 계세요 ✨</h3>
   <p id="joinWhy" style="color:var(--muted);font-size:14.5px;margin:0 0 10px;line-height:1.65"></p>
-  <p style="color:var(--muted);font-size:14.5px;margin:0 0 14px;line-height:1.65">지금은 <b>베타 기간</b>이라, 신청해 주신 분께 계정을 만들어 드려요. 계정이 있으면 책이 <b>내 서재에 자동 저장</b>되고, 서가에 공개하거나 비밀 링크로 가족에게 보낼 수 있어요.<br><small>체험하며 만든 책은 「내려받기」로 내 컴퓨터에 간직할 수 있어요. 체험 내용은 서버에 올라가지 않아요.</small></p>
-  <div class="exwarn" id="joinKeep" hidden>⚠ 지금까지 체험하며 고친 내용은 저장되지 않아서, 로그인하거나 이 창을 닫으면 이어지지 않아요.<br><button class="btn" id="joinSave" style="margin-top:8px">📱 먼저 내 컴퓨터에 내려받기</button></div>
+  <p style="color:var(--muted);font-size:14.5px;margin:0 0 14px;line-height:1.65">지금은 <b>베타 기간</b>이라, 신청해 주신 분께 계정을 만들어 드려요. 계정이 있으면 책이 <b>내 서재에 자동 저장</b>되고, 서가에 공개하거나 비밀 링크로 가족에게 보낼 수 있어요.<br><small>체험 내용은 서버에 올라가지 않고 <b>이 기기(브라우저)에만 임시로</b> 남아요. 로그인하면 내 서재에서 「내 서재로 옮기기」로 가져갈 수 있고, 「내려받기」로 내 컴퓨터에 간직할 수도 있어요.</small></p>
+  <div class="exwarn" id="joinKeep" hidden>ℹ 체험하며 고친 책은 <b>이 기기에만</b> 임시로 남아 있어요. 이 기기에서 로그인하면 내 서재에서 「내 서재로 옮기기」로 가져갈 수 있어요(다른 기기에서는 옮길 수 없어요). 따로 간직하려면 먼저 내려받아 두세요.<br><button class="btn" id="joinSave" style="margin-top:8px">📱 먼저 내 컴퓨터에 내려받기</button></div>
   <div class="joinacts">
     <a class="btn primary" href="https://docs.google.com/forms/d/e/1FAIpQLSf85PiWM0yACEhrDPvW6Th8j9zX9bA3oSDz9338bjfT6SxOog/viewform" target="_blank" rel="noopener noreferrer">베타 참여 신청하기 ↗</a>
     <a class="btn" href="../editor/">이미 계정이 있어요 · 로그인</a>
     <button class="btn" id="joinClose">계속 체험하기</button>
   </div>
+</div></div>
+<div class="modal" id="draftDlg" hidden role="dialog" aria-modal="true" aria-labelledby="draftT"><div class="mbox">
+  <h3 id="draftT">지난번 체험하던 책이 있어요</h3>
+  <p style="color:var(--muted);font-size:14.5px;margin:0 0 12px;line-height:1.65">「<b id="draftTitle"></b>」 · <span id="draftWhen"></span>에 이 기기에 임시로 남겨 둔 책이에요.</p>
+  <button class="opt" data-draft="resume"><b>이어 쓰기</b><span>남겨 둔 책을 다시 펼쳐요.</span></button>
+  <button class="opt" data-draft="fresh"><b>지우고 새로 시작</b><span>이 기기에 남은 체험 책을 지워요.</span></button>
 </div></div>
 <div class="modal" id="dupDlg" hidden role="dialog" aria-modal="true" aria-labelledby="dupT"><div class="mbox">
   <h3 id="dupT">어디에 복제할까요?</h3>
@@ -336,6 +342,7 @@
 <script src="../lib/qrcode.js"></script>
 <script src="../lib/book-viewer.js"></script>
 <script src="../lib/media-client.js"></script>
+<script src="../lib/demo-draft.js"></script>
 <script>
 'use strict';
 /* ═══════════════ 기본 값 ═══════════════
@@ -1165,7 +1172,7 @@ $('zIn').onclick=()=>{ state.zoom=Math.min(1.6,state.zoom+.1); redrawCanvas(); }
 $('uUndo').onclick=undo; $('uRedo').onclick=redo;
 // 체험 모드(로그인 없이 /studio/): 모든 작업은 방문자 브라우저 안에서만. 저장·공개·비밀 링크는 베타 신청 안내
 function openJoin(why){ endEdit(); $('joinWhy').textContent=why||''; $('joinWhy').hidden=!why;
-  $('joinKeep').hidden = ONLINE || demoStart==null || serialize()===demoStart;   // 체험하며 고친 게 있으면, 떠나기 전에 간직할 길을 먼저
+  $('joinKeep').hidden = ONLINE || demoStart==null || demoToken()===demoStart;   // 체험하며 고친 게 있으면, 어디에 남는지·가져가는 길을 먼저
   $('joinDlg').hidden=false; }
 $('joinSave').onclick=()=>{ $('joinDlg').hidden=true; exportHTML('screen'); };
 $('joinClose').onclick=()=>{ $('joinDlg').hidden=true; };
@@ -1258,7 +1265,7 @@ footer{text-align:center;color:#7B8A83;font:12.5px sans-serif;padding:6px 0 26px
 <script>${lib.replace(/<\/script/gi,'<\\/script')}<\/script>
 <script>(function(){var P=${data};BookViewer.injectCSS();BookViewer.flip(document.getElementById('book'),P);BookViewer.wireAudio(document.body);BookViewer.wireVideo(document.body);})();<\/script>
 </body></html>`;
-  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([html],{type:'text/html'})); a.download=(state.title||'내책').replace(/[\\/:*?"<>|]/g,'')+'.html'; document.body.appendChild(a); a.click(); a.remove(); if(!ONLINE) demoStart=serialize(); toast('내려받았어요 · 파일을 열면 책장을 넘겨 볼 수 있어요'+(ep.missing?` · 담지 못한 ${ep.missing}개는 빠졌어요`:''));
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([html],{type:'text/html'})); a.download=(state.title||'내책').replace(/[\\/:*?"<>|]/g,'')+'.html'; document.body.appendChild(a); a.click(); a.remove(); toast('내려받았어요 · 파일을 열면 책장을 넘겨 볼 수 있어요'+(ep.missing?` · 담지 못한 ${ep.missing}개는 빠졌어요`:''));
 }
 async function exportHTML(kind='screen'){
   endEdit(); const print=kind==='print'; if(ONLINE) toast('책을 묶는 중…');
@@ -1445,7 +1452,29 @@ async function unpublish(){
 $('btnUnpub').onclick=()=>unpublish();
 // 체험 편집기: 서가에 공개된 견본 책을 펼쳐 둔다(고친 내용은 방문자 브라우저에만 남고 원본은 그대로). ?blank=1 이면 빈 견본 3쪽.
 const SAMPLE_BOOK='26ac5df5-b3f1-400c-a03f-e77ccb6f0d39';
-let sampleIds=new Set(), sampleTitle='', demoStart=null; // demoStart: 체험 원고를 마지막으로 간직한(처음 연·내려받은) 때의 모습
+let sampleIds=new Set(), sampleTitle='', demoStart=null, demoLocal=null; // demoStart: 체험을 처음 열었을 때 · demoLocal: 이 기기에 마지막으로 보관한 때
+// 체험 원고가 바뀌었는지 가늠하는 표: 글·쪽(serialize) + 직접 넣은 사진·영상·노래의 자리·설명(이것들은 저장 형식에 들어가지 않으므로)
+const demoToken = () => serialize()+'|'+state.pages.map(p=>p.els.filter(e=>e.src&&!e.media_id).map(e=>[e.id,e.x,e.y,e.w,e.h,e.alt||''].join(',')).join(';')).join('/');
+// 체험 원고 임시 보관: 이 기기의 브라우저에만(서버로 보내지 않음). 처음 연 그대로면 남기지 않는다
+async function keepDemo(){ const t=demoToken(); if(t===demoLocal) return; if(t===demoStart && demoLocal===demoStart) return;
+  if(await DemoDraft.put({savedAt:Date.now(), title:state.title, cur:state.cur, pages:JSON.parse(JSON.stringify(state.pages))})){ demoLocal=t; $('save').textContent='✓ 이 기기에 임시 저장됨'; } }
+// 지난번 체험 원고로 이어 쓰기: 견본 책의 사진·영상·노래는 지금 받은 주소로 바꾸고, 없어진 것은 뺀다
+function resumeDemo(d){ const live=new Map(state.pages.flatMap(p=>p.els).filter(e=>e.media_id&&e.src).map(e=>[e.media_id,e.src]));
+  state.title=d.title||state.title; state.pages=d.pages.map(p=>({...p, els:(p.els||[]).filter(e=>!e.media_id||live.has(e.media_id)).map(e=>e.media_id?{...e,src:live.get(e.media_id)}:e)}));
+  state.cur=Math.min(d.cur||0,state.pages.length-1); state.sel=null; state.editing=false; history=[]; future=[]; renderAll(); demoLocal=demoToken(); toast('지난번 체험하던 책을 펼쳤어요'); }
+// 로그인한 뒤 「내 서재로 옮기기」(?new=1&import=demo): 체험 원고를 새 책으로. 견본 책의 사진·영상·노래(작가 저작권)는 옮기지 않는다
+async function importDemo(){ const d=await DemoDraft.get(); if(!d){ toast('이 기기에 옮길 체험 책이 없어요'); return; }
+  const ids=new Map(), nid=id=>{ if(!ids.has(id)) ids.set(id,uid()); return ids.get(id); };   // 쪽·상자 번호는 새로(견본 책의 번호와 겹치지 않게)
+  state.title=d.title||'제목 없는 책'; state.pages=d.pages.map(p=>({id:nid(p.id), name:p.name||'', bg:p.bg||'#FFFFFF', flowFrom:p.flowFrom?nid(p.flowFrom):null, els:(p.els||[]).filter(e=>!e.media_id).map(e=>({...e,id:uid()}))}));
+  state.cur=0; state.sel=null; history=[]; future=[]; renderAll();
+  const media=state.pages.flatMap(p=>p.els).filter(e=>/^data:/.test(e.src||'')); let n=0, fail=0;
+  for(const e of media){ n++; toast(`체험 책을 옮기는 중… (사진·영상·노래 ${n}/${media.length})`);
+    try{ const blob=await (await fetch(e.src)).blob(); const f=new File([blob],'media.'+((blob.type.split('/')[1]||'bin').replace(/[^a-z0-9]/g,'')||'bin'),{type:blob.type});
+      const r=await uploadMedia(f,e.type); e.media_id=r.id; e.src=r.src; }
+    catch(err){ console.error(err); fail++; state.pages.forEach(p=>{ p.els=p.els.filter(x=>x!==e); }); } }
+  renderAll(); await saveNow(true);
+  if(BOOK && serialize()===lastSaved && !fail){ await DemoDraft.clear(); toast('체험하던 책을 내 서재로 옮겼어요'); }
+  else toast(fail?`${fail}개는 옮기지 못했어요 · 체험 책은 이 기기에 그대로 남겨 뒀어요`:'저장하지 못했어요. 인터넷 연결을 확인해 주세요'); }
 async function loadSample(){
   if(QS.get('blank')==='1'||!window.supabase||!window.MediaClient) return false;
   try{
@@ -1470,8 +1499,14 @@ async function boot(){
     if(!sample){ // 빈 책: 로그인한 작가가 「새 책」을 만들 때와 같은 견본 틀(표지·이야기·사진·영상·노래 자리)
       const blank={id:null,title:'제목 없는 책',author_name:''}; const keep=bookRow; bookRow=blank;
       state.title=blank.title; state.pages=templatePages(); state.cur=0; state.sel=null; history=[]; future=[]; bookRow=keep; }
-    renderAll(); showDemoBar(sample); demoStart=serialize();
-    window.addEventListener('beforeunload',ev=>{ if(serialize()!==demoStart){ ev.preventDefault(); ev.returnValue=''; } }); // 체험 내용은 저장되지 않아서, 떠나기 전에 한 번 묻는다(내려받은 뒤 그대로면 묻지 않음)
+    renderAll(); showDemoBar(sample); demoStart=demoLocal=demoToken();
+    const old=window.DemoDraft && await DemoDraft.get();
+    if(old){ $('draftWhen').textContent=new Date(old.savedAt||Date.now()).toLocaleString('ko-KR',{month:'long',day:'numeric',hour:'numeric',minute:'2-digit'}); $('draftTitle').textContent=old.title||'제목 없는 책';
+      $('draftDlg').hidden=false; $('draftDlg').querySelector('.opt').focus();
+      await new Promise(res=>{ $('draftDlg').onclick=async ev=>{ const o=ev.target.closest('[data-draft]'); if(!o) return; $('draftDlg').hidden=true;
+        if(o.dataset.draft==='resume') resumeDemo(old); else { await DemoDraft.clear(); toast('이 기기에 남은 체험 책을 지웠어요'); } res(); }; }); }
+    if(window.DemoDraft){ setInterval(keepDemo,1500); document.addEventListener('visibilitychange',()=>{ if(document.hidden) keepDemo(); }); }
+    window.addEventListener('beforeunload',ev=>{ if(demoToken()!==demoLocal){ keepDemo(); ev.preventDefault(); ev.returnValue=''; } }); // 이 기기에 아직 못 남긴 수정이 있으면 한 번 묻는다
     return; }
   document.querySelector('.demo')?.remove(); setSave('load');
   if(!window.supabase){ fatal('화면을 불러오지 못했어요','인터넷 연결이나 차단 프로그램을 확인한 뒤 새로고침해 주세요.'); return; }
@@ -1485,6 +1520,7 @@ async function boot(){
     bookRow={id:null,owner_id:user.id,title:'제목 없는 책',author_name:(prof&&prof.display_name)||'',format:'pages',is_public:false,published_at:null};
     state.title=bookRow.title; state.pages=templatePages(); state.cur=0; state.sel=null; history=[]; future=[];
     renderAll(); updPublish(); lastSaved=serialize(); setSave('fresh');
+    if(QS.get('import')==='demo') await importDemo();   // 내 서재의 「내 서재로 옮기기」
     setInterval(()=>saveNow(),1500); window.addEventListener('online',()=>saveNow()); // 인터넷이 돌아오면 곧바로
     document.addEventListener('visibilitychange',()=>{ if(document.hidden) saveNow(); });
     window.addEventListener('beforeunload',ev=>{ if(serialize()!==lastSaved){ saveNow(); ev.preventDefault(); ev.returnValue=''; } });

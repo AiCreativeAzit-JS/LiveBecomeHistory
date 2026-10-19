@@ -9,6 +9,7 @@ const srv=http.createServer((req,res)=>{ const p=req.url.split('?')[0]; const f=
   fs.readFile(f,(e,d)=>{ if(e){res.writeHead(404);res.end();} else {res.writeHead(200,{'content-type':'text/html'});res.end(d);} }); }).listen(8771);
 const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',args:['--no-sandbox']});
 const ctx=await b.newContext({viewport:{width:1440,height:1000}});
+await ctx.addInitScript(()=>{ try{ indexedDB.deleteDatabase('moa-demo'); }catch{} }); // 매번 새 기기처럼(체험 원고 「이어 쓰기」 창이 끼지 않게)
 const TXT=fs.readFileSync(ROOT+'/docs/qa/모아_재현용_16문단.txt','utf8');
 const ok=(n,c,info='')=>console.log((c?'PASS ':'FAIL ')+n+(info&&!c?'  ← '+info:''));
 const errs=[];

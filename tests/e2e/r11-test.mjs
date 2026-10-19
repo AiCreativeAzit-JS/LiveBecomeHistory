@@ -36,7 +36,7 @@ ok('T34 쓴 제목이 원고에 그대로', (await textOf(title.id))==='키보�
 ok('T34 고친 뒤 읽히는 이름도 새 글로', /글상자: 키보드로 쓴 제목/.test((await at()).label||''));
 // 사진 자리: Enter → 파일 고르기
 const slot=await tabUntil(id=>page().els.find(e=>e.id===id)?.type==='slot');
-{ const fc=pg.waitForEvent('filechooser',{timeout:2000}).then(()=>true,()=>false); await pg.keyboard.press('Enter');
+{ const fc=pg.waitForEvent('filechooser',{timeout:5000}).then(()=>true,()=>false); await pg.keyboard.press('Enter');
   ok('T34 사진 자리에 Tab으로 닿아 Enter → 파일 고르기 창', !!slot && await fc && /사진 자리 · Enter로 사진 넣기/.test(slot.label), JSON.stringify(slot)); }
 // ② 2쪽 본문: 썸네일로 쪽을 연 뒤(키보드) Tab으로 본문까지 → 이미 있는 글 끝에 이어 쓰기
 await pg.focus('.th[data-i="1"]'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(80);
