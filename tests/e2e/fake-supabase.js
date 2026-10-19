@@ -78,6 +78,7 @@
         const canSee=m=>{ const bk=db.books.find(x=>x.id===m.book_id); return bk&&(bk.owner_id===uidNow||isAdm||(bk.is_public&&!bk.admin_hidden&&!bk.deleted_at)); };
         const url=m=>files[m.storage_path]?URL.createObjectURL(files[m.storage_path]):'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
         (window.__mediaCalls=window.__mediaCalls||[]).push(body);
+        if(body.action==='commit'&&window.__mediaDelays&&window.__mediaDelays.length) await new Promise(r=>setTimeout(r,window.__mediaDelays.shift())); // 올리기 완료를 늦추기(순서 뒤바꾸기 시험)
         const printKey=k=>k.replace(/(\.[a-z0-9]{1,8})$/i,'@print$1'); // 사진 두 벌 보관: 인쇄용 원본
         if(body.action==='sign'){ const urls={}; db.media.filter(m=>body.ids.includes(m.id)&&m.storage_path&&canSee(m)).forEach(m=>{ const pk=printKey(m.storage_path);
             urls[m.id]= body.variant==='print'&&m.owner_id===uidNow&&m.kind==='image'&&files[pk] ? url({storage_path:pk}) : url(m); }); return {data:{urls},error:null}; }

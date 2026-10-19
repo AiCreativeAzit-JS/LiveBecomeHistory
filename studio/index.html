@@ -95,7 +95,7 @@
   .el{position:absolute}
   .el .tx{width:100%;height:100%;overflow:hidden;line-height:1.85;word-break:keep-all;overflow-wrap:anywhere;outline:none;white-space:pre-wrap}
   .el .tx.serif{font-family:var(--serif)} .el .tx.sans{font-family:var(--sans)}
-  .el img,.el video{width:100%;height:100%;object-fit:cover;display:block;border-radius:.6cqw}
+  .el img,.el video{width:100%;height:100%;object-fit:cover;display:block;border-radius:.6cqw} .el video{object-fit:contain}
   .el .audio{width:100%;height:100%;border:.3cqw solid #E6EBE7;border-radius:1.6cqw;display:flex;align-items:center;gap:3cqw;padding:0 3.5cqw;background:linear-gradient(135deg,#F1F7F4,#fff)}
   .el .audio .ic{width:9.5cqw;height:9.5cqw;border-radius:50%;background:#0F5B48;color:#fff;display:grid;place-items:center;flex:none}
   .el .audio .ic svg{width:4.6cqw;height:4.6cqw}
@@ -178,7 +178,7 @@
   .pv[hidden]{display:none}
   .pv .bar{position:fixed;left:0;right:0;top:0;height:56px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 18px;font-weight:600}
   .pv .pg{width:min(560px,92vw);margin:0 auto 26px;box-shadow:var(--shadow)}
-  .pv .pg .el video{object-fit:cover}
+  .pv .pg .el video{object-fit:contain}
   .toast{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:999px;font-size:14px;font-weight:500;opacity:0;pointer-events:none;transition:opacity .2s;z-index:99;max-width:90vw}
   .toast.show{opacity:1}
   .pubstate{font-size:12.5px;font-weight:600;padding:5px 11px;border-radius:999px;white-space:nowrap;background:var(--bg);color:var(--muted)}
@@ -614,17 +614,18 @@ async function imageVariants(f){
 // 실제로 그림으로 읽히는지(파일 종류 검사나 「불러오기 끝남」만으로는 성공이 아님)
 async function imageOK(f){ const u=URL.createObjectURL(f), im=new Image();
   try{ im.src=u; await im.decode(); return im.naturalWidth>0 || f.type==='image/svg+xml'; }catch{ return false; } finally{ URL.revokeObjectURL(u); } }
-// 영상·노래 길이(초). 브라우저가 열지 못하면 -1(0초 정상으로 넘기지 않는다)
-function mediaSeconds(f,kind){ return new Promise(res=>{ const v=document.createElement(kind==='video'?'video':'audio'); v.preload='metadata'; const u=URL.createObjectURL(f);
-  v.onloadedmetadata=()=>{ URL.revokeObjectURL(u); res(v.duration>0?v.duration:-1); }; v.onerror=()=>{ URL.revokeObjectURL(u); res(-1); }; v.src=u; }); }
+// 영상·노래 길이(초)와 영상 비율(세로/가로). 브라우저가 열지 못하면 sec=-1(0초 정상으로 넘기지 않는다)
+function mediaMeta(f,kind){ return new Promise(res=>{ const v=document.createElement(kind==='video'?'video':'audio'); v.preload='metadata'; const u=URL.createObjectURL(f);
+  v.onloadedmetadata=()=>{ URL.revokeObjectURL(u); res({sec:v.duration>0?v.duration:-1, ratio:v.videoWidth>0&&v.videoHeight>0?v.videoHeight/v.videoWidth:0}); }; v.onerror=()=>{ URL.revokeObjectURL(u); res({sec:-1,ratio:0}); }; v.src=u; }); }
 const BAD_FILE={ image:'이 사진 파일은 열리지 않아요(파일이 깨졌거나 지원하지 않는 형식). JPG·PNG 사진으로 다시 골라 주세요',
   video:'이 영상 파일은 열리지 않아요(파일이 깨졌거나 이 브라우저가 지원하지 않는 형식). MP4 영상으로 다시 골라 주세요',
   audio:'이 노래 파일은 열리지 않아요(파일이 깨졌거나 이 브라우저가 지원하지 않는 형식). MP3·M4A 파일로 다시 골라 주세요' };
 $('file').onchange = async ()=>{ let f=$('file').files[0]; if(!f) return; const kind=pendingKind;
+  const to={slot:pendingSlot, pageId:page().id}; pendingSlot=null;   // 넣을 곳은 고른 순간에 정한다(올리는 동안 다른 쪽으로 가거나 다른 파일을 골라도 그대로)
   if(!f.type.startsWith(kind+'/')){ toast(`${KIND_KO[kind]} 파일을 골라 주세요`); return; }
   if(f.size>LIMIT[kind]*1048576){ toast(`${KIND_KO[kind]}은(는) ${LIMIT[kind]}MB 이하만 올릴 수 있어요${kind==='video'?' (약 50초 · 720p 권장)':''}`); return; }
-  const sec = kind==='image' ? ((await imageOK(f)) ? 1 : -1) : await mediaSeconds(f,kind);
-  if(sec<0){ pendingSlot=null; toast(BAD_FILE[kind]); return; }                    // 열리지 않는 파일: 자리·원고는 그대로
+  const meta = kind==='image' ? {sec:(await imageOK(f)) ? 1 : -1} : await mediaMeta(f,kind), sec=meta.sec;
+  if(sec<0){ toast(BAD_FILE[kind]); return; }                                      // 열리지 않는 파일: 자리·원고는 그대로
   if(kind==='video' && sec>VIDEO_MAX_SEC){ toast(`영상은 ${VIDEO_MAX_SEC}초 이하만 올릴 수 있어요 (지금 ${isFinite(sec)?Math.round(sec)+'초':'길이를 알 수 없음'}). 휴대폰 편집에서 잘라 주세요`); return; }
   let note='', print=null;                                                          // 줄인 사실은 「넣었어요」 안내에 붙여서(따로 띄우면 바로 덮여 안 보임)
   if(kind==='image'){ const before=f, v=await imageVariants(f); f=v.display; print=ONLINE?v.print:null; // 체험 책은 저장하지 않으니 화면용 한 벌만
@@ -632,45 +633,56 @@ $('file').onchange = async ()=>{ let f=$('file').files[0]; if(!f) return; const 
     if(f!==before) note=` · 화면에 맞게 줄였어요(${mb(before)}MB → ${mb(f)}MB${f.type==='image/png'?' · 투명한 바탕은 그대로':''})`;
     if(print) note+=' · 인쇄용 원본은 따로 보관해요'; }
   const name=''; // 파일 이름은 저장하지 않는다(썸네일·QR·서가에 드러나지 않게)
-  const slot=pendingSlot; pendingSlot=null; const place=(src,id)=> slot ? fillSlot(slot,kind,src,name,id,note) : addMediaPage(kind,src,name,id,note);
+  const o={note, ratio:meta.ratio||0, pageId:to.pageId}, place=(src,id)=> to.slot ? fillSlot(to.slot,kind,src,name,id,o) : addMediaPage(kind,src,name,id,o);
   if(ONLINE){ toast(`${KIND_KO[kind]} 올리는 중…`); uploadMedia(f,kind,print).then(r=>place(r.src,r.id))
       .catch(err=>{ console.error(err); toast(err.message==='quota'||err.code==='54000'?'이 책에 올릴 수 있는 용량(200MB)을 넘어요':err.code==='too_big'?'파일이 너무 커요 (사진 15MB · 영상 50MB · 노래 30MB 이하)':err.code==='type'?'파일 종류가 맞지 않아요':'올리지 못했어요. 다시 시도해 주세요'); }); return; }
   const r=new FileReader(); r.onload=()=>place(r.result); r.readAsDataURL(f); };
-// 견본 사진 자리에 넣기: 자리 안에 비율을 지켜 가운데 맞춤
-function fillSlot(slotId,kind,src,name,mediaId,note=''){
-  const pi=state.pages.findIndex(p=>p.els.some(e=>e.id===slotId)); if(pi<0) return addMediaPage(kind,src,name,mediaId,note);
-  const put=r=>{ const pg=state.pages[pi], i=pg.els.findIndex(e=>e.id===slotId); if(i<0) return; const sl=pg.els[i];
+const WHAT={image:'사진을',video:'영상을',audio:'노래를'}; // 「…을/를 넣었어요」
+// 다 올라왔을 때 사용자가 다른 쪽에 가 있으면 화면을 끌고 가지 않는다(그 쪽 편집도 끊지 않음) → 「n쪽에 담았어요」
+function placedAt(pi){ if(pi===state.cur) return false; renderThumbs(); renderBottom(); return true; }
+// 견본 사진 자리에 넣기: 자리 안에 비율을 지켜 가운데 맞춤. o: {note, ratio(영상 세로/가로), pageId(처음 정한 쪽)}
+function fillSlot(slotId,kind,src,name,mediaId,o={}){
+  const pi=state.pages.findIndex(p=>p.els.some(e=>e.id===slotId)); if(pi<0) return addMediaPage(kind,src,name,mediaId,o); // 자리가 없어졌으면 정한 쪽의 빈 곳(쪽도 없으면 지금 쪽)
+  const put=r=>{ const pg=state.pages[pi], i=pg.els.findIndex(e=>e.id===slotId); if(i<0) return addMediaPage(kind,src,name,mediaId,o); const sl=pg.els[i];
     let w=sl.w, h=w*r; if(h>sl.h){ h=sl.h; w=h/r; }
-    endEdit(); snap(); const m={id:uid(),type:kind,x:sl.x+(sl.w-w)/2,y:sl.y+(sl.h-h)/2,w,h,src,name,slot:{x:sl.x,y:sl.y,w:sl.w,h:sl.h}}; if(mediaId) m.media_id=mediaId;
-    pg.els.splice(i,1,m); state.cur=pi; state.sel=m.id; renderAll(); toast((kind==='image'?'사진을 넣었어요':kind==='video'?'영상을 넣었어요':'노래를 넣었어요')+note); };
+    const away=pi!==state.cur; if(!away) endEdit(); snap(); const m={id:uid(),type:kind,x:sl.x+(sl.w-w)/2,y:sl.y+(sl.h-h)/2,w,h,src,name,slot:{x:sl.x,y:sl.y,w:sl.w,h:sl.h}}; if(mediaId) m.media_id=mediaId;
+    pg.els.splice(i,1,m);
+    if(placedAt(pi)) return toast(`${pi+1}쪽 자리에 ${WHAT[kind]} 넣었어요`+(o.note||''));
+    state.sel=m.id; renderAll(); toast(`${WHAT[kind]} 넣었어요`+(o.note||'')); };
   if(kind==='image'){ const im=new Image(); im.onload=()=>put(im.naturalHeight/im.naturalWidth||.75); im.onerror=()=>put(.75); im.src=src; }
-  else put(kind==='video'?9/16:Math.min(.3, 34/CW));
+  else put(kind==='video'?(o.ratio||9/16):Math.min(.3, 34/CW));
 }
-// 사진·영상·노래 넣기: ① 이 페이지에 같은 종류의 빈 자리가 있으면 거기에 ② 이 페이지에 빈 공간이 있으면 거기에 ③ 없을 때만 새 페이지
-function addMediaPage(kind,src,name,mediaId,note=''){
-  endEdit();
-  const p0=page(), slot=p0.els.find(e=>e.type==='slot'&&(e.kind||'image')===kind);
-  if(slot) return fillSlot(slot.id,kind,src,name,mediaId,note);
+// 사진·영상·노래 넣기: ① 그 페이지에 같은 종류의 빈 자리가 있으면 거기에 ② 그 페이지에 빈 공간이 있으면 거기에 ③ 없을 때만 새 페이지
+// 그 페이지 = 파일을 고른 순간의 쪽(o.pageId). 그 쪽이 지워졌으면 지금 쪽에 넣고 알린다
+function addMediaPage(kind,src,name,mediaId,o={}){
+  let pi=o.pageId?state.pages.findIndex(p=>p.id===o.pageId):state.cur; const lost=pi<0; if(lost) pi=state.cur;
+  const away=pi!==state.cur; if(!away) endEdit();
+  const p0=state.pages[pi], slot=p0.els.find(e=>e.type==='slot'&&(e.kind||'image')===kind);
+  if(slot) return fillSlot(slot.id,kind,src,name,mediaId,{...o,pageId:p0.id});
   snap();
+  const say=(where)=>toast((lost?'넣으려던 쪽이 없어져서 지금 쪽에 담았어요':away?`${where}에 담았어요`:o.note?`${where==='새 페이지'?'새 페이지':'이 페이지'}에 담았어요`:`${where==='새 페이지'?'새 페이지':'이 페이지'}에 담았어요. 「설명 글 넣기」로 설명을 적을 수 있어요`)+(o.note||''));
   const onThisPage=(w,h)=>{
     const filled=p0.els.filter(e=>!(e.type==='text'&&!plain(e.html)&&!e.ph));     // 빈 글상자는 빈 공간으로 본다(안내 글이 있는 틀 상자는 제외)
     const bottom=filled.reduce((m,e)=>Math.max(m,e.y+e.h),MT-6), avail=LIM.y1-(bottom+6);
     if(avail<Math.min(h,40)) return false;
-    if(h>avail){ const r=h/w; h=avail; w=kind==='image'?h/r:w; }
+    if(h>avail){ const r=h/w; h=avail; if(kind!=='audio') w=h/r; }                  // 사진·영상은 비율 그대로 줄인다(노래 카드는 폭 그대로)
     const y = filled.length ? bottom+6 : Math.max(MT,(PH-h)/2-14);
     const m={id:uid(),type:kind,x:(PW-w)/2,y,w,h,src,name}; if(mediaId) m.media_id=mediaId;
     p0.els=p0.els.filter(e=>!(e.type==='text'&&!plain(e.html)&&!e.ph&&e.y<y+h&&e.y+e.h>y)); // 겹치는 빈 글상자는 치운다(틀 상자는 남김)
-    p0.els.push(m); state.sel=m.id; state.editing=false; renderAll();
-    toast(note ? '이 페이지에 담았어요'+note : '이 페이지에 담았어요. 「설명 글 넣기」로 설명을 적을 수 있어요'); return true;
+    p0.els.push(m);
+    if(placedAt(pi)) return say(`${pi+1}쪽`), true;
+    state.sel=m.id; state.editing=false; renderAll(); say('이 페이지'); return true;
   };
   const finish=(w,h)=>{ if(onThisPage(w,h)) return; // 페이지 안에 가운데 정렬
     const m={id:uid(),type:kind,x:(PW-w)/2,y:Math.max(MT,(PH-h)/2-14),w,h,src,name}; if(mediaId) m.media_id=mediaId;
     const p={id:uid(),name:`${KIND_KO[kind]} 페이지`,bg:'#FFFFFF',els:[m]};
-    state.pages.splice(state.cur+1,0,p); state.cur++; state.sel=m.id; state.editing=false; renderAll();
-    toast(note ? '새 페이지에 담았어요'+note : '새 페이지에 담았어요. 「설명 글 넣기」로 설명을 적을 수 있어요');
+    state.pages.splice(pi+1,0,p);
+    if(away){ if(pi<state.cur) state.cur++; renderThumbs(); renderBottom(); return say(`${pi+2}쪽(새 페이지)`); }  // 지금 보던 쪽이 뒤로 밀리면 번호만 따라간다
+    state.cur=pi+1; state.sel=m.id; state.editing=false; renderAll(); say('새 페이지');
   };
-  if(kind==='image'){ const im=new Image(); im.onload=()=>{ const r=im.naturalHeight/im.naturalWidth; let w=CW,h=w*r; if(h>150){ h=150; w=h/r; } finish(w,h); }; im.onerror=()=>finish(CW,90); im.src=src; }
-  else if(kind==='video'){ finish(CW,CW*9/16); } else finish(CW,34);
+  const fit=r=>{ let w=CW,h=w*r; if(h>150){ h=150; w=h/r; } finish(w,h); };       // 세로로 긴 사진·영상은 높이 150mm에 맞춘다
+  if(kind==='image'){ const im=new Image(); im.onload=()=>fit(im.naturalHeight/im.naturalWidth); im.onerror=()=>finish(CW,90); im.src=src; }
+  else if(kind==='video'){ fit(o.ratio||9/16); } else finish(CW,34);
 }
 // 사진·영상·노래 바로 아래(원래 넣은 자리 아래 포함)의 설명 상자: 틀의 설명 자리나 앞서 넣은 설명
 const xOverlap=(a,b)=>Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x);
@@ -1203,7 +1215,7 @@ $('exDlg').addEventListener('click',ev=>{ if(ev.target.id==='exDlg'||ev.target.i
 // 화면용 전자책: 책장을 가로로 넘기는 한 파일(쪽 번호·노래 재생 막대 포함). 인터넷 없이 열린다.
 const EXPORT_BASE_CSS = `*{box-sizing:border-box}body{margin:0;background:#EEF1EE;font-family:'Noto Serif KR','Batang',serif;color:#1B2B25}
 .pg{position:relative;aspect-ratio:152/225;container-type:inline-size;overflow:hidden;background:#fff}.el{position:absolute}.el .tx{width:100%;height:100%;overflow:hidden;line-height:1.85;word-break:keep-all;overflow-wrap:anywhere;white-space:pre-wrap}
-.el .tx.sans{font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif}.el img,.el video{width:100%;height:100%;object-fit:cover;display:block}`;
+.el .tx.sans{font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif}.el img,.el video{width:100%;height:100%;object-fit:cover;display:block}.el video{object-fit:contain}`;
 async function exportFlipBook(ep){
   let lib=''; try{ const r=await fetch(new URL('../lib/book-viewer.js',location.href)); if(r.ok) lib=await r.text(); }catch(err){ console.error(err); }
   if(!/BookViewer/.test(lib)){ toast('화면용 전자책을 만들지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요'); return; } // 책장 넘기기 장치 없이 만든 파일은 열리지 않으므로 성공이라 하지 않는다
@@ -1230,7 +1242,7 @@ async function exportHTML(kind='screen'){
 <style>@page{size:152mm 225mm;margin:0}*{box-sizing:border-box}body{margin:0;background:#EEF1EE;font-family:'Noto Serif KR','Batang',serif;color:#1B2B25}
 .wrapbook{padding:28px 12px}.sheet{width:min(152mm,96vw);margin:0 auto 26px;box-shadow:0 8px 28px rgba(20,40,32,.12)}
 .pg{position:relative;aspect-ratio:152/225;container-type:inline-size;overflow:hidden}.el{position:absolute}.el .tx{width:100%;height:100%;overflow:hidden;line-height:1.85;word-break:keep-all;overflow-wrap:anywhere;white-space:pre-wrap}
-.el .tx.sans{font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif}.el img,.el video{width:100%;height:100%;object-fit:cover;display:block}
+.el .tx.sans{font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif}.el img,.el video{width:100%;height:100%;object-fit:cover;display:block}.el video{object-fit:contain}
 .el .audio{width:100%;height:100%;border:.3cqw solid #E6EBE7;border-radius:1.6cqw;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:1.4cqw;background:#F6FAF8;font-family:sans-serif}.el .lb{font-size:2.8cqw;color:#4A5A53}
 .qr{width:100%;height:100%;display:flex;align-items:center;justify-content:center;gap:4cqw;border:.3cqw solid #E6EBE7;border-radius:1.6cqw;padding:2cqw;background:#fff}.qr svg{height:100%;max-height:26cqw;width:auto;aspect-ratio:1/1;flex:none}
 .qr.noqr{border-style:dashed;text-align:center}.qrt{font:2.8cqw/1.6 'Pretendard',sans-serif;color:#3D4B45}.qrt b{font-size:3.2cqw;color:#0B4536}

@@ -4,7 +4,7 @@
 
 ```bash
 cd tests/e2e
-for t in test online-test studio-test share-test shelf-test admin-test me-test newbook-test real-book-test demo-test sample-test mouse-test prefetch-test flow-test dialog-test pick-test output-test ux-test photo2-test r02-test r03-test r04-test r05-test r06-test r08-test r10-test; do
+for t in test online-test studio-test share-test shelf-test admin-test me-test newbook-test real-book-test demo-test sample-test mouse-test prefetch-test flow-test dialog-test pick-test output-test ux-test photo2-test r02-test r03-test r04-test r05-test r06-test r07-test r08-test r09-test r10-test; do
   r=$(node $t.mjs "$PWD/fake-supabase.js" 2>&1); echo "$t PASS=$(echo "$r"|grep -c '^PASS') FAIL=$(echo "$r"|grep -c '^FAIL')"; echo "$r"|grep '^FAIL'
 done
 ```
@@ -23,6 +23,8 @@ done
 - `r04-test`: 15MB 아래·위 영상·노래를 화면용 전자책 안에 담기, 인터넷 없이 열기, 미디어 1건 담기 실패 안내(수정요청서 1차 R04 T13·T14, 2차 R08 T31)
 - `r05-test`: 체험 원고 보존 범위 안내·로그인 전환 전 내려받기 길·떠나기 전 확인(수정요청서 1차 R05, T15)
 - `r06-test`: 편집 중 창 크기 변경·최대화/복원·확대/축소·한글 조립 중(수정요청서 1차 R06, T16)
+- `r07-test`: 9:16·1:1·16:9 영상을 실제 비율 상자에 · 편집·미리보기·화면용 전자책·서가에서 전체 보기(수정요청서 2차 R07, T29). 시험 영상 `media/tall.webm`·`square.webm`
+- `r09-test`: 넣을 곳은 파일을 고른 순간에 — 올리는 동안 다른 쪽 이동·완료 순서 역전·쪽 삭제(수정요청서 2차 R09, T32). 가짜 Supabase `window.__mediaDelays`
 - `r08-test`: 화면용 전자책의 책장 넘기기 장치를 못 받아 오면(404·통신 실패·빈 응답) 성공이라 하지 않기(수정요청서 2차 R08, T30)
 - `r10-test`: 발행 뒤 제목만 바꿔도 「다시 발행」·비밀 링크 「새로 고침」 감지, 발행본 제목 일치(수정요청서 2차 R10, T33)
-- 기준(2026-10-19): 위 26개 모두 FAIL 0 (flow-test 57개, dialog-test 14개, pick-test 22개, output-test 33개, ux-test 27개, photo2-test 15개, r02-test 34개, r03-test 12개, r04-test 9개, r05-test 9개, r06-test 12개, r08-test 4개, r10-test 8개)
+- 기준(2026-10-19): 위 28개 모두 FAIL 0 (flow-test 57개, dialog-test 14개, pick-test 22개, output-test 33개, ux-test 27개, photo2-test 15개, r02-test 34개, r03-test 12개, r04-test 9개, r05-test 9개, r06-test 12개, r07-test 7개, r08-test 4개, r09-test 6개, r10-test 8개)
