@@ -105,7 +105,8 @@ const [dlp]=await Promise.all([pg.waitForEvent('download'),pg.click('#exDlg [dat
 const nAV=await st(()=>state.pages.flatMap(p=>p.els).filter(e=>e.type==='video'||e.type==='audio').length);
 ok('인쇄용: 영상·노래 자리마다 QR 코드 자동', (hp.match(/class="qr"/g)||[]).length===nAV && nAV>=2 && !/<video|<audio/.test(hp)); console.log('  QR 개수:',nAV);
 ok('인쇄용: 사진은 그대로·신국판 인쇄 설정·스크립트 없음', /<img[^>]*src="data:/.test(hp) && hp.includes('size:152mm 225mm') && !/<script/i.test(hp));
-ok('QR이 가리키는 주소 = 서가의 그 영상·노래', await st(()=>mediaLink({media_id:'abc'}).endsWith('/shelf/#/book/a12c83aa-33e6-49ed-91be-bc883000bb9e/m/abc')));
+ok('QR이 가리키는 주소 = 서가의 그 영상·노래', await st(()=>{ const e=state.pages.flatMap(p=>p.els).find(e=>e.type==='video'||e.type==='audio'); return mediaLink(e).endsWith('/shelf/#/book/a12c83aa-33e6-49ed-91be-bc883000bb9e/m/'+e.media_id); }));
+ok('F08 발행본에 없는 영상·노래는 QR 주소 없음', await st(()=>mediaLink({type:'audio',media_id:'00000000-0000-4000-8000-0000000000ff'})===null));
 fs.writeFileSync('/tmp/print-preview.html',hp);
 await pg.click('#btnExport'); await pg.waitForSelector('#exDlg:not([hidden])');
 const [dl]=await Promise.all([pg.waitForEvent('download'),pg.click('#exDlg [data-ex=screen]')]); await dl.saveAs('/tmp/online-export.html'); const h=fs.readFileSync('/tmp/online-export.html','utf8');

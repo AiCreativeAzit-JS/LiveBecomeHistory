@@ -92,16 +92,17 @@ ok('「설명 글 넣기」→ 이미지 아래 글상자 + 커서', await st(()
 await pg.keyboard.type('바다 사진 설명'); await pg.mouse.click(1050,900); await pg.waitForTimeout(100);
 ok('설명 글 저장', (await st(()=>page().els[1].html)).includes('바다 사진'));
 await pg.screenshot({path:'/tmp/studio-3.png'});
-// 영상 · 음악
-await pg.click('[data-add=video]'); await pg.setInputFiles('#file',{name:'v.mp4',mimeType:'video/mp4',buffer:Buffer.from('fakevideo')}); await pg.waitForTimeout(300);
+// 영상 · 음악(진짜 작은 파일: 시험용 크로미움은 MP4(H.264)를 못 열어 WebM으로)
+const MEDIA=f=>fs.readFileSync(ROOT+'/tests/e2e/media/'+f);
+await pg.click('[data-add=video]'); await pg.setInputFiles('#file',{name:'v.webm',mimeType:'video/webm',buffer:MEDIA('tiny.webm')}); await pg.waitForTimeout(600);
 ok('영상 → 새 페이지', await st(()=>page().els[0].type==='video'&&page().name==='영상 페이지'));
-await pg.click('[data-add=audio]'); await pg.setInputFiles('#file',{name:'노래.mp3',mimeType:'audio/mpeg',buffer:Buffer.from('fakeaudio')}); await pg.waitForTimeout(300);
+await pg.click('[data-add=audio]'); await pg.setInputFiles('#file',{name:'노래.mp3',mimeType:'audio/mpeg',buffer:MEDIA('tone.mp3')}); await pg.waitForTimeout(600);
 ok('음악 → 빈 자리가 있으면 같은 페이지(영상 아래)', await st(()=>page().name==='영상 페이지' && page().els.some(e=>e.type==='audio')) && await pg.locator('#canvas .audio').count()===1);
 ok('노래 카드에 파일 이름이 안 보임', !(await pg.locator('#canvas .audio').innerText()).includes('노래.mp3') && await st(()=>page().els.every(e=>!e.name)));
 // 지웠다가 다시 넣으면 같은 페이지에
 const pgCount=await st(()=>state.pages.length);
 await st(()=>{ state.sel=page().els.find(e=>e.type==='audio').id; }); await pg.keyboard.press('Delete'); await pg.waitForTimeout(80);
-await pg.click('[data-add=audio]'); await pg.setInputFiles('#file',{name:'b.mp3',mimeType:'audio/mpeg',buffer:Buffer.from('fakeaudio2')}); await pg.waitForTimeout(300);
+await pg.click('[data-add=audio]'); await pg.setInputFiles('#file',{name:'b.mp3',mimeType:'audio/mpeg',buffer:MEDIA('tone.mp3')}); await pg.waitForTimeout(600);
 ok('노래를 지웠다가 다시 넣으면 새 페이지가 아니라 같은 페이지에', (await st(()=>state.pages.length))===pgCount && await st(()=>page().els.some(e=>e.type==='audio')));
 await pg.screenshot({path:'/tmp/studio-4.png'});
 // 용량 제한
@@ -258,6 +259,6 @@ ok('내려받은 책: 노래 재생기(진행 막대) · 오류 없음', await e
 await ex.screenshot({path:'/tmp/export-flip.png'}); await ex.close();
 await pg.click('#btnExport'); await pg.waitForSelector('#exDlg:not([hidden])');
 const [dq]=await Promise.all([pg.waitForEvent('download'),pg.click('#exDlg [data-ex=print]')]); await dq.saveAs('/tmp/studio-print.html'); const hq=fs.readFileSync('/tmp/studio-print.html','utf8');
-ok('시안에서도 인쇄용(QR) 내려받기', (hq.match(/class="qr"/g)||[]).length===(await st(()=>state.pages.flatMap(p=>p.els).filter(e=>e.type==='video'||e.type==='audio').length)) && !/<video|<audio/.test(hq));
+ok('시안 인쇄용: 열 곳 없는 QR 대신 「화면용 전자책에서」 안내(F08)', (hq.match(/class="qr noqr"/g)||[]).length===(await st(()=>state.pages.flatMap(p=>p.els).filter(e=>e.type==='video'||e.type==='audio').length)) && !/<svg/.test(hq) && !/<video|<audio/.test(hq));
 console.log(errs.length?errs.join('\n'):'JS 오류 없음');
 await b.close(); srv.close();

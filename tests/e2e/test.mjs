@@ -61,11 +61,11 @@ ok('사진 자리 클릭 → 그 자리에 사진(페이지 수 그대로)', awa
 ok('사진이 자리 안에 들어감', await pg.evaluate(()=>{ const m=page().els.find(e=>e.type==='image'); return m.x>=16-0.01 && m.x+m.w<=136.01 && m.y>=104-0.01 && m.y+m.h<=188.01; }));
 await pg.waitForTimeout(1800);
 ok('사진 자리·안내 글 저장, 책에는 안 보임', await pg.evaluate(()=>{ const p3=__db.pages.find(p=>p.name==='기억하고 싶은 순간'); return p3.els.some(e=>e.type==='slot') && p3.els.some(e=>e.ph) && !pageHTML(state.pages[2],'view').includes('slot') && !pageHTML(state.pages[2],'view').includes('사진 설명을'); }));
-for(const [i,kind,mime,nm] of [[3,'video','video/mp4','v.mp4'],[4,'audio','audio/mpeg','노래.mp3']]){
+for(const [i,kind,mime,nm,fx] of [[3,'video','video/webm','v.webm','tiny.webm'],[4,'audio','audio/mpeg','노래.mp3','tone.mp3']]){ // 진짜 작은 파일(가짜 바이트는 이제 「열리지 않는 파일」로 거부됨)
   await pg.locator('.th').nth(i).click(); await pg.waitForTimeout(100);
   const sb2=await pg.locator('#canvas .el.s').boundingBox();
   await pg.mouse.click(sb2.x+sb2.width/2, sb2.y+sb2.height/2); await pg.waitForTimeout(150);
-  await pg.setInputFiles('#file',{name:nm,mimeType:mime,buffer:Buffer.from('fake')}); await pg.waitForTimeout(1200);
+  await pg.setInputFiles('#file',{name:nm,mimeType:mime,buffer:fs.readFileSync(ROOT+'/tests/e2e/media/'+fx)}); await pg.waitForTimeout(1200);
   ok(`${kind==='video'?'영상':'노래'} 자리 클릭 → 그 자리에 ${kind==='video'?'영상':'노래'}`, await pg.evaluate(k=>page().els.some(e=>e.type===k&&e.media_id)&&!page().els.some(e=>e.type==='slot'),kind));
 }
 await pg.waitForTimeout(1800);

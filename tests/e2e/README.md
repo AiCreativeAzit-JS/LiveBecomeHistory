@@ -4,7 +4,7 @@
 
 ```bash
 cd tests/e2e
-for t in test online-test studio-test share-test shelf-test admin-test me-test newbook-test real-book-test demo-test sample-test mouse-test prefetch-test flow-test dialog-test pick-test; do
+for t in test online-test studio-test share-test shelf-test admin-test me-test newbook-test real-book-test demo-test sample-test mouse-test prefetch-test flow-test dialog-test pick-test output-test; do
   r=$(node $t.mjs "$PWD/fake-supabase.js" 2>&1); echo "$t PASS=$(echo "$r"|grep -c '^PASS') FAIL=$(echo "$r"|grep -c '^FAIL')"; echo "$r"|grep '^FAIL'
 done
 ```
@@ -14,4 +14,6 @@ done
 - `flow-test`: 글 흐름 엔진(수정요청서 1차 T01~T06 + 문단 경계·제목 상자). 재현 원고 `docs/qa/모아_재현용_16문단.txt`를 `?blank=1` 2쪽 본문에 붙여 넣고 시작
 - `dialog-test`: 팝업(내려받기·새 쪽 종류·미리보기·가입 안내)이 떠 있을 때 뒤 원고 보존(수정요청서 2차 F07, T17·T18)
 - `pick-test`: 「n쪽 고르기」 ✓ 버튼은 누른 쪽만·Ctrl+클릭·키보드·일괄 대상(수정요청서 2차 F05, T19·T20)
-- 기준(2026-10-19): 위 16개 모두 FAIL 0 (flow-test 56개, dialog-test 14개, pick-test 22개)
+- `output-test`: 인쇄 QR(체험·미발행·비밀 링크·발행) · 투명 PNG · 열리지 않는 사진·영상·노래(수정요청서 2차 F08~F10, T23~T26·T28)
+- 시험용 미디어 `media/`: 1초 WebM 영상·1초 MP3 노래·61초 WebM. 시험용 크로미움은 MP4(H.264)를 못 열어 영상은 WebM으로. 가짜 바이트 파일은 이제 「열리지 않는 파일」로 거부되므로 넣기 시험엔 이 파일을 쓴다
+- 기준(2026-10-19): 위 17개 모두 FAIL 0 (flow-test 56개, dialog-test 14개, pick-test 22개, output-test 33개)
