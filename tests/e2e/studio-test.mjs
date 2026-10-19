@@ -221,8 +221,8 @@ await pg.click('#pickAll'); ok('전체 선택', await st(()=>state.picked.size==
 await pg.click('#bgSw [data-c="#FBF1EA"]'); ok('전체 선택 → 모든 쪽 배경 바뀜', await st(()=>state.pages.every(p=>p.bg==='#FBF1EA')));
 await pg.click('#pickAll'); await pg.locator('.th').nth(0).click();
 await pg.locator('.th').nth(2).hover(); await pg.locator('.th').nth(2).locator('[data-pick]').click(); await pg.locator('.th').nth(3).click({modifiers:['Control']});
-ok('일부 선택(동그라미·Ctrl+클릭)', await st(()=>state.picked.size===3));
-await pg.click('#bgSw [data-c="#F1F0FA"]'); ok('고른 3쪽만 배경 바뀜', await st(()=>state.pages.filter(p=>p.bg==='#F1F0FA').length===3 && state.pages[1].bg==='#FBF1EA'));
+ok('일부 선택(✓ 버튼은 누른 쪽만 · Ctrl+클릭 더하기)', await st(()=>state.picked.size===2 && state.picked.has(state.pages[2].id) && state.picked.has(state.pages[3].id)));
+await pg.click('#bgSw [data-c="#F1F0FA"]'); ok('고른 2쪽만 배경 바뀜', await st(()=>state.pages.filter(p=>p.bg==='#F1F0FA').length===2 && state.pages[0].bg==='#FBF1EA' && state.pages[1].bg==='#FBF1EA'));
 await pg.locator('.th').nth(1).click(); await pg.locator('.th').nth(4).click({modifiers:['Shift']}); ok('Shift+클릭으로 범위 선택', await st(()=>state.picked.size===4));
 await pg.click('#unpick'); ok('선택 해제', await st(()=>state.picked.size===0));
 // ── 지운 글만큼 다음 쪽 글을 끌어 오기 ──
