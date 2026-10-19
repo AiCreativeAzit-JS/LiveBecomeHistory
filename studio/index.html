@@ -1041,9 +1041,12 @@ $('joinClose').onclick=()=>{ $('joinDlg').hidden=true; };
 $('demoChip').onclick=()=>openJoin('');
 $('back').onclick=async()=>{ if(!ONLINE) return openJoin('「내 책」(내 서재)은 계정이 있어야 열 수 있어요.'); endEdit(); await saveNow(); location.href='../editor/'; };
 $('btnPublish').onclick=()=>ONLINE ? togglePublic() : openJoin('서가에 공개하려면 계정이 필요해요.');
+// 팝업(내려받기·쪽 종류·공유·가입 안내)이나 미리보기가 떠 있으면 뒤 화면 단축키(지우기·옮기기·되돌리기)는 쓰지 않는다
+const modalOpen = () => [...document.querySelectorAll('[role=dialog][aria-modal=true]')].some(d=>!d.hidden) || !$('pv').hidden;
 document.addEventListener('keydown',ev=>{
   const typing = state.editing || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
-  if(ev.key==='Escape'){ ['ptDlg','exDlg','shDlg'].forEach(id=>$(id).hidden=true); if(!$('ctx').hidden||!$('fslist').hidden){ closeCtx(); closeFsList(); return; } if(!$('pv').hidden){ closePV(); return; } if(state.editing) endEdit(); else if(state.sel){ state.sel=null; decorate('__none'); renderPanels(); } return; }
+  if(ev.key==='Escape'){ ['ptDlg','exDlg','shDlg','joinDlg'].forEach(id=>$(id).hidden=true); if(!$('ctx').hidden||!$('fslist').hidden){ closeCtx(); closeFsList(); return; } if(!$('pv').hidden){ closePV(); return; } if(state.editing) endEdit(); else if(state.sel){ state.sel=null; decorate('__none'); renderPanels(); } return; }
+  if(modalOpen()) return;
   // 글을 쓰는 중에도 Ctrl+Z·Ctrl+Y는 툴바와 같은 앱 기록을 쓴다(제목·쪽 이름 칸은 칸 자체 되돌리기). 한글 자판이어도 키 위치로 판단
   if((ev.ctrlKey||ev.metaKey) && !ev.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)){
     const k=ev.code==='KeyZ'?'z':ev.code==='KeyY'?'y':ev.key.toLowerCase();
