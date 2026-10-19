@@ -1121,7 +1121,8 @@ $('uUndo').onclick=undo; $('uRedo').onclick=redo;
 function openJoin(why){ endEdit(); $('joinWhy').textContent=why||''; $('joinWhy').hidden=!why; $('joinDlg').hidden=false; }
 $('joinClose').onclick=()=>{ $('joinDlg').hidden=true; };
 $('demoChip').onclick=()=>openJoin('');
-$('back').onclick=async()=>{ if(!ONLINE) return openJoin('「내 책」(내 서재)은 계정이 있어야 열 수 있어요.'); endEdit(); await saveNow(); location.href='../editor/'; };
+$('back').onclick=async()=>{ if(!ONLINE) return openJoin('「내 책」(내 서재)은 계정이 있어야 열 수 있어요.'); endEdit(); await saveNow();
+  if(serialize()!==lastSaved && !confirm('아직 저장되지 않은 수정이 있어요(인터넷 연결을 확인해 주세요).\n그래도 내 서재로 갈까요?')) return; location.href='../editor/'; };
 $('btnPublish').onclick=()=>ONLINE ? togglePublic() : openJoin('서가에 공개하려면 계정이 필요해요.');
 // 팝업(내려받기·쪽 종류·공유·가입 안내)이나 미리보기가 떠 있으면 뒤 화면 단축키(지우기·옮기기·되돌리기)는 쓰지 않는다
 const modalOpen = () => [...document.querySelectorAll('[role=dialog][aria-modal=true]')].some(d=>!d.hidden) || !$('pv').hidden;
@@ -1222,7 +1223,7 @@ let BOOK = QS.get('book');
 const NEW = !BOOK && QS.get('new')==='1';
 const ONLINE = (!!BOOK && /^[0-9a-f-]{36}$/i.test(BOOK)) || NEW;
 const SUPABASE_URL='https://qsucbnvicaviatdpnfxx.supabase.co', SUPABASE_KEY='sb_publishable_DR6vaBdtzLjicYQ8X-u9bA_6U8mzJuY'; // 공개용 키: 권한은 DB 규칙이 지킨다
-let sb=null, user=null, bookRow=null, mediaInfo={}, lastSaved=null, saving=false;
+let sb=null, user=null, bookRow=null, mediaInfo={}, lastSaved=null, saveRun=null;
 function setSave(k){ const m={fresh:'아직 저장 전 · 쓰기 시작하면 저장돼요',saving:'저장 중…',ok:'✓ 모든 변경사항 저장됨',err:'⚠ 저장 실패 · 인터넷 연결을 확인해 주세요',demo:'',load:'불러오는 중…'}; $('save').textContent=m[k]; $('save').dataset.state=k; }
 function fatal(title,msg,link){ $('center').innerHTML=`<div class="fatal"><h2>${esc(title)}</h2><p>${esc(msg)}</p>${link?`<a class="btn primary" href="${link[1]}">${esc(link[0])}</a>`:''}</div>`; }
 const cleanEl = e => e.type==='slot' ? {id:e.id,type:'slot',kind:e.kind||'image',x:e.x,y:e.y,w:e.w,h:e.h}
@@ -1243,20 +1244,30 @@ function ensureBook(){
   return creating;
 }
 function history_replace(){ try{ window.history.replaceState(null,'','?book='+encodeURIComponent(BOOK)); }catch{} }
-async function saveNow(force){
-  if(!ONLINE||!bookRow||saving) return; let cur=serialize();
-  if(!BOOK){ if(!force && cur===lastSaved) return; if(!(await ensureBook())){ setSave('err'); return; } lastSaved=null; cur=serialize(); }
-  if(cur===lastSaved) return;
-  saving=true; setSave('saving');
+// 저장은 한 줄로 선다: 저장 중에 다시 부르면 그 저장이 끝난 뒤 최신 원고로 한 번 더 저장하고,
+// 부른 쪽(내 서재로 가기·임시저장·공유·발행)은 지금까지 고친 것이 모두 저장되거나 실패할 때까지 기다린다.
+// 아무도 다시 부르지 않았으면 한 번만(이어 친 글은 1.5초 주기 저장이 맡는다 — 서버에 쉴 새 없이 보내지 않게)
+let saveMore=false;
+function saveNow(force){
+  if(!ONLINE||!bookRow) return Promise.resolve();
+  if(saveRun){ saveMore=true; return saveRun; }
+  saveRun=(async()=>{ try{ let f=force; do{ saveMore=false; if(!(await saveOnce(f))) break; f=false; } while(saveMore && serialize()!==lastSaved); } finally{ saveRun=null; saveMore=false; } })();
+  return saveRun;
+}
+async function saveOnce(force){ // 성공(또는 저장할 것 없음)이면 true
+  let cur=serialize();
+  if(!BOOK){ if(!force && cur===lastSaved) return true; if(!(await ensureBook())){ setSave('err'); return false; } lastSaved=null; cur=serialize(); }
+  if(cur===lastSaved) return true;
+  setSave('saving');
   try{
     const o=JSON.parse(cur), rows=o.pages.map(p=>({...p,book_id:BOOK}));
     const up=await sb.from('pages').upsert(rows); if(up.error) throw up.error;
     const del=await sb.from('pages').delete().eq('book_id',BOOK).not('id','in',`(${rows.map(r=>r.id).join(',')})`); if(del.error) throw del.error;
     const t=(o.title||'').trim().slice(0,120)||'제목 없는 책';
     if(t!==bookRow.title){ const b=await sb.from('books').update({title:t}).eq('id',BOOK); if(b.error) throw b.error; bookRow.title=t; }
-    lastSaved=cur; setSave('ok'); updPublish();
-  }catch(err){ console.error(err); setSave('err'); }
-  saving=false;
+    lastSaved=cur; setSave(serialize()===cur?'ok':'saving'); updPublish();  // 저장하는 사이 더 고쳤으면 「저장됨」 대신 이어서 저장
+    return true;
+  }catch(err){ console.error(err); setSave('err'); return false; }
 }
 async function signAll(list){ try{ return await MediaClient.sign(sb,list,21600); }catch(err){ console.error(err); return {}; } }
 async function uploadMedia(f,kind,print=null){
@@ -1410,7 +1421,7 @@ async function boot(){
     bookRow={id:null,owner_id:user.id,title:'제목 없는 책',author_name:(prof&&prof.display_name)||'',format:'pages',is_public:false,published_at:null};
     state.title=bookRow.title; state.pages=templatePages(); state.cur=0; state.sel=null; history=[]; future=[];
     renderAll(); updPublish(); lastSaved=serialize(); setSave('fresh');
-    setInterval(saveNow,1500);
+    setInterval(()=>saveNow(),1500); window.addEventListener('online',()=>saveNow()); // 인터넷이 돌아오면 곧바로
     document.addEventListener('visibilitychange',()=>{ if(document.hidden) saveNow(); });
     window.addEventListener('beforeunload',ev=>{ if(serialize()!==lastSaved){ saveNow(); ev.preventDefault(); ev.returnValue=''; } });
     return;
@@ -1435,7 +1446,7 @@ async function boot(){
   await saveNow();
   if(bookRow.format!=='pages'){ const r=await sb.from('books').update({format:'pages'}).eq('id',BOOK); if(!r.error) bookRow.format='pages'; }
   if(converted) toast('새 편집기로 옮겼어요. 원래 글도 그대로 보관돼요');
-  setInterval(saveNow,1500);
+  setInterval(()=>saveNow(),1500); window.addEventListener('online',()=>saveNow()); // 인터넷이 돌아오면 곧바로
   document.addEventListener('visibilitychange',()=>{ if(document.hidden) saveNow(); });
   window.addEventListener('beforeunload',ev=>{ if(serialize()!==lastSaved){ saveNow(); ev.preventDefault(); ev.returnValue=''; } });
 }

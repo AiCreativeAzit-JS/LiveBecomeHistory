@@ -25,7 +25,8 @@
       in(k,vals){ filters.push(r=>vals.includes(r[k])); return api; },
       range(a,b){ rng=[a,b]; return api; },
       or(str){ const parts=str.split(',').map(p=>p.split('.')); filters.push(r=>parts.some(([k,o,v])=>String(r[k]||'').toLowerCase().includes(String(v).replace(/%/g,'').toLowerCase()))); return api; },
-      then(res,rej){ try{ res(run()); }catch(e){ rej(e); } }
+      then(res,rej){ const w=op!=='select'&&table!=='profiles', go=()=>{ try{ if(w&&window.__failWrite) return res({data:null,error:{message:'Failed to fetch'}}); res(run()); }catch(e){ rej(e); } };
+        if(w&&window.__slowWrite) setTimeout(go,window.__slowWrite); else go(); } // __slowWrite(ms)·__failWrite: 느린 저장·끊긴 인터넷 흉내
     };
     function run(){
       let out;

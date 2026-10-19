@@ -4,7 +4,7 @@
 
 ```bash
 cd tests/e2e
-for t in test online-test studio-test share-test shelf-test admin-test me-test newbook-test real-book-test demo-test sample-test mouse-test prefetch-test flow-test dialog-test pick-test output-test ux-test photo2-test r02-test; do
+for t in test online-test studio-test share-test shelf-test admin-test me-test newbook-test real-book-test demo-test sample-test mouse-test prefetch-test flow-test dialog-test pick-test output-test ux-test photo2-test r02-test r03-test; do
   r=$(node $t.mjs "$PWD/fake-supabase.js" 2>&1); echo "$t PASS=$(echo "$r"|grep -c '^PASS') FAIL=$(echo "$r"|grep -c '^FAIL')"; echo "$r"|grep '^FAIL'
 done
 ```
@@ -19,4 +19,5 @@ done
 - `ux-test`: 설명 글 겹침(틀 설명·반복·쪽 아래 공간 부족) · 썸네일 키보드 포커스 · 팝업 닫을 때 포커스 복원(수정요청서 2차 F06·F11, T21·T22·T27)
 - `photo2-test`: 사진 두 벌 보관(화면용 1400px · 인쇄용 원본 2700px) — 어디에 어느 벌이 쓰이는지, 예전 사진·작은 사진·투명 사진, 예전 서버 함수와 섞여도 안전
 - `r02-test`: 5쪽 넘게 이어진 원고(32문단)의 대량 삭제·이어진 쪽 이동·복제·삭제·독립 글상자(수정요청서 1차 R02, T08~T10)
-- 기준(2026-10-19): 위 20개 모두 FAIL 0 (flow-test 57개, dialog-test 14개, pick-test 22개, output-test 33개, ux-test 27개, photo2-test 15개, r02-test 34개)
+- `r03-test`: 느린 저장 중 추가 수정·저장 중 이동·임시저장·인터넷 끊김과 재연결(수정요청서 1차 R03, T11·T12). 가짜 Supabase의 `window.__slowWrite`(ms)·`window.__failWrite`
+- 기준(2026-10-19): 위 21개 모두 FAIL 0 (flow-test 57개, dialog-test 14개, pick-test 22개, output-test 33개, ux-test 27개, photo2-test 15개, r02-test 34개, r03-test 12개)
