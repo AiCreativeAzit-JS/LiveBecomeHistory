@@ -455,14 +455,19 @@ function renderAll(){ renderThumbs(); renderCanvas(); renderPanels(); renderBott
 function flagSaved(){ $('save').innerHTML = '<svg viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M20 6L9 17l-5-5"/></svg> 체험 중(저장 안 됨)'; }
 
 function renderThumbs(){
+  // 다시 그리면 포커스 받던 칸이 사라지므로, 목록 안에 포커스가 있었으면 같은 쪽(쪽 ID)의 같은 칸으로 되돌린다
+  const a=document.activeElement, th=a&&$('thumbs').contains(a)&&a.closest('.th');
+  const fid=th&&th.dataset.id, fsub=th&&a!==th?(a.matches('[data-pick]')?'[data-pick]':a.dataset.act?`[data-act="${a.dataset.act}"]`:''):'';
   const ins=i=>`<button class="ins" data-ins="${i}" title="여기에 새 페이지 끼워 넣기" aria-label="${i}쪽 뒤에 새 페이지"></button>`;
-  $('thumbs').innerHTML = state.pages.map((p,i)=>`<div class="th ${i===state.cur?'on':''} ${state.picked.has(p.id)?'picked':''}" data-i="${i}" draggable="true" role="button" tabindex="0" aria-label="${i+1}쪽 ${esc(p.name)}">
+  $('thumbs').innerHTML = state.pages.map((p,i)=>`<div class="th ${i===state.cur?'on':''} ${state.picked.has(p.id)?'picked':''}" data-i="${i}" data-id="${p.id}" draggable="true" role="button" tabindex="0" aria-label="${i+1}쪽 ${esc(p.name)}"${i===state.cur?' aria-current="page"':''}>
     <span class="no">${String(i+1).padStart(2,'0')}</span>
     <button class="pick" data-pick title="여러 쪽 고르기 (Ctrl·Shift+클릭도 돼요)" aria-label="${i+1}쪽 고르기" aria-pressed="${state.picked.has(p.id)}">✓</button>
     <span class="acts"><button data-act="dup" title="복제" aria-label="${i+1}쪽 복제"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/></svg></button><button data-act="del" class="del" title="삭제 (Delete)" aria-label="${i+1}쪽 삭제"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></span>
     <div class="mini">${pageHTML(p,'thumb')}</div><span class="nm">${esc(p.name)}</span></div>${ins(i+1)}`).join('');
   $('pcount').textContent = state.pages.length;
   $('pickAll').textContent = state.picked.size===state.pages.length ? '선택 해제' : '전체 선택';
+  if(th){ const t=$('thumbs').querySelector(`.th[data-id="${fid}"]`) || $('thumbs').querySelector(`.th[data-i="${state.cur}"]`); // 지워진 쪽이면 지금 쪽으로
+    const to=(t&&t.dataset.id===fid&&fsub&&t.querySelector(fsub))||t; if(to) to.focus({preventScroll:true}); to&&to.scrollIntoView({block:'nearest'}); }
 }
 function pageWidthPx(){ return Math.round(PW*3.7795*state.zoom); }
 function fitZoom(){ const c=$('center'); const availH=c.clientHeight-130, availW=c.clientWidth-60; return Math.max(.45,Math.min(1.4,Math.min(availH/(PH*3.7795),availW/(PW*3.7795)))); }
@@ -511,7 +516,7 @@ function renderPanels(){
     <button class="btn primary" id="fillSlot" style="width:100%;justify-content:center">${e.kind==='video'?ICON.video:e.kind==='audio'?ICON.music:ICON.image} ${w} 넣기</button>
     <div class="tools"><span class="sub" style="margin:0">필요 없으면 지워도 돼요</span><button class="iconbtn" id="delEl" title="자리 삭제"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></div>`; }
   else s+=`<p class="sub">${KIND_KO[e.type]} · ${esc(e.name||'')}</p>
-    <button class="btn" id="addCap" style="width:100%;justify-content:center"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>설명 글 넣기</button>
+    <button class="btn" id="addCap" style="width:100%;justify-content:center"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>${captionOf(e)?'설명 글 고치기':'설명 글 넣기'}</button>
     <div class="tools"><span class="sub" style="margin:0">끌어서 옮기고, 모서리로 크기를 바꿔요</span><button class="iconbtn" id="delEl" title="삭제"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></div>`;
   $('secSel').innerHTML=s;
   state.picked=new Set([...state.picked].filter(id=>state.pages.some(q=>q.id===id)));
@@ -659,10 +664,27 @@ function addMediaPage(kind,src,name,mediaId,note=''){
   if(kind==='image'){ const im=new Image(); im.onload=()=>{ const r=im.naturalHeight/im.naturalWidth; let w=CW,h=w*r; if(h>150){ h=150; w=h/r; } finish(w,h); }; im.onerror=()=>finish(CW,90); im.src=src; }
   else if(kind==='video'){ finish(CW,CW*9/16); } else finish(CW,34);
 }
+// 사진·영상·노래 바로 아래(원래 넣은 자리 아래 포함)의 설명 상자: 틀의 설명 자리나 앞서 넣은 설명
+const xOverlap=(a,b)=>Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x);
+function captionOf(e,pg=page()){ const bot=e.y+e.h, far=Math.max(bot,e.slot?e.slot.y+e.slot.h:0)+14;
+  return pg.els.filter(c=>c.type==='text' && c.id!==e.id && c.y>=bot-1 && c.y<=far && xOverlap(c,e)>Math.min(c.w,e.w)/2 && (c.ph || c.h<=LINE_MM*4))
+    .sort((a,b)=>a.y-b.y)[0]||null; }
+// 「설명 글 넣기」: 있으면 그 설명을 고치고, 없으면 아래 빈자리에. 자리가 모자라면 사진·영상을 조금 줄여 자리를 만든다
 function addCaption(){
-  const e=selEl(); if(!e) return; snap(); const y=Math.min(e.y+e.h+6,LIM.y1-LINE_MM*2);
-  const c=T(MX,y,CW,LINE_MM*2,'',{fs:11,align:'center',color:'#3D4B45'}); page().els.push(c);
+  const e=selEl(); if(!e) return; const pg=page();
+  const has=captionOf(e,pg); if(has){ state.sel=has.id; renderCanvas(); renderPanels(); startEdit(has.id); toast('이미 있는 설명을 고칠 수 있게 열었어요'); return; }
+  const GAP=4, NEED=LINE_MM*2, MINH=LINE_MM, box={x:e.x,w:e.w}, what=e.type==='audio'?'노래':e.type==='video'?'영상':'사진';
+  const room=()=>{ const y0=e.y+e.h+GAP; let lim=LIM.y1;
+    for(const o of pg.els){ if(o.id===e.id||xOverlap(o,box)<=0.5||o.y+o.h<=y0) continue; lim=Math.min(lim,Math.max(o.y,y0)); }
+    return {y0,free:lim-y0}; };
+  let r=room(), shrunk=false;
+  if(r.free<MINH){ const cut=NEED-r.free, nh=e.h-cut;                              // 아래가 막혔으면 크기만 줄여 자리를 만든다(위치·비율 그대로)
+    if(e.type==='audio' || nh<e.h*0.6){ toast(`${what} 아래에 설명을 넣을 빈자리가 없어요. 크기를 줄이거나 아래 상자를 옮긴 뒤 다시 눌러 주세요`); return; }
+    snap(); const nw=e.w*nh/e.h; e.x+=(e.w-nw)/2; e.w=nw; e.h=nh; box.x=e.x; box.w=e.w; shrunk=true; r=room(); }
+  else snap();
+  const c=T(box.x,r.y0,box.w,Math.min(NEED,r.free),'',{fs:11,align:'center',color:'#3D4B45'}); pg.els.push(c);
   state.sel=c.id; renderThumbs(); renderCanvas(); renderPanels(); startEdit(c.id);
+  if(shrunk) toast(`설명 자리를 만들려고 ${what}을 조금 줄였어요 (Ctrl+Z로 되돌리기)`);
 }
 
 /* ═══════════════ 끌기 · 크기 조절 ═══════════════ */
@@ -1016,8 +1038,7 @@ $('thumbs').addEventListener('click',ev=>{
   if(a){ ev.stopPropagation(); return a.dataset.act==='del' ? delPageAt(i) : dupPage(i); }
   const id=state.pages[i].id;
   if(ev.target.closest('[data-pick]')){ // ✓ 버튼: 누른 쪽만 더하고 빼기
-    state.picked.has(id) ? state.picked.delete(id) : state.picked.add(id); renderThumbs(); renderPanels();
-    document.querySelector(`.th[data-i="${i}"] [data-pick]`)?.focus(); return; }
+    state.picked.has(id) ? state.picked.delete(id) : state.picked.add(id); renderThumbs(); renderPanels(); return; }
   if(ev.ctrlKey || ev.metaKey){ // Ctrl+클릭: 처음엔 보고 있던 쪽도 함께(파일 탐색기처럼)
     if(!state.picked.size){ state.picked.add(page().id); if(id!==page().id) state.picked.add(id); }
     else state.picked.has(id) ? state.picked.delete(id) : state.picked.add(id);
@@ -1029,7 +1050,7 @@ $('thumbs').addEventListener('contextmenu',ev=>{ const t=ev.target.closest('.th'
 $('thumbs').addEventListener('keydown',ev=>{ const t=ev.target.closest('.th'); if(!t||ev.target!==t) return; const i=+t.dataset.i;
   if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); goPage(i); }
   else if(ev.key==='Delete'||ev.key==='Backspace'){ ev.preventDefault(); ev.stopPropagation(); delPageAt(i); }
-  else if(ev.key==='ArrowDown'||ev.key==='ArrowUp'){ ev.preventDefault(); const j=i+(ev.key==='ArrowDown'?1:-1); if(j>=0&&j<state.pages.length){ goPage(j); document.querySelector(`.th[data-i="${j}"]`)?.focus(); } }
+  else if(ev.key==='ArrowDown'||ev.key==='ArrowUp'){ ev.preventDefault(); const j=i+(ev.key==='ArrowDown'?1:-1); if(j>=0&&j<state.pages.length){ goPage(j); $('thumbs').querySelector(`.th[data-i="${j}"]`)?.focus(); } }
   else if(ev.key==='ContextMenu'||(ev.shiftKey&&ev.key==='F10')){ ev.preventDefault(); const r=t.getBoundingClientRect(); openCtx(i,r.right-10,r.top+20); } });
 let dragFrom=null;
 $('thumbs').addEventListener('dragstart',ev=>{ const t=ev.target.closest('.th'); if(!t) return; dragFrom=+t.dataset.i; ev.dataTransfer.effectAllowed='move'; ev.dataTransfer.setData('text/plain',String(dragFrom)); });
@@ -1087,6 +1108,12 @@ $('back').onclick=async()=>{ if(!ONLINE) return openJoin('「내 책」(내 서�
 $('btnPublish').onclick=()=>ONLINE ? togglePublic() : openJoin('서가에 공개하려면 계정이 필요해요.');
 // 팝업(내려받기·쪽 종류·공유·가입 안내)이나 미리보기가 떠 있으면 뒤 화면 단축키(지우기·옮기기·되돌리기)는 쓰지 않는다
 const modalOpen = () => [...document.querySelectorAll('[role=dialog][aria-modal=true]')].some(d=>!d.hidden) || !$('pv').hidden;
+// 팝업을 닫으면 열기 전에 있던 자리(예: 「내려받기」 단추)로 포커스를 돌려준다
+let focusBeforeModal=null;
+document.addEventListener('focusin',ev=>{ if(!ev.target.closest('[role=dialog],#pv')) focusBeforeModal=ev.target; });
+{ const back=new MutationObserver(ms=>{ for(const m of ms){ const d=m.target, a=document.activeElement;
+    if(d.hidden && !modalOpen() && (!a||a===document.body||d.contains(a)) && focusBeforeModal&&focusBeforeModal.isConnected) focusBeforeModal.focus({preventScroll:true}); } });
+  document.querySelectorAll('[role=dialog][aria-modal=true],#pv').forEach(d=>back.observe(d,{attributes:true,attributeFilter:['hidden']})); }
 document.addEventListener('keydown',ev=>{
   const typing = state.editing || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
   if(ev.key==='Escape'){ ['ptDlg','exDlg','shDlg','joinDlg'].forEach(id=>$(id).hidden=true); if(!$('ctx').hidden||!$('fslist').hidden){ closeCtx(); closeFsList(); return; } if(!$('pv').hidden){ closePV(); return; } if(state.editing) endEdit(); else if(state.sel){ state.sel=null; decorate('__none'); renderPanels(); } return; }
