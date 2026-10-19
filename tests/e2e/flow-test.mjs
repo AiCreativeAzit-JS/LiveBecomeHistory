@@ -20,6 +20,7 @@ const doc=()=>st(()=>{ const d=document.createElement('div'); let i=1; d.innerHT
   while(flowsInto(i)){ i++; joinFlow(d,flowEl(i).html,!!flowEl(i).cont); }
   return {chars:d.textContent, flat:flat(d), pages:i, total:state.pages.length}; });
 const paras=f=>f.split('\n').filter(s=>s.trim());
+const lines=f=>f.split('\n').length; // 줄바꿈 수(빈 줄 포함)
 const caretInfo=()=>st(()=>({cur:state.cur, editing:state.editing, off:caretOffset(activeTx()), sel:state.sel}));
 // i쪽 본문에서 "[문단 NN] … 합니다." 한 문단의 글자 범위를 고른다(줄바꿈은 남긴다)
 const selectPara=(no)=>st(no=>{ const tx=activeTx(), pos=textPositions(tx), t=pos.map(([n,k])=>n.data[k]).join('');
@@ -51,7 +52,12 @@ console.log('  붙여넣기 뒤: 책',D0.total,'쪽 · 본문',D0.pages-0,'쪽(2
 ok('S01 긴 글이 3쪽 이상 자동으로 이어짐', D0.pages>=4, JSON.stringify(D0.pages));
 ok('S01 붙여넣은 16문단이 그대로(문단 수·순서·글자)', JSON.stringify(paras(D0.flat))===JSON.stringify(want), paras(D0.flat).length+'문단');
 ok('S01 붙여넣기 = 되돌리기 기록 1개', (await st(()=>history.length))===hist0+1);
-ok('S01 자동으로 나뉜 조각에 cont 표시(문단 중간에서 나뉜 쪽)', await st(()=>{ let n=0; for(let i=1;flowsInto(i);i++) if(flowEl(i+1).cont) n++; return n>0; }));
+// 진단용 원고는 문단 길이가 같아 쪽이 문단 사이에서 나뉜다 → 맨 앞에 빈 줄을 하나 넣어 한 줄씩 밀면 문단 한가운데서 나뉜다
+{ const nCont=()=>st(()=>{ let n=0; for(let i=1;flowsInto(i);i++) if(flowEl(i+1).cont) n++; return n; }); let k=0;
+  for(; k<4 && !(await nCont()); k++){ await openBody(1); await pg.keyboard.press('Control+Home'); await pg.keyboard.press('Enter'); await settle(); await pg.keyboard.press('Escape'); await settle(); }
+  const D1=await doc();
+  ok('S01 문단 한가운데서 나뉜 쪽에 cont 표시', (await nCont())>0, `빈 줄 ${k}개`);
+  ok('S01 한 줄씩 밀려도 16문단 그대로', JSON.stringify(paras(D1.flat))===JSON.stringify(want)); }
 
 // ── T01 / F01: 첫쪽·중간쪽 문단 삭제 3회, 커서 유지 ──
 for(const [label,pi] of [['첫 본문쪽',1],['중간쪽',2]]){
@@ -89,12 +95,12 @@ await fresh(); await pasteDoc(); await openBody(1,'end');
   const A=await doc(), c=await caretInfo();
   const expect = contNext ? D.chars.slice(0,G)+D.chars.slice(G+1) : D.chars;
   console.log('  경계 종류:',contNext?'문단 중간(글자 하나)':'문단 경계(줄 합치기)');
-  ok('T02 앞쪽 끝 Delete → 다음 쪽 첫 글자(또는 문단 경계)를 지움', A.chars===expect && (contNext || paras(A.flat).length===paras(D.flat).length-1), `len ${D.chars.length}→${A.chars.length}`);
+  ok('T02 앞쪽 끝 Delete → 다음 쪽 첫 글자(또는 문단 경계의 줄바꿈 하나)를 지움', A.chars===expect && (contNext || lines(A.flat)===lines(D.flat)-1), `len ${D.chars.length}→${A.chars.length} · 줄 ${lines(D.flat)}→${lines(A.flat)}`);
   ok('T02 커서는 그 자리(앞쪽 끝 원고 위치)에 남음', c.editing && c.cur===1 && c.off===G, JSON.stringify(c)+' G='+G);
   ok('T02 제목·사진 자리·다른 글상자는 그대로', await st(()=>JSON.stringify(state.pages.map(p=>p.els.filter(e=>e!==flowEl(state.pages.indexOf(p))).map(e=>e.html||e.src||e.kind)))) === keep);
   // 연달아 Delete 3번(문단 경계도 지남)
   for(let k=0;k<3;k++){ await pg.keyboard.press('Delete'); await settle(); }
-  const A3=await doc(); ok('T02 연달아 Delete도 한 글자씩(막히지 않음)', A3.chars.length<A.chars.length && A.chars.length-A3.chars.length<=3);
+  const A3=await doc(); ok('T02 연달아 Delete도 한 번에 하나씩(글자 또는 줄바꿈, 막히지 않음)', (A.chars.length-A3.chars.length)+(lines(A.flat)-lines(A3.flat))===3, `글자 ${A.chars.length}→${A3.chars.length} · 줄 ${lines(A.flat)}→${lines(A3.flat)}`);
 }
 
 // ── T03 / F02: 뒤쪽 맨 앞에서 Backspace + 대조(한 글자 뒤에서 Backspace) ──
@@ -106,11 +112,11 @@ await fresh(); await pasteDoc();
   const A=await doc(), c=await caretInfo();
   const expect = contMe ? D.chars.slice(0,G-1)+D.chars.slice(G) : D.chars;
   console.log('  경계 종류:',contMe?'문단 중간(글자 하나)':'문단 경계(줄 합치기)');
-  ok('T03 뒤쪽 맨 앞 Backspace → 앞쪽 마지막 글자(또는 문단 경계)를 지움', A.chars===expect && (contMe || paras(A.flat).length===paras(D.flat).length-1));
+  ok('T03 뒤쪽 맨 앞 Backspace → 앞쪽 마지막 글자(또는 문단 경계의 줄바꿈 하나)를 지움', A.chars===expect && (contMe || lines(A.flat)===lines(D.flat)-1), `줄 ${lines(D.flat)}→${lines(A.flat)}`);
   const pos=await st(()=>{ let off=caretOffset(activeTx()); for(let i=1;i<state.cur;i++){ const t=document.createElement('div'); t.innerHTML=flowEl(i).html; off+=t.textContent.length; } return off; });
   ok('T03 커서는 원고에서 지운 자리', c.editing && pos===(contMe?G-1:G), JSON.stringify(c)+' pos='+pos+' G='+G);
   for(let k=0;k<3;k++){ await pg.keyboard.press('Backspace'); await settle(); }
-  const A3=await doc(); ok('T03 연달아 Backspace도 한 글자씩(막히지 않음)', A.chars.length-A3.chars.length===3, A.chars.length+'→'+A3.chars.length);
+  const A3=await doc(); ok('T03 연달아 Backspace도 한 번에 하나씩(글자 또는 줄바꿈, 막히지 않음)', (A.chars.length-A3.chars.length)+(lines(A.flat)-lines(A3.flat))===3, `글자 ${A.chars.length}→${A3.chars.length} · 줄 ${lines(A.flat)}→${lines(A3.flat)}`);
 }
 await fresh(); await pasteDoc();
 { await openBody(2,'start'); await pg.keyboard.press('ArrowRight'); const D=await doc();
