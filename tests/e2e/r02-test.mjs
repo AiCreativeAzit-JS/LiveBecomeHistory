@@ -93,7 +93,9 @@ for(const [label,k] of [['첫 본문쪽',0],['중간쪽',2]]){
 for(const [label,k] of [['중간 이어진 쪽',2],['본문 첫 쪽',0]]){
   await fresh(); await pasteDoc(); const B=await chain(); const m=B.idx[k];
   const segOrig=await st(m=>plain(flowEl(m).html),m);
-  await st(m=>dupPage(m),m); await settle();
+  await st(m=>dupPage(m),m); await pg.waitForSelector('#dupDlg:not([hidden])');               // 이어진 쪽이면 어디에 둘지 묻는다
+  const lab=await pg.locator('#dupAfter').innerText(); await pg.click('#dupDlg [data-dup=after]'); await settle();
+  ok(`T09 ${label} 복제 → 「바로 아래 / 이어진 글이 끝난 뒤(${B.idx.at(-1)+2}쪽)」를 묻고, 「끝난 뒤」를 고름`, lab.includes(`${B.idx.at(-1)+2}쪽`), lab);
   const A=await chain(); const copies=await st(seg=>state.pages.map((p,j)=>j).filter(j=>state.pages[j].name.endsWith('(복제)') && state.pages[j].els.some(e=>e.type==='text'&&plain(e.html)===seg)),segOrig);
   ok(`T09 ${label} 복제 → 원래 원고는 끊기지 않고 그대로 이어짐`, A.idx.length===B.idx.length && JSON.stringify(paras(A.flat))===JSON.stringify(want), `${B.idx.length}→${A.idx.length}쪽`);
   ok(`T09 ${label} 복제 → 복제본 1쪽(같은 글)은 원고 흐름 밖`, copies.length===1 && !A.idx.includes(copies[0]) && await st(j=>!state.pages[j].flowFrom,copies[0]), JSON.stringify(copies));
@@ -102,6 +104,15 @@ for(const [label,k] of [['중간 이어진 쪽',2],['본문 첫 쪽',0]]){
   const A2=await chain(), t2=await allText();
   ok(`T09 ${label} 복제 뒤 대량 삭제 → 원고만 당겨지고 복제본은 제자리 그대로`, A2.gaps.length===0 && JSON.stringify(paras(A2.flat))===JSON.stringify(want.filter(p=>!ws.includes(NO(p)))) && t2.includes(segOrig), 'gaps '+A2.gaps);
 }
+// (나-2) 「바로 아래」를 고르면: 복제본은 바로 아래 쪽, 글 흐름은 거기서 나뉨(글은 그대로)
+{ await fresh(); await pasteDoc(); const B=await chain(); const m=B.idx[1], t0=await allText();
+  await st(m=>dupPage(m),m); await pg.waitForSelector('#dupDlg:not([hidden])'); await pg.click('#dupDlg [data-dup=below]'); await settle();
+  const t1=await allText();
+  ok('T09 「바로 아래」 → 복제본이 바로 아래 쪽에', await st(m=>state.pages[m+1].name.endsWith('(복제)') && state.cur===m+1,m));
+  ok('T09 「바로 아래」 → 원고는 그 쪽에서 나뉘고 글은 하나도 사라지지 않음(복제본만큼 늘어남)', (await chain()).idx.length===2 && Array.from({length:32},(_,i)=>String(i+1).padStart(2,'0')).every(n=>countNo(t1,n)>=1) && t1.length>t0.length); }
+// (나-3) 이어지지 않은 쪽은 묻지 않고 바로 아래에(오른쪽 클릭 메뉴)
+{ await fresh(); await pg.locator('.th').nth(0).click({button:'right'}); await pg.click('#ctx [data-c=dup]'); await pg.waitForTimeout(150);
+  ok('T09 이어지지 않은 1쪽 복제 → 묻지 않고 바로 아래 2쪽에', await pg.locator('#dupDlg').isHidden() && await st(()=>state.pages[1].name==='표지 (복제)' && state.cur===1)); }
 // (다) 수동 삭제: 지운 쪽의 글만 빠지고, 앞뒤 쪽은 계속 이어짐
 for(const [label,k] of [['중간 이어진 쪽',2],['본문 첫 쪽',0],['마지막 이어진 쪽',-1]]){
   await fresh(); await pasteDoc(); const B=await chain(); const m=B.idx.at(k), s0=await st(()=>serialize());

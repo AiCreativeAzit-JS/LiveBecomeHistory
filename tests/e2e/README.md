@@ -28,4 +28,4 @@ done
 - `r08-test`: 화면용 전자책의 책장 넘기기 장치를 못 받아 오면(404·통신 실패·빈 응답) 성공이라 하지 않기(수정요청서 2차 R08, T30)
 - `r10-test`: 발행 뒤 제목만 바꿔도 「다시 발행」·비밀 링크 「새로 고침」 감지, 발행본 제목 일치(수정요청서 2차 R10, T33)
 - `r11-test`: 마우스 없이 Tab·Enter·F2·Esc로 기존 제목·본문·설명 고치기(수정요청서 2차 R11, T34)
-- 기준(2026-10-19): 위 29개 모두 FAIL 0 (flow-test 57개, dialog-test 14개, pick-test 22개, output-test 33개, ux-test 27개, photo2-test 15개, r02-test 34개, r03-test 12개, r04-test 9개, r05-test 9개, r06-test 12개, r07-test 7개, r08-test 4개, r09-test 6개, r10-test 8개, r11-test 13개)
+- 기준(2026-10-19): 위 29개 모두 FAIL 0 (flow-test 57개, dialog-test 14개, pick-test 22개, output-test 33개, ux-test 27개, photo2-test 15개, r02-test 34개, r03-test 12개, r04-test 9개, r05-test 9개, r06-test 12개, r07-test 7개, r08-test 4개, r09-test 6개, r10-test 8개, r11-test 13개 · r02-test는 39개)

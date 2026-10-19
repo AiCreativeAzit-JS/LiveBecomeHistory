@@ -304,6 +304,13 @@
     <button class="btn" id="joinClose">계속 체험하기</button>
   </div>
 </div></div>
+<div class="modal" id="dupDlg" hidden role="dialog" aria-modal="true" aria-labelledby="dupT"><div class="mbox">
+  <h3 id="dupT">어디에 복제할까요?</h3>
+  <p style="color:var(--muted);font-size:14.5px;margin:0 0 12px;line-height:1.65">이 쪽은 다음 쪽과 <b>글이 이어져</b> 있어요(긴 글이 저절로 다음 쪽으로 넘어간 쪽).</p>
+  <button class="opt" data-dup="below"><b id="dupBelow">바로 아래에 복제</b><span>복제본이 이어진 글 사이에 들어가서, 글 흐름이 여기서 나뉘어요.</span></button>
+  <button class="opt" data-dup="after"><b id="dupAfter">이어진 글이 끝난 뒤에 복제</b><span>글은 지금처럼 계속 이어져요.</span></button>
+  <div style="text-align:right"><button class="btn" id="dupClose">취소</button></div>
+</div></div>
 <div class="modal" id="exDlg" hidden role="dialog" aria-modal="true" aria-labelledby="exT"><div class="mbox">
   <h3 id="exT">어떻게 내려받을까요?</h3>
   <button class="opt" data-ex="screen"><b>📱 화면용 전자책 (HTML)</b><span>컴퓨터·휴대폰에서 열어 보는 책이에요. 사진·영상·노래가 파일 안에 담겨 바로 재생돼요.</span></button>
@@ -815,10 +822,17 @@ let ptIndex=0;
 function askPageType(i){ endEdit(); ptIndex=i; $('ptDlg').hidden=false; $('ptDlg').querySelector('.opt').focus(); }
 $('ptDlg').addEventListener('click',ev=>{ if(ev.target.id==='ptDlg'||ev.target.id==='ptClose'){ $('ptDlg').hidden=true; return; }
   const o=ev.target.closest('[data-pt]'); if(o){ $('ptDlg').hidden=true; insertPageAt(ptIndex,o.dataset.pt); } });
-// 복제본은 따로 한 쪽. 이어진 원고의 한 쪽이면 원고 한가운데 끼우지 않고(이어짐이 끊기므로) 그 원고 끝 뒤에 놓는다
-function dupPage(i){ endEdit(); snap(); const c=JSON.parse(JSON.stringify(state.pages[i])); c.id=uid(); c.name=state.pages[i].name+' (복제)'; c.flowFrom=null; c.els.forEach(e=>{ e.id=uid(); delete e.cont; });
-  let j=i; while(flowsInto(j)) j++; const inFlow=j>i || !!state.pages[i].flowFrom;
-  state.pages.splice(j+1,0,c); state.cur=j+1; state.sel=null; renderAll(); toast(inFlow?'이어지는 글의 끝 뒤에 복제했어요':'페이지를 복제했어요'); }
+// 복제본은 따로 한 쪽(이어짐 표시 없음). 보통은 바로 아래에.
+// 다음 쪽과 글이 이어진 쪽이면 어디에 둘지 묻는다: 바로 아래(글 흐름이 거기서 나뉨) / 이어진 글이 끝난 뒤(글은 계속 이어짐)
+let dupIndex=0;
+function dupPage(i, where){
+  let j=i; while(flowsInto(j)) j++;
+  if(j>i && !where){ dupIndex=i; endEdit(); $('dupBelow').textContent=`바로 아래(${i+2}쪽)에 복제`; $('dupAfter').textContent=`이어진 글이 끝난 뒤(${j+2}쪽)에 복제`; $('dupDlg').hidden=false; $('dupDlg').querySelector('.opt').focus(); return; }
+  const at=where==='after'?j+1:i+1;
+  endEdit(); snap(); const c=JSON.parse(JSON.stringify(state.pages[i])); c.id=uid(); c.name=state.pages[i].name+' (복제)'; c.flowFrom=null; c.els.forEach(e=>{ e.id=uid(); delete e.cont; });
+  state.pages.splice(at,0,c); state.cur=at; state.sel=null; renderAll(); toast(`${at+1}쪽에 복제했어요`); }
+$('dupDlg').addEventListener('click',ev=>{ if(ev.target.id==='dupDlg'||ev.target.id==='dupClose'){ $('dupDlg').hidden=true; return; }
+  const o=ev.target.closest('[data-dup]'); if(o){ $('dupDlg').hidden=true; dupPage(dupIndex,o.dataset.dup); } });
 // 지우는 쪽이 이어진 원고의 한 쪽이면, 그 쪽에서 이어지던 쪽을 지운 쪽의 앞쪽에 다시 잇는다(지운 쪽의 글만 빠지고 원고는 계속 이어짐)
 function relinkRemoved(ids){ const gone=new Map(state.pages.filter(p=>ids.has(p.id)).map(p=>[p.id,p.flowFrom||null]));
   const up=id=>{ for(let n=0; gone.has(id) && n<1000; n++) id=gone.get(id); return id; };
@@ -1168,7 +1182,7 @@ document.addEventListener('focusin',ev=>{ if(!ev.target.closest('[role=dialog],#
   document.querySelectorAll('[role=dialog][aria-modal=true],#pv').forEach(d=>back.observe(d,{attributes:true,attributeFilter:['hidden']})); }
 document.addEventListener('keydown',ev=>{
   const typing = state.editing || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
-  if(ev.key==='Escape'){ ['ptDlg','exDlg','shDlg','joinDlg'].forEach(id=>$(id).hidden=true); if(!$('ctx').hidden||!$('fslist').hidden){ closeCtx(); closeFsList(); return; } if(!$('pv').hidden){ closePV(); return; } if(state.editing){ const id=state.sel; endEdit(); elNode(id)?.focus({preventScroll:true}); } else if(state.sel){ state.sel=null; decorate('__none'); renderPanels(); } return; }
+  if(ev.key==='Escape'){ ['ptDlg','exDlg','shDlg','joinDlg','dupDlg'].forEach(id=>$(id).hidden=true); if(!$('ctx').hidden||!$('fslist').hidden){ closeCtx(); closeFsList(); return; } if(!$('pv').hidden){ closePV(); return; } if(state.editing){ const id=state.sel; endEdit(); elNode(id)?.focus({preventScroll:true}); } else if(state.sel){ state.sel=null; decorate('__none'); renderPanels(); } return; }
   if(modalOpen()) return;
   // 글을 쓰는 중에도 Ctrl+Z·Ctrl+Y는 툴바와 같은 앱 기록을 쓴다(제목·쪽 이름 칸은 칸 자체 되돌리기). 한글 자판이어도 키 위치로 판단
   if((ev.ctrlKey||ev.metaKey) && !ev.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)){
