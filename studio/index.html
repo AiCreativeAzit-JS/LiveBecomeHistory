@@ -684,7 +684,13 @@ const endDrag=()=>{ if(!drag) return; const e=selEl(); const d=drag; drag=null;
   else if(d.moved){ renderThumbs(); renderPanels(); } };
 $('center').addEventListener('pointerup',endDrag); $('center').addEventListener('pointercancel',endDrag);
 $('center').addEventListener('dblclick',ev=>{ const node=ev.target.closest('#canvas .el.t'); if(node&&!state.editing){ select(node.dataset.id); startEdit(node.dataset.id); } });
-$('center').addEventListener('input',ev=>{ const tx=ev.target.closest&&ev.target.closest('.tx'); if(!tx||!state.editing) return; const e=selEl(); if(!e) return; e.html=tx.innerHTML; autoGrow(e); if(!flowOverflow(e) && !pullBack(e)){ clearTimeout(input._t); input._t=setTimeout(renderThumbs,250); } });
+// 한글을 조립하는 동안(ㅂ→바→받)에는 쪽 넘기기를 미룬다. 조립 중인 줄을 다음 쪽으로 옮기면 글자가 쪼개지거나 겹친다. 글자가 완성되면 그때 넘긴다
+let composing=false;
+$('center').addEventListener('compositionstart',()=>{ composing=true; });
+$('center').addEventListener('compositionend',ev=>{ composing=false; const tx=ev.target.closest&&ev.target.closest('.tx'); if(tx) setTimeout(()=>{ if(!composing&&state.editing&&tx.isConnected) tx.dispatchEvent(new Event('input',{bubbles:true})); },0); });
+$('center').addEventListener('input',ev=>{ const tx=ev.target.closest&&ev.target.closest('.tx'); if(!tx||!state.editing) return; const e=selEl(); if(!e) return; e.html=tx.innerHTML; autoGrow(e);
+  if(composing||ev.isComposing) return;
+  if(!flowOverflow(e) && !pullBack(e)){ clearTimeout(input._t); input._t=setTimeout(renderThumbs,250); } });
 // 붙여넣기는 글자만(다른 곳의 서식·위험한 코드가 들어오지 않게). 붙여넣기 1번 = 되돌리기 1번(넘쳐서 생긴 쪽까지 함께)
 let pasting=false;
 $('center').addEventListener('paste',ev=>{ if(!ev.target.closest||!ev.target.closest('.tx')) return; ev.preventDefault(); snap();
@@ -844,11 +850,15 @@ function flowOverflow(e, quiet=false){
   const r=cutOverflow(tx); if(!r) return false;
   e.html=sanitizeText(tx.innerHTML);
   const target=pushOverflow(state.cur,r,e);
-  if(r.caret!=null){ state.editing=false; state.cur++; state.sel=target.id; renderAll(); startEdit(target.id); placeCaretAt(elNode(target.id).querySelector('.tx'), r.caret); }  // 커서가 뒷부분에 있었으면 다음 페이지에서 이어 쓴다
+  if(r.caret!=null) followCaret(target, r.caret);
   else { autoGrow(e); settle(state.cur+1); renderThumbs(); renderBottom(); }
   if(!quiet) toast('글이 넘쳐서 다음 페이지로 이어졌어요');
-  const t2=selEl(); if(t2&&t2.id===target.id) requestAnimationFrame(()=>{ autoGrow(t2); flowOverflow(t2); }); // 다음 페이지도 넘치면 계속
   return true;
+}
+// 커서가 넘어간 뒷부분에 있었으면 다음 페이지에서 이어 쓴다(그 페이지도 넘치면 계속)
+function followCaret(target, caret){
+  state.editing=false; state.cur++; state.sel=target.id; renderAll(); startEdit(target.id); placeCaretAt(elNode(target.id).querySelector('.tx'), caret);
+  requestAnimationFrame(()=>{ const t2=selEl(); if(t2&&t2.id===target.id){ autoGrow(t2); flowOverflow(t2); } });
 }
 // 워드처럼: 앞 페이지 글을 지워 자리가 생기면 다음 「(이어서)」 페이지의 글을 끌어 온다
 function caretOffset(tx){ const s=getSelection(); if(!tx||!s.rangeCount||!tx.contains(s.anchorNode)) return null; const r=document.createRange(); r.selectNodeContents(tx); r.setEnd(s.anchorNode,s.anchorOffset); return r.toString().length; }
@@ -860,7 +870,8 @@ function pullBack(e){
   const before=state.pages.length;
   if(!pullInto(tx,pi)) return false;
   const r=cutOverflow(tx); e.html=sanitizeText(tx.innerHTML);                   // 다시 넘치는 만큼은 다음 페이지로 돌려보낸다
-  if(r) pushOverflow(pi,r,e);
+  const target=r&&pushOverflow(pi,r,e);
+  if(r&&r.caret!=null){ followCaret(target, r.caret); return true; }           // 방금 친 글자가 넘어갔으면 커서도 따라간다
   while(flowsInto(pi) && dropEmptyNext(pi));
   if(flowsInto(pi)) settle(pi+1);
   if(state.pages.length<before) toast('다음 페이지 글을 끌어 왔어요');

@@ -191,5 +191,22 @@ await fresh(); await openBody(1);
   ok('입력 한 묶음 = 되돌리기 1번', (await st(()=>history.length))===h0+1);
   await pg.keyboard.press('Control+z'); await settle(); ok('Ctrl+Z로 방금 친 글만 사라짐(편집 계속)', (await st(()=>plain(flowEl(1).html)))==='' && (await caretInfo()).editing);
 }
+// ── T07(모의) / R01: 한글 입력기 조합 중 쪽 넘김 ──
+// 크롬 CDP로 입력기를 흉내 낸다(글자마다 초성 → 초성+중성 → 완성으로 조립했다가 확정). 실제 입력기 확인은 따로(정선C)
+const JA='ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+const stages=ch=>{ const c=ch.charCodeAt(0)-0xAC00; if(c<0||c>11171) return [ch]; const l=Math.floor(c/588), v=Math.floor(c%588/28), t=c%28;
+  const lv=String.fromCharCode(0xAC00+(l*21+v)*28); return t?[JA[l],lv,ch]:[JA[l],lv]; };
+async function imeType(cdp,text){ for(const ch of text){ if(ch===' '){ await cdp.send('Input.insertText',{text:' '}); await pg.waitForTimeout(30); continue; }
+  for(const s of stages(ch)){ await cdp.send('Input.imeSetComposition',{text:s,selectionStart:s.length,selectionEnd:s.length}); await pg.waitForTimeout(25); }
+  await cdp.send('Input.insertText',{text:ch}); await pg.waitForTimeout(40); } }
+const PH='할머니의 빨간 대문 앞에서 늘 놀았다';
+for(const [label,how] of [['T07(모의) 한글 입력기로 쪽 끝에서 입력','ime'],['쪽 끝에서 보통 입력(되당김 경로)','type']]){
+  await fresh(); await pasteDoc(); await openBody(1,'end'); const D=await doc(); const g0=await st(()=>caretOffset(activeTx()));
+  if(how==='ime') await imeType(await pg.context().newCDPSession(pg),PH); else await pg.keyboard.type(PH,{delay:20});
+  await settle(); const A=await doc();
+  const at=A.chars.indexOf(PH);
+  ok(`${label} → 글자가 쪼개지거나 겹치지 않고 순서대로`, at===g0 && A.chars===D.chars.slice(0,g0)+PH+D.chars.slice(g0), JSON.stringify(A.chars.slice(g0-5,g0+PH.length+5)));
+  ok(`${label} → 커서가 다음 쪽으로 따라가 입력한 글 바로 뒤에`, await st(p=>{ const tx=activeTx(), o=caretOffset(tx); return tx.textContent.slice(0,o).endsWith(p.slice(-4)); },PH));
+}
 console.log(errs.length?errs.join('\n'):'JS 오류 없음');
 await b.close(); srv.close();
