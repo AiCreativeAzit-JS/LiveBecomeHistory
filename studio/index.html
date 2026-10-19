@@ -374,9 +374,15 @@ const state = {
   cur:0, sel:null, editing:false, zoom:0, dirty:false, picked:new Set()
 };
 let history = [], future = [];
-const snapJSON = () => JSON.stringify({pages:state.pages,cur:state.cur,title:state.title});
-function snap(){ history.push(snapJSON()); if(history.length>100) history.shift(); future=[]; updUndo(); }
-function restore(j){ const o=JSON.parse(j); state.pages=o.pages; state.cur=Math.min(o.cur,o.pages.length-1); state.title=o.title; state.sel=null; state.editing=false; renderAll(); }
+// 되돌리기 기록에는 편집 중이던 글상자와 커서 위치도 담는다(되돌리면 그 자리에서 이어 쓴다)
+const snapJSON = () => JSON.stringify({pages:state.pages,cur:state.cur,title:state.title,sel:state.sel,editing:state.editing,caret:state.editing&&activeTx()?caretOffset(activeTx()):null});
+// group: 같은 글상자에서 이어 치는 글자는 잠깐 멈출 때까지 한 번의 되돌리기로 묶는다(워드처럼)
+let snapGroup=null;
+function snap(group){ const now=Date.now();
+  if(group && snapGroup && snapGroup.key===group && now-snapGroup.at<1500){ snapGroup.at=now; return; }
+  history.push(snapJSON()); if(history.length>100) history.shift(); future=[]; snapGroup=group?{key:group,at:now}:null; updUndo(); }
+function restore(j){ const o=JSON.parse(j); state.pages=o.pages; state.cur=Math.min(o.cur,o.pages.length-1); state.title=o.title; state.sel=null; state.editing=false; snapGroup=null; renderAll();
+  if(o.editing && o.sel && page().els.some(e=>e.id===o.sel)){ select(o.sel); startEdit(o.sel); const tx=activeTx(); if(tx&&o.caret!=null) placeCaretAt(tx,o.caret); } }
 function undo(){ if(!history.length) return; future.push(snapJSON()); restore(history.pop()); updUndo(); }
 function redo(){ if(!future.length) return; history.push(snapJSON()); restore(future.pop()); updUndo(); }
 function updUndo(){ $('uUndo').disabled=!history.length; $('uRedo').disabled=!future.length; }
@@ -679,8 +685,17 @@ const endDrag=()=>{ if(!drag) return; const e=selEl(); const d=drag; drag=null;
 $('center').addEventListener('pointerup',endDrag); $('center').addEventListener('pointercancel',endDrag);
 $('center').addEventListener('dblclick',ev=>{ const node=ev.target.closest('#canvas .el.t'); if(node&&!state.editing){ select(node.dataset.id); startEdit(node.dataset.id); } });
 $('center').addEventListener('input',ev=>{ const tx=ev.target.closest&&ev.target.closest('.tx'); if(!tx||!state.editing) return; const e=selEl(); if(!e) return; e.html=tx.innerHTML; autoGrow(e); if(!flowOverflow(e) && !pullBack(e)){ clearTimeout(input._t); input._t=setTimeout(renderThumbs,250); } });
-// 붙여넣기는 글자만(다른 곳의 서식·위험한 코드가 들어오지 않게)
-$('center').addEventListener('paste',ev=>{ if(!ev.target.closest||!ev.target.closest('.tx')) return; ev.preventDefault(); document.execCommand('insertText',false,(ev.clipboardData||window.clipboardData).getData('text/plain')); });
+// 붙여넣기는 글자만(다른 곳의 서식·위험한 코드가 들어오지 않게). 붙여넣기 1번 = 되돌리기 1번(넘쳐서 생긴 쪽까지 함께)
+let pasting=false;
+$('center').addEventListener('paste',ev=>{ if(!ev.target.closest||!ev.target.closest('.tx')) return; ev.preventDefault(); snap();
+  // 윈도우 글의 줄바꿈(\r\n)은 \n으로: \r이 그대로 들어가면 화면에선 빈칸처럼 보이다가 저장·다시 열 때 줄바꿈이 되어 쪽 나눔이 어긋난다
+  const text=(ev.clipboardData||window.clipboardData).getData('text/plain').replace(/\r\n?/g,'\n');
+  pasting=true; try{ document.execCommand('insertText',false,text); } finally{ pasting=false; } });
+// 글을 고치기 직전에 되돌리기 기록을 남긴다. 브라우저 자체 되돌리기(메뉴 등)도 앱 기록으로 돌린다
+$('center').addEventListener('beforeinput',ev=>{ const tx=ev.target.closest&&ev.target.closest('.tx'); if(!tx||!state.editing) return;
+  if(ev.inputType==='historyUndo'){ ev.preventDefault(); undo(); return; }
+  if(ev.inputType==='historyRedo'){ ev.preventDefault(); redo(); return; }
+  if(!pasting) snap((ev.inputType.startsWith('delete')?'del:':'ins:')+state.sel); });
 function input(){}
 
 /* ═══════════════ 글자 크기 목록 ═══════════════ */
@@ -736,56 +751,147 @@ $('ctx').addEventListener('click',ev=>{ const b=ev.target.closest('[data-c]'); i
   ({newAfter:()=>askPageType(i+1), newBefore:()=>askPageType(i), dup:()=>dupPage(i), up:()=>{state.cur=i;movePage(i,i-1);}, down:()=>{state.cur=i;movePage(i,i+1);}, del:()=>delPageAt(i)})[b.dataset.c](); });
 
 /* ═══════════════ 워드처럼 넘친 글을 다음 페이지로 ═══════════════ */
+// 자동으로 이어진 「(이어서)」 쪽들의 본문은 하나의 원고로 다룬다.
+// 글상자의 cont=true는 「이 쪽 첫 줄은 앞쪽 마지막 줄에서 저절로 나뉜 조각」이라는 표시 → 되당길 때 같은 문단으로 다시 합친다.
+// 편집 중인 글상자는 innerHTML을 통째로 바꾸지 않고 끝부분만 떼고 붙인다(그래야 커서가 제자리에 남는다).
 function textPositions(root){ const out=[]; const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT); let n; while((n=w.nextNode())) for(let k=0;k<n.length;k++) out.push([n,k]); return out; }
+const isBlk = n => !!n && n.nodeType===1 && /^(DIV|P)$/.test(n.tagName);
+const flowsInto = i => { const a=state.pages[i], b=state.pages[i+1]; return !!(a&&b&&b.flowFrom===a.id); };
+// i쪽에서 원고가 흐르는 글상자 = 아래 여백까지 닿은 글상자(제목·사진 설명 같은 다른 글상자는 제외). 이어진 쪽에 그런 상자가 없으면 첫 글상자
+function flowEl(i){ const p=state.pages[i]; if(!p) return null; const ts=p.els.filter(e=>e.type==='text'), bot=ts.filter(e=>e.y+e.h>=LIM.y1-0.05);
+  return i>0&&flowsInto(i-1) ? bot[0]||ts[0]||null : bot.pop()||null; }
+// 잘라 낸 조각(fragment)을 글자로 펼친다. 줄바꿈(\n·<br>·문단 사이)은 \n
+function flat(frag){ let s='', after=false, started=false;
+  (function w(n){ for(const c of n.childNodes){
+    if(isBlk(c)){ if(started&&!s.endsWith('\n')) s+='\n'; started=true; w(c); after=true; continue; }
+    if(after&&!s.endsWith('\n')) s+='\n'; after=false; started=true;
+    if(c.nodeType===3) s+=c.data; else if(c.nodeName==='BR') s+='\n'; else w(c); } })(frag);
+  return s; }
+function roomLeft(tx){ // 한 줄 이상 빈자리가 있는가
+  const lineH=parseFloat(getComputedStyle(tx).lineHeight)||20; tx.scrollTop=0; const rr=document.createRange(); rr.selectNodeContents(tx);
+  const textBottom = tx.textContent.trim() ? rr.getBoundingClientRect().bottom : tx.getBoundingClientRect().top;
+  return tx.getBoundingClientRect().bottom - textBottom >= lineH; }
+// 넘친 뒷부분을 tx에서 떼어 낸다 → {html, cont(문단 한가운데서 잘렸나), caret(커서가 뒷부분에 있었으면 그 안의 위치)}
+function cutOverflow(tx){
+  if(tx.scrollHeight<=tx.clientHeight+2) return null;
+  tx.scrollTop=0; // 커서를 따라 상자 속이 스크롤되어 있으면 글자 위치가 어긋나므로 맨 위로 되돌린 뒤 잰다
+  const bottom=tx.getBoundingClientRect().bottom-2, pos=textPositions(tx); if(pos.length<2) return null;
+  // 글자 하나의 아래끝이 상자 안에 있는지. 줄 끝 공백처럼 크기가 0인 글자는 가까운 앞 글자로 판단(그래야 긴 글을 붙여 넣어도 정확히 자른다)
+  const fits=i=>{ for(let j=i;j>=Math.max(0,i-8);j--){ const r=document.createRange(); r.setStart(pos[j][0],pos[j][1]); r.setEnd(pos[j][0],pos[j][1]+1); const rects=r.getClientRects(); const b=rects.length?rects[rects.length-1]:null; if(b&&b.height>0) return b.bottom<=bottom; } return true; };
+  let lo=0, hi=pos.length-1; if(!fits(0)) return null;
+  while(lo<hi){ const mid=Math.ceil((lo+hi)/2); if(fits(mid)) lo=mid; else hi=mid-1; }
+  let cut=lo+1; if(cut>=pos.length) return null;
+  for(let k=cut;k>Math.max(0,cut-24);k--){ if(/\s/.test(pos[k-1][0].data[pos[k-1][1]])){ cut=k; break; } } // 단어 중간에서 자르지 않기
+  const [cn,ck]=pos[cut];
+  const before=document.createRange(); before.setStart(tx,0); before.setEnd(cn,ck);
+  const line=flat(before.cloneContents()); const cont=line.length>0 && !line.endsWith('\n');
+  const cutR=document.createRange(); cutR.setStart(cn,ck); cutR.setEndAfter(tx.lastChild);
+  const s=getSelection(); let caret=null;
+  if(s.rangeCount&&tx.contains(s.anchorNode)&&cutR.isPointInRange(s.anchorNode,s.anchorOffset)){ const c=document.createRange(); c.setStart(cn,ck); c.setEnd(s.anchorNode,s.anchorOffset); caret=c.toString().length; }
+  const holder=document.createElement('div'); holder.appendChild(cutR.extractContents());
+  while(isBlk(tx.lastChild) && !tx.lastChild.textContent && !tx.lastChild.querySelector('br')) tx.lastChild.remove(); // 떼고 남은 빈 껍데기
+  return {html:sanitizeText(holder.innerHTML), cont, caret};
+}
+// box 끝에 이어지는 글을 붙인다. cont면 첫 줄을 box의 마지막 줄에 이어 붙여 한 문단으로 되돌린다(덧붙이는 공백 없음)
+function joinFlow(box, html, cont){
+  const t=document.createElement('template'); t.innerHTML=html; const f=t.content;
+  if(cont){ let last=box; while(isBlk(last.lastChild)) last=last.lastChild;
+    if(last.lastChild&&last.lastChild.nodeName==='BR') last.lastChild.remove();
+    if(isBlk(f.firstChild)){ const first=f.firstChild; last.append(...first.childNodes); first.remove(); }
+    else while(f.firstChild&&!isBlk(f.firstChild)) last.append(f.firstChild); }
+  box.append(f);
+}
+const mergeHTML = (a,b,cont) => { const d=document.createElement('div'); d.innerHTML=a; joinFlow(d,b,cont); return sanitizeText(d.innerHTML); };
+// 넘친 조각을 다음 「(이어서)」 쪽 맨 앞에 넣는다(없으면 새로 만든다). 받은 글상자를 돌려준다
+function pushOverflow(i, r, src){
+  const me=state.pages[i];
+  if(flowsInto(i)){ const t=flowEl(i+1); if(t){ t.html = plain(t.html) ? mergeHTML(r.html,t.html,!!t.cont) : r.html; t.cont=r.cont; return t; } }
+  const np=blankPage(); np.name=/\(이어서\)$/.test(me.name)?me.name:me.name+' (이어서)'; np.flowFrom=me.id; const t=np.els[0];
+  Object.assign(t,{html:r.html,cont:r.cont,fs:src.fs,font:src.font,color:src.color,align:src.align,b:src.b,i:src.i,u:src.u});
+  if(flowsInto(i)) state.pages[i+1].flowFrom=np.id;     // 글상자 없는 이어진 쪽이 있었다면 새 쪽 뒤로 잇는다
+  state.pages.splice(i+1,0,np); return t;
+}
+function dropEmptyNext(i){ // 비어 버린 다음 이어진 쪽을 지우고 그 뒤 쪽을 이 쪽에 잇는다
+  const next=state.pages[i+1]; if(!flowsInto(i) || !next.els.every(x=>x.type==='text'&&!plain(x.html))) return false;
+  const after=state.pages[i+2]; if(after&&after.flowFrom===next.id) after.flowFrom=state.pages[i].id; state.pages.splice(i+1,1); return true; }
+// 화면에 그려지지 않은 쪽은 보이지 않는 곳에 똑같은 크기로 그려서 잰다
+function measureOff(i, e, fn){
+  const box=document.createElement('div'); box.className='canvas'; box.setAttribute('aria-hidden','true');
+  box.style.cssText=`position:fixed;left:-99999px;top:0;visibility:hidden;width:${pageWidthPx()}px`;
+  box.innerHTML=pageHTML(state.pages[i],'edit'); document.body.appendChild(box);
+  try{ return fn(box.querySelector(`.el[data-id="${e.id}"] .tx`)); } finally{ box.remove(); }
+}
+// i쪽부터 뒤로 원고를 다시 채운다(빈자리면 뒤 쪽 글을 끌어 오고, 넘치면 다음 쪽으로). 여러 쪽에 걸쳐 연달아 정리된다
+function pullInto(tx, i){ let pulled=false;
+  while(flowsInto(i) && roomLeft(tx)){
+    const t=flowEl(i+1); if(!t||!plain(t.html)){ if(dropEmptyNext(i)){ pulled=true; continue; } break; }
+    joinFlow(tx,t.html,!!t.cont); t.html=''; t.cont=false; pulled=true;
+    if(tx.scrollHeight>tx.clientHeight+2) break; }
+  return pulled; }
+function settle(i){
+  for(let guard=0; guard<500 && i<state.pages.length; guard++){
+    const e=flowEl(i); if(!e) return;
+    const changed=measureOff(i,e,tx=>{ const pulled=pullInto(tx,i); const r=cutOverflow(tx);
+      if(pulled||r) e.html=sanitizeText(tx.innerHTML); if(r) pushOverflow(i,r,e); return pulled||!!r; });
+    while(flowsInto(i) && dropEmptyNext(i));
+    if(!changed || !flowsInto(i)) return;
+    i++;
+  }
+}
 function flowOverflow(e, quiet=false){
   const n=elNode(e.id); if(!n) return false; const tx=n.querySelector('.tx');
   if(tx.scrollHeight<=tx.clientHeight+2 || e.y+e.h < LIM.y1-0.05) return false;   // 아래 여백까지 자란 뒤에도 넘칠 때만
-  tx.scrollTop=0; // 커서를 따라 상자 속이 스크롤되어 있으면 글자 위치가 어긋나므로 맨 위로 되돌린 뒤 잰다
-  const bottom=tx.getBoundingClientRect().bottom-2, pos=textPositions(tx); if(pos.length<2) return false;
-  // 글자 하나의 아래끝이 상자 안에 있는지. 줄 끝 공백처럼 크기가 0인 글자는 가까운 앞 글자로 판단(그래야 긴 글을 붙여 넣어도 정확히 자른다)
-  const fits=i=>{ for(let j=i;j>=Math.max(0,i-8);j--){ const r=document.createRange(); r.setStart(pos[j][0],pos[j][1]); r.setEnd(pos[j][0],pos[j][1]+1); const rects=r.getClientRects(); const b=rects.length?rects[rects.length-1]:null; if(b&&b.height>0) return b.bottom<=bottom; } return true; };
-  let lo=0, hi=pos.length-1; if(!fits(0)) return false;
-  while(lo<hi){ const mid=Math.ceil((lo+hi)/2); if(fits(mid)) lo=mid; else hi=mid-1; }
-  let cut=lo+1; if(cut>=pos.length) return false;
-  for(let k=cut;k>Math.max(0,cut-24);k--){ if(/\s/.test(pos[k-1][0].data[pos[k-1][1]])){ cut=k; break; } } // 단어 중간에서 자르지 않기
-  // 커서가 잘리는 뒷부분에 있었는지(그러면 다음 페이지에서 이어 쓴다)
-  const s=getSelection(); let caretAfter=false, caretOffsetInMoved=0;
-  const cutR=document.createRange(); cutR.setStart(pos[cut][0],pos[cut][1]); cutR.setEndAfter(tx.lastChild);
-  if(s.rangeCount&&tx.contains(s.anchorNode)){ const c=document.createRange(); c.setStart(pos[cut][0],pos[cut][1]); c.setEnd(s.anchorNode,s.anchorOffset);
-    caretAfter = cutR.isPointInRange(s.anchorNode,s.anchorOffset); if(caretAfter) caretOffsetInMoved=c.toString().length; }
-  snap();
-  const holder=document.createElement('div'); holder.appendChild(cutR.extractContents());
-  const moved=sanitizeText(holder.innerHTML).replace(/^(\s|&nbsp;)+/,''); e.html=sanitizeText(tx.innerHTML); tx.innerHTML=e.html;
-  // 다음 페이지가 이어 쓰기 페이지면 앞에 붙이고, 아니면 새 페이지를 끼워 넣는다
-  const next=state.pages[state.cur+1]; let target=next&&next.flowFrom===page().id ? next.els.find(x=>x.type==='text') : null;
-  if(target) target.html = moved + (plain(target.html)?' '+target.html:'');
-  else { const np=blankPage(); np.name=page().name+' (이어서)'; np.flowFrom=page().id; target=np.els[0];
-    Object.assign(target,{html:moved,fs:e.fs,font:e.font,color:e.color,align:e.align,b:e.b,i:e.i,u:e.u}); state.pages.splice(state.cur+1,0,np); }
-  if(caretAfter){ state.editing=false; state.cur++; state.sel=target.id; renderAll(); startEdit(target.id); placeCaretAt(elNode(target.id).querySelector('.tx'), Math.max(0, caretOffsetInMoved - holder.textContent.match(/^\s*/)[0].length)); }
-  else { renderThumbs(); autoGrow(e); }
+  const r=cutOverflow(tx); if(!r) return false;
+  e.html=sanitizeText(tx.innerHTML);
+  const target=pushOverflow(state.cur,r,e);
+  if(r.caret!=null){ state.editing=false; state.cur++; state.sel=target.id; renderAll(); startEdit(target.id); placeCaretAt(elNode(target.id).querySelector('.tx'), r.caret); }  // 커서가 뒷부분에 있었으면 다음 페이지에서 이어 쓴다
+  else { autoGrow(e); settle(state.cur+1); renderThumbs(); renderBottom(); }
   if(!quiet) toast('글이 넘쳐서 다음 페이지로 이어졌어요');
   const t2=selEl(); if(t2&&t2.id===target.id) requestAnimationFrame(()=>{ autoGrow(t2); flowOverflow(t2); }); // 다음 페이지도 넘치면 계속
   return true;
 }
 // 워드처럼: 앞 페이지 글을 지워 자리가 생기면 다음 「(이어서)」 페이지의 글을 끌어 온다
-function caretOffset(tx){ const s=getSelection(); if(!s.rangeCount||!tx.contains(s.anchorNode)) return null; const r=document.createRange(); r.selectNodeContents(tx); r.setEnd(s.anchorNode,s.anchorOffset); return r.toString().length; }
+function caretOffset(tx){ const s=getSelection(); if(!tx||!s.rangeCount||!tx.contains(s.anchorNode)) return null; const r=document.createRange(); r.selectNodeContents(tx); r.setEnd(s.anchorNode,s.anchorOffset); return r.toString().length; }
 function pullBack(e){
-  const pi=state.cur, me=page(), next=state.pages[pi+1];
-  if(!next || next.flowFrom!==me.id || e.type!=='text' || e.y+e.h < LIM.y1-0.05) return false;
+  const pi=state.cur;
+  if(!flowsInto(pi) || e.type!=='text' || e.y+e.h < LIM.y1-0.05) return false;
   const n=elNode(e.id); if(!n) return false; const tx=n.querySelector('.tx');
-  const lineH=parseFloat(getComputedStyle(tx).lineHeight)||20;
-  tx.scrollTop=0; const rr=document.createRange(); rr.selectNodeContents(tx);
-  const textBottom = tx.textContent.trim() ? rr.getBoundingClientRect().bottom : tx.getBoundingClientRect().top;
-  if(tx.getBoundingClientRect().bottom - textBottom < lineH) return false;  // 한 줄 이상 빈자리가 있을 때만
-  const t=next.els.find(x=>x.type==='text');
-  const dropNext=()=>{ const after=state.pages[pi+2]; if(after&&after.flowFrom===next.id) after.flowFrom=me.id; state.pages.splice(pi+1,1); };
-  if(!t || !plain(t.html)){ if(next.els.every(x=>x.type==='text'&&!plain(x.html))){ snap(); dropNext(); renderThumbs(); renderBottom(); } return false; }
-  snap(); const off=caretOffset(tx);
-  tx.innerHTML = sanitizeText(tx.innerHTML) + (plain(tx.innerHTML)?' ':'') + sanitizeText(t.html); t.html='';
-  e.html=tx.innerHTML; if(off!=null) placeCaretAt(tx,off);
-  const split=flowOverflow(e,true);                                          // 다시 넘치는 만큼은 다음 페이지로 돌려보낸다
-  if(!split && next.els.every(x=>x.type==='text'&&!plain(x.html))){ dropNext(); toast('다음 페이지 글을 모두 끌어 왔어요'); }
-  renderThumbs(); renderBottom(); return true;
+  if(!roomLeft(tx)) return false;                                              // 한 줄 이상 빈자리가 있을 때만
+  const before=state.pages.length;
+  if(!pullInto(tx,pi)) return false;
+  const r=cutOverflow(tx); e.html=sanitizeText(tx.innerHTML);                   // 다시 넘치는 만큼은 다음 페이지로 돌려보낸다
+  if(r) pushOverflow(pi,r,e);
+  while(flowsInto(pi) && dropEmptyNext(pi));
+  if(flowsInto(pi)) settle(pi+1);
+  if(state.pages.length<before) toast('다음 페이지 글을 끌어 왔어요');
+  autoGrow(e); renderThumbs(); renderBottom(); return true;
+}
+// 자동으로 이어진 쪽 경계: 뒤쪽 맨 앞 Backspace · 앞쪽 맨 끝 Delete를 한 원고처럼 처리한다
+// 문단 한가운데서 나뉜 경계(cont)면 경계 앞/뒤 글자 하나를, 문단 경계면 두 문단을 합친다. 제목·사진 설명 같은 다른 글상자는 건드리지 않는다
+function crossPageDelete(tx, back){
+  const s=getSelection(); if(!s.rangeCount||!s.isCollapsed||!tx.contains(s.anchorNode)) return false;
+  const e=selEl(), pi=state.cur, a=back?pi-1:pi;
+  if(!e || a<0 || !flowsInto(a) || flowEl(pi)!==e) return false;
+  const r=document.createRange(); if(back){ r.setStart(tx,0); r.setEnd(s.anchorNode,s.anchorOffset); } else { r.setStart(s.anchorNode,s.anchorOffset); r.setEnd(tx,tx.childNodes.length); }
+  const rest=flat(r.cloneContents()); if(back ? rest!=='' : rest.replace(/\n$/,'')!=='') return false;   // 쪽의 맨 앞/맨 끝이 아니면 평소대로
+  const ae=flowEl(a), be=flowEl(a+1); if(!ae||!be) return false;
+  snap('del:'+e.id); e.html=sanitizeText(tx.innerHTML);
+  const d=document.createElement('div'); d.innerHTML=ae.html;
+  if(be.cont){
+    if(back){ const p=textPositions(d); if(p.length){ const [n,k]=p[p.length-1]; n.deleteData(k,1); } }
+    else { const d2=document.createElement('div'); d2.innerHTML=be.html; const p=textPositions(d2); if(p.length){ const [n,k]=p[0]; n.deleteData(k,1); } be.html=sanitizeText(d2.innerHTML); }
+  } else {
+    let last=d; while(isBlk(last.lastChild)) last=last.lastChild;
+    if(last.lastChild&&last.lastChild.nodeName==='BR') last.lastChild.remove();
+    else { const p=textPositions(d); if(p.length){ const [n,k]=p[p.length-1]; if(n.data[k]==='\n') n.deleteData(k,1); } }
+    be.cont=true;
+  }
+  ae.html=sanitizeText(d.innerHTML);
+  let g=textPositions(d).length, j=a;          // 원고 속 커서 자리(앞쪽 글자 수)
+  state.editing=false; settle(a);
+  for(;;){ const t=document.createElement('div'); t.innerHTML=flowEl(j).html; const L=textPositions(t).length; if(g<=L||!flowsInto(j)) break; g-=L; j++; }
+  state.cur=j; state.sel=flowEl(j).id; renderAll(); startEdit(state.sel); placeCaretAt(activeTx(), g);
+  return true;
 }
 // 줄 맨 앞에서 Backspace → 윗줄과 직접 합친다(브라우저 기본 동작은 숨은 서식 조각·빈칸을 남겨 연달아 누르면 막힘)
 function txNormalize(tx){
@@ -802,8 +908,13 @@ function mergeLineUp(tx){
   if(r.toString().length || r.cloneContents().querySelector('img,br')) return false;  // 줄 맨 앞이 아니면 기본 동작
   let prev=blk.previousSibling; while(prev && prev.nodeType===3 && !prev.data.length){ const p=prev.previousSibling; prev.remove(); prev=p; }
   if(!prev) return false;
-  const off=caretOffset(tx);
+  snap('del:'+state.sel); const off=caretOffset(tx);
   const body=[...blk.childNodes].filter(c=>!(c.nodeName==='BR' && blk.childNodes.length===1)); // 빈 줄(<br>뿐)이면 내용 없음
+  if(!body.length){ // 빈 줄을 지울 때는 그 줄만 없애고 윗줄 끝으로(윗줄이 빈 줄이어도 그대로 남긴다)
+    blk.remove(); const r2=document.createRange();
+    if(isBlk(prev)) r2.setStart(prev, prev.childNodes.length - (prev.lastChild&&prev.lastChild.nodeName==='BR'?1:0)); else r2.setStartAfter(prev);
+    r2.collapse(true); s.removeAllRanges(); s.addRange(r2);
+    tx.dispatchEvent(new Event('input',{bubbles:true})); return true; }
   if(prev.nodeType===1 && /^(DIV|P)$/.test(prev.tagName)){
     if(prev.lastChild && prev.lastChild.nodeName==='BR') prev.lastChild.remove();
     prev.append(...body);
@@ -814,9 +925,10 @@ function mergeLineUp(tx){
   return true;
 }
 $('center').addEventListener('keydown',ev=>{
-  if(ev.key!=='Backspace' || ev.isComposing || ev.keyCode===229 || !state.editing) return;   // 한글 조합 중에는 손대지 않음
+  if((ev.key!=='Backspace'&&ev.key!=='Delete') || ev.isComposing || ev.keyCode===229 || !state.editing) return;   // 한글 조합 중에는 손대지 않음
   const tx=ev.target.closest&&ev.target.closest('.tx'); if(!tx) return;
-  if(mergeLineUp(tx)) ev.preventDefault();
+  if(!ev.ctrlKey && !ev.metaKey && !ev.altKey && crossPageDelete(tx, ev.key==='Backspace')){ ev.preventDefault(); return; }
+  if(ev.key==='Backspace' && mergeLineUp(tx)) ev.preventDefault();
 });
 function placeCaretAt(tx, offset){ const pos=textPositions(tx); const r=document.createRange();
   if(!pos.length||offset>=pos.length){ r.selectNodeContents(tx); r.collapse(false); } else { const [n,k]=pos[Math.max(0,offset)]; r.setStart(n,k); r.collapse(true); }
@@ -932,7 +1044,11 @@ $('btnPublish').onclick=()=>ONLINE ? togglePublic() : openJoin('서가에 공개
 document.addEventListener('keydown',ev=>{
   const typing = state.editing || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
   if(ev.key==='Escape'){ ['ptDlg','exDlg','shDlg'].forEach(id=>$(id).hidden=true); if(!$('ctx').hidden||!$('fslist').hidden){ closeCtx(); closeFsList(); return; } if(!$('pv').hidden){ closePV(); return; } if(state.editing) endEdit(); else if(state.sel){ state.sel=null; decorate('__none'); renderPanels(); } return; }
-  if((ev.ctrlKey||ev.metaKey)&&!typing){ if(ev.key.toLowerCase()==='z'&&!ev.shiftKey){ ev.preventDefault(); undo(); } else if(ev.key.toLowerCase()==='y'||(ev.key.toLowerCase()==='z'&&ev.shiftKey)){ ev.preventDefault(); redo(); } return; }
+  // 글을 쓰는 중에도 Ctrl+Z·Ctrl+Y는 툴바와 같은 앱 기록을 쓴다(제목·쪽 이름 칸은 칸 자체 되돌리기). 한글 자판이어도 키 위치로 판단
+  if((ev.ctrlKey||ev.metaKey) && !ev.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)){
+    const k=ev.code==='KeyZ'?'z':ev.code==='KeyY'?'y':ev.key.toLowerCase();
+    if(k==='z'&&!ev.shiftKey){ ev.preventDefault(); undo(); return; } if(k==='y'||(k==='z'&&ev.shiftKey)){ ev.preventDefault(); redo(); return; } }
+  if((ev.ctrlKey||ev.metaKey)&&!typing) return;
   if(typing) return;
   const e=selEl(); if(!e) return;
   if(ev.key==='Delete'||ev.key==='Backspace'){ ev.preventDefault(); delEl(); }
@@ -1015,7 +1131,7 @@ function setSave(k){ const m={fresh:'아직 저장 전 · 쓰기 시작하면 �
 function fatal(title,msg,link){ $('center').innerHTML=`<div class="fatal"><h2>${esc(title)}</h2><p>${esc(msg)}</p>${link?`<a class="btn primary" href="${link[1]}">${esc(link[0])}</a>`:''}</div>`; }
 const cleanEl = e => e.type==='slot' ? {id:e.id,type:'slot',kind:e.kind||'image',x:e.x,y:e.y,w:e.w,h:e.h}
   : e.type==='text'
-  ? {id:e.id,type:'text',x:e.x,y:e.y,w:e.w,h:e.h,html:sanitizeText(e.html),fs:e.fs,align:e.align,color:e.color,font:e.font,b:!!e.b,i:!!e.i,u:!!e.u,...(e.ph?{ph:String(e.ph).slice(0,200)}:{})}
+  ? {id:e.id,type:'text',x:e.x,y:e.y,w:e.w,h:e.h,html:sanitizeText(e.html),fs:e.fs,align:e.align,color:e.color,font:e.font,b:!!e.b,i:!!e.i,u:!!e.u,...(e.ph?{ph:String(e.ph).slice(0,200)}:{}),...(e.cont?{cont:true}:{})}
   : {id:e.id,type:e.type,x:e.x,y:e.y,w:e.w,h:e.h,name:e.name||'',media_id:e.media_id,...(e.slot&&[e.slot.x,e.slot.y,e.slot.w,e.slot.h].every(Number.isFinite)?{slot:{x:e.slot.x,y:e.slot.y,w:e.slot.w,h:e.slot.h}}:{})};
 function serialize(){ return JSON.stringify({title:state.title,pages:state.pages.map((p,i)=>({id:p.id,position:i,name:String(p.name||'').slice(0,60),bg:/^#[0-9a-f]{6}$/i.test(p.bg)?p.bg:'#FFFFFF',flow_from:p.flowFrom||null,els:p.els.filter(e=>e.type==='text'||e.type==='slot'||e.media_id).map(cleanEl)}))}); }
 // 새 책: 처음 저장할 때 books 행을 만든다(들어왔다 그냥 나가면 아무것도 생기지 않음)
