@@ -1,6 +1,6 @@
 // 미디어 기록(media)의 파일 임시 주소 만들기: R2 파일과 예전 Supabase 저장소 파일을 함께 다룬다.
 // 경로는 반드시 그 기록 주인의 폴더({owner_id}/...) 안이어야 한다(남의 파일을 가리키는 위조 기록 차단).
-import { R2_PREFIX, r2Url } from "./r2.ts";
+import { R2_PREFIX, r2ViewUrl } from "./r2.ts";
 
 export const BUCKET = "book-media";
 export type MediaRow = { id: string; owner_id: string; storage_path: string | null };
@@ -17,7 +17,7 @@ export async function signRows(admin: any, rows: MediaRow[], ttl: number) {
   const ok = rows.filter((m) => m.storage_path && pathOk(m));
   const r2 = ok.filter((m) => m.storage_path!.startsWith(R2_PREFIX));
   const old = ok.filter((m) => !m.storage_path!.startsWith(R2_PREFIX));
-  await Promise.all(r2.map(async (m) => { urls[m.id] = await r2Url("GET", m.storage_path!.slice(R2_PREFIX.length), ttl); }));
+  await Promise.all(r2.map(async (m) => { urls[m.id] = await r2ViewUrl(m.storage_path!.slice(R2_PREFIX.length), ttl); }));
   if (old.length) {
     const { data } = await admin.storage.from(BUCKET).createSignedUrls(old.map((m) => m.storage_path), ttl);
     (data ?? []).forEach((s: any, i: number) => { if (s?.signedUrl) urls[old[i].id] = s.signedUrl; });

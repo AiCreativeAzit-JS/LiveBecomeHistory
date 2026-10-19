@@ -50,8 +50,17 @@ export async function presign(a: PresignArgs): Promise<string> {
 
 const keyPath = (key: string) => `/${uri(R2.bucket)}/${key.split("/").map(uri).join("/")}`;
 const host = () => `${R2.account}.r2.cloudflarestorage.com`;
-export const r2Url = (method: string, key: string, expires: number, headers?: Record<string, string>) =>
-  presign({ method, host: host(), path: keyPath(key), region: "auto", accessKey: R2.key, secret: R2.secret, expires, headers });
+export const r2Url = (method: string, key: string, expires: number, headers?: Record<string, string>, extra?: { now?: Date; query?: Record<string, string> }) =>
+  presign({ method, host: host(), path: keyPath(key), region: "auto", accessKey: R2.key, secret: R2.secret, expires, headers, now: extra?.now, query: extra?.query });
+
+// 보기용 주소: 서명 시각을 1시간 단위로 맞춰, 같은 시간대에는 같은 주소가 나오게 한다(브라우저가 한 번 받은 파일을 다시 받지 않음).
+// 유효 시간은 ttl + 1시간이라 언제 받아도 최소 ttl 동안 열린다. 7일을 넘기면(서명 한도) 맞추지 않고 그대로.
+const HOUR = 3600;
+export function r2ViewUrl(key: string, ttl: number) {
+  if (ttl + HOUR > 604800) return r2Url("GET", key, ttl);
+  const now = new Date(Math.floor(Date.now() / (HOUR * 1000)) * HOUR * 1000);
+  return r2Url("GET", key, ttl + HOUR, undefined, { now, query: { "response-cache-control": "private, max-age=3600" } });
+}
 
 // 파일 정보(크기·종류). 없으면 null
 export async function r2Head(key: string): Promise<{ size: number; type: string } | null> {
