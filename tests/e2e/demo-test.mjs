@@ -36,6 +36,7 @@ ok('체험: 서버 호출 없음(media 함수·저장소)', await pg.evaluate(()
 // 내려받기
 await pg.click('#btnExport'); const [dl]=await Promise.all([pg.waitForEvent('download'), pg.click('[data-ex=screen]')]);
 ok('체험: 화면용 HTML 내려받기(사진 포함)', await (async()=>{ const t=fs.readFileSync(await dl.path(),'utf8'); return /<html/i.test(t) && t.includes('data:image/png;base64'); })());
+ok('편집기 아래쪽에 화면 판 번호(lib/version.js와 같음)', await pg.evaluate(()=>!!window.MOA_VERSION && document.getElementById('ver').textContent==='판 '+window.MOA_VERSION));
 // 떠날 때 묻기: 이 기기에 아직 못 남긴 수정이 있을 때만(1.5초마다 남기므로, 고치자마자 떠나는 경우)
 let asked=false; pg.on('dialog',d=>{ if(d.type()==='beforeunload') asked=true; d.dismiss().catch(()=>{}); });
 await pg.evaluate(()=>{ snap(); state.title='내려받은 뒤 고친 제목'; document.getElementById('home').click(); }); await pg.waitForTimeout(800);

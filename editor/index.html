@@ -140,6 +140,7 @@
 <script src="../lib/supabase-js.umd.js"></script>
 <script src="../lib/media-client.js"></script>
 <script src="../lib/demo-draft.js"></script>
+<script src="../lib/version.js"></script>
 <script>
 'use strict';
 /* ───────── 설정 ───────── */
@@ -330,7 +331,7 @@ async function viewLibrary(){
     <div class="libtabs" role="tablist"><button role="tab" data-tab="books">📚 내 책 <span id="cBooks"></span></button><button role="tab" data-tab="trash">🗑 휴지통 <span id="cTrash"></span></button></div>
     <div id="demoImport"></div>
     <div id="list" class="books">불러오는 중…</div>
-    <div class="acct"><button type="button" class="link" id="me">내 정보(이름·비밀번호)</button> · <a href="../privacy/">개인정보 처리방침</a> · <a href="../terms/">이용약관</a> · <button type="button" class="link" id="quit">회원 탈퇴</button></div>`;
+    <div class="acct">${window.MOA_VERSION?`<span style="font-size:11px;color:#9AA7A1;margin-right:8px">판 ${esc(MOA_VERSION)}</span>`:''}<button type="button" class="link" id="me">내 정보(이름·비밀번호)</button> · <a href="../privacy/">개인정보 처리방침</a> · <a href="../terms/">이용약관</a> · <button type="button" class="link" id="quit">회원 탈퇴</button></div>`;
   document.getElementById('nb').onclick = newBook;
   showDemoImport();
   document.getElementById('quit').onclick = openQuit;

@@ -259,7 +259,7 @@
 
   <div class="bl"></div>
   <footer class="bottom">
-    <span id="pos"></span>
+    <span id="pos"></span><span id="ver" title="화면 판 번호(새로 올린 판인지 확인할 때)" style="font-size:11px;color:var(--muted);margin-left:10px"></span>
     <div class="zoom"><button class="iconbtn" id="zOut" title="축소"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button><output id="zVal"></output><button class="iconbtn" id="zIn" title="확대"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div>
     <div><button class="iconbtn" id="uUndo" title="되돌리기 (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg></button><button class="iconbtn" id="uRedo" title="다시 하기 (Ctrl+Y)"><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 000 12h3"/></svg></button><button class="iconbtn" id="pPrev" title="이전 페이지"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button><button class="iconbtn" id="pNext" title="다음 페이지"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button></div>
   </footer>
@@ -336,6 +336,7 @@
 <script src="../lib/book-viewer.js"></script>
 <script src="../lib/media-client.js"></script>
 <script src="../lib/demo-draft.js"></script>
+<script src="../lib/version.js"></script>
 <script>
 'use strict';
 /* ═══════════════ 기본 값 ═══════════════
@@ -1484,6 +1485,7 @@ function showDemoBar(sample){ const d=$('demoBar'); d.hidden=false;
 // 체험 편집기에서는 사진·영상에서 오른쪽 클릭(저장하기) 메뉴를 막는다
 if(!ONLINE) document.addEventListener('contextmenu',ev=>{ if(ev.target.closest&&ev.target.closest('img,video,audio')) ev.preventDefault(); });
 async function boot(){
+  if(window.MOA_VERSION) $('ver').textContent='판 '+MOA_VERSION;
   if(window.BookViewer) BookViewer.injectCSS();
   if(!ONLINE){ setSave('demo'); const sample=await loadSample();
     if(!sample){ // 빈 책: 로그인한 작가가 「새 책」을 만들 때와 같은 견본 틀(표지·이야기·사진·영상·노래 자리)
