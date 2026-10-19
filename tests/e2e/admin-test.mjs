@@ -80,5 +80,11 @@ ok('비공개 책에는 "열어 보기"·숨기기 버튼 없음', await (async(
 await pg.click('[data-t=members]'); ok('회원 3명 표시', (await pg.locator('.item').count())===3);
 const mt=await pg.locator('#pane').innerText(); ok('회원별 책 수 표시(김정선2·홍길동2·관리자0)', /김정선[\s\S]*?책 2권/.test(mt)&&/홍길동[\s\S]*?책 2권/.test(mt)&&/관리자[\s\S]*?책 0권/.test(mt));
 await pg.screenshot({path:'/tmp/admin2.png'});
+// R2로 옮기기 버튼
+{ const has=await pg.locator('#migR2').count(); if(!has){ await pg.click('.tab[data-t=dash]'); await pg.waitForTimeout(400); }
+  const n0=await pg.evaluate(()=>__db.media.filter(m=>m.storage_path&&!m.storage_path.startsWith('r2:')).length);
+  ok('대시보드: 예전 저장소 파일 수와 「R2로 옮기기」 버튼', n0>0 && await pg.locator('#migR2').count()===1 && (await pg.locator('.dash').innerText()).includes(n0+'개'));
+  await pg.click('#migR2'); await pg.waitForTimeout(800);
+  ok('R2로 옮기기: 모두 옮겨지고 버튼 사라짐', await pg.evaluate(()=>__db.media.every(m=>!m.storage_path||m.storage_path.startsWith('r2:'))) && await pg.locator('#migR2').count()===0); }
 console.log(errs.length?errs.join('\n'):'JS 오류 없음');
 await b.close(); srv.close();

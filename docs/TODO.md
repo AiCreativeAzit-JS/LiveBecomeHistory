@@ -47,9 +47,9 @@
 ## 📦 파일 저장소 R2 전환 (2026-10-13 코드 완료)
 - [x] Edge Function `media` + `_shared/r2.ts`·`_shared/sign.ts`, shared-book·delete-account R2 대응, 화면 4곳(studio·editor·shelf·admin) 연결
 - [x] 개인정보 처리방침 개정(국외 이전: Cloudflare, 시행 2026-10-20), 기술설명서·DESIGN 갱신
-- [ ] 정선C: Cloudflare 가입 → R2 버킷 `book-media`(위치 Asia-Pacific) → CORS → API 토큰(이 버킷만, Object Read & Write)
-- [ ] 정선C: Supabase Edge Functions → Secrets에 R2_ACCOUNT_ID·R2_ACCESS_KEY_ID·R2_SECRET_ACCESS_KEY·R2_BUCKET 등록 (**10월 20일 이후**, 방침 시행일)
-- [ ] 등록 후: 실제 올리기·보기·지우기 확인 → 관리자로 `migrate` 실행해서 예전 파일 옮기기(남은 수 0까지) → Supabase 저장소 비었는지 확인
+- [x] 정선C: Cloudflare 가입 → R2 버킷 `book-media`(위치 Asia-Pacific) → CORS → API 토큰(이 버킷만, Object Read & Write), 예산 알림 $1·$10
+- [x] 정선C: Supabase Edge Functions → Secrets 4개 등록(2026-10-19, 회원이 운영자뿐이라 하루 앞당김). 새 사진 R2 저장 확인(r2:)
+- [ ] 관리자 화면 「한눈에 보기 → 저장 공간 → R2로 옮기기」 버튼으로 예전 파일 옮기기(남은 수 0까지) → Supabase 저장소 비었는지 확인
 - [ ] 올리기만 하고 commit하지 않은 R2 고아 파일 정리(가끔 목록 비교) — 회원이 늘면 자동화
 - 참고: `shrink-test`(큰 사진 1920px 줄이기) 2건은 R2 작업 전부터 실패하던 테스트. 실제 화면에서 확인 필요
 

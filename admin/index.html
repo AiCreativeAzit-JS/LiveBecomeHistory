@@ -159,7 +159,7 @@ async function loadAll(){
     sb.from('books').select('id,owner_id,title,author_name,is_public,admin_hidden,deleted_at,published_at,created_at').order('created_at',{ascending:false}),
     sb.from('profiles').select('id,display_name,created_at').order('created_at',{ascending:false}),
     sb.from('book_admin_notes').select('book_id,note'),
-    sb.from('media').select('book_id,kind,size_bytes,created_at'), // 크기·종류만(내용·설명은 읽지 않음)
+    sb.from('media').select('book_id,kind,size_bytes,created_at,storage_path'), // 크기·종류·보관 위치만(내용·설명은 읽지 않음)
     sb.rpc('admin_usage')
   ]);
   const bad = [reports,books,profiles,notes].find(r=>r.error);
@@ -248,6 +248,7 @@ function paneDash(){
   const perBook={}; data.media.forEach(m=>perBook[m.book_id]=(perBook[m.book_id]||0)+Number(m.size_bytes||0));
   const topBooks=Object.entries(perBook).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const nameOf=id=>data.profiles.find(p=>p.id===id)?.display_name||'(이름 없음)';
+  const oldFiles=data.media.filter(m=>m.storage_path&&!m.storage_path.startsWith('r2:')).length; // R2로 옮기기 전 파일
   pane.innerHTML=`<div class="dash">
     <section class="panel"><h2>오늘 할 일</h2><p class="meta">관리자가 확인할 것만 모았어요.</p><ul class="todo">${todo.join('')}</ul></section>
     <section class="panel"><h2>새 회원 · 최근 30일</h2><p class="meta"><span class="big">${sum(mem)}</span>명 · 이번 주 ${week(mem)}명</p>${barChart(mem,'최근 30일 날짜별 새 회원 수')}</section>
@@ -256,6 +257,7 @@ function paneDash(){
       <div class="row" style="justify-content:space-between"><b>사진·영상·노래 파일</b><span class="meta" style="margin:0">${mb(storageUsed)} / ${mb(LIMIT.storage)} · ${data.media.length.toLocaleString()}개</span></div>${meter(storageUsed,LIMIT.storage)}
       ${kTotal?`<div class="kinds" aria-hidden="true">${Object.entries(byKind).map(([k,v])=>v?`<i style="width:${(v/kTotal*100).toFixed(1)}%;background:${K[k][1]}"></i>`:'').join('')}</div>
       <div class="legend">${Object.entries(byKind).map(([k,v])=>`<span><b style="background:${K[k][1]}"></b>${K[k][0]} ${mb(v)}</span>`).join('')}</div>`:''}
+      ${oldFiles?`<div class="row" style="justify-content:space-between;margin-top:10px"><span class="meta" style="margin:0">예전 저장소(Supabase)에 남은 파일 <b>${oldFiles}개</b></span><button class="small" id="migR2">R2로 옮기기</button></div>`:''}
       <div class="row" style="justify-content:space-between;margin-top:14px"><b>데이터베이스(글·페이지)</b><span class="meta" style="margin:0">${u?`${mb(Number(u.db_bytes))} / ${mb(LIMIT.db)}`:'확인 못 함'}</span></div>${u?meter(Number(u.db_bytes),LIMIT.db):''}
     </section>
     <section class="panel"><h2>최근 가입한 회원</h2><ul class="mini">${data.profiles.slice(0,5).map(p=>`<li><span>${esc(p.display_name||'(이름 없음)')}</span><span class="meta">${fmt(p.created_at)}</span></li>`).join('')||'<li class="meta">아직 없어요</li>'}</ul></section>
@@ -263,6 +265,23 @@ function paneDash(){
     <section class="panel"><h2>용량을 많이 쓰는 책</h2><p class="meta">책 한 권 한도는 200MB예요.</p><ul class="mini">${topBooks.map(([id,n])=>{ const b=bookById(id); return `<li><span>${esc(b?.title||'(지운 책)')} <span class="meta">· ${esc(b?nameOf(b.owner_id):'')}</span></span><span class="meta">${mb(n)}</span></li>`; }).join('')||'<li class="meta">아직 올린 파일이 없어요</li>'}</ul></section>
   </div>`;
   pane.onclick=e=>{ const a=e.target.closest('[data-go]'); if(a){ e.preventDefault(); tab=a.dataset.go; render(); } };
+  const mig=document.getElementById('migR2'); if(mig) mig.onclick=migrateToR2;
+}
+// 예전 Supabase 저장소 파일을 R2로 옮기기(10개씩, 남은 수 0까지). 옮긴 파일은 경로만 바뀌고 책·서가는 그대로 보인다
+async function migrateToR2(){
+  if(!confirm('예전 저장소의 사진·영상·노래를 Cloudflare R2로 옮길까요?\n옮기는 동안 이 화면을 닫지 말아 주세요.')) return;
+  const btn=document.getElementById('migR2'); btn.disabled=true; let moved=0, failed=0;
+  try{
+    for(let guard=0; guard<100; guard++){
+      const { data:r, error } = await sb.functions.invoke('media',{ body:{ action:'migrate', limit:10 } });
+      if(error||!r||r.error){ toast('옮기지 못했어요: '+((r&&r.error)||'연결 오류')); break; }
+      moved+=r.moved; failed+=(r.failed||[]).length; btn.textContent=`옮기는 중… ${moved}개`;
+      if(!r.remaining || (r.failed||[]).length>=r.remaining || !r.moved) break;
+    }
+  }finally{
+    toast(`R2로 ${moved}개 옮겼어요`+(failed?` · ${failed}개 실패(다시 눌러 주세요)`:''));
+    await loadAll(); render();
+  }
 }
 
 function paneReports(){

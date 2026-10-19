@@ -79,6 +79,9 @@
         (window.__mediaCalls=window.__mediaCalls||[]).push(body);
         if(body.action==='sign'){ const urls={}; db.media.filter(m=>body.ids.includes(m.id)&&m.storage_path&&canSee(m)).forEach(m=>urls[m.id]=url(m)); return {data:{urls},error:null}; }
         if(!uidNow) return {data:{error:'unauthorized'},error:null};
+        if(body.action==='migrate'){ if(!isAdm) return {data:{error:'forbidden'},error:null};
+          const old=db.media.filter(m=>m.storage_path&&!m.storage_path.startsWith('r2:')); const now=old.slice(0,body.limit||10); now.forEach(m=>m.storage_path='r2:'+m.storage_path); persist();
+          return {data:{moved:now.length,failed:[],remaining:old.length-now.length},error:null}; }
         const bk=db.books.find(x=>x.id===body.book_id&&x.owner_id===uidNow); if(!bk) return {data:{error:'forbidden'},error:null};
         if(body.action==='upload'){ const used=db.media.filter(m=>m.book_id===bk.id).reduce((n,m)=>n+Number(m.size_bytes||0),0); if(used+body.size>200*1048576) return {data:{error:'quota'},error:null};
           return {data:{backend:'supabase',key:`${uidNow}/${bk.id}/${uid()}.${body.ext}`},error:null}; }
