@@ -64,6 +64,31 @@ ok('T15 옮긴 뒤 내 서재에는 안내가 다시 뜨지 않음', !(await pg.
 await st(()=>DemoDraft.put({savedAt:Date.now(),title:'지울 책',cur:0,pages:[{id:'x',name:'a',bg:'#FFFFFF',els:[]}]})); await pg.reload(); await pg.waitForSelector('#diDel');
 await pg.click('#diDel'); await pg.waitForTimeout(300);
 ok('T15 내 서재의 「지우기」 → 이 기기의 체험 책 지움', !(await draft()) && !(await pg.locator('#demoImport').innerText()).trim());
+/* ── 실제 견본 책과 같은 구조로 옮기기(2026-10-19 정선C 확인: 견본 미디어가 빠지고 사진을 올리면 쪽이 밀림) ──
+   견본 책 발행본 구조: 1 표지(사진) · 2 첫 번째 이야기 → 3 (이어서) · 4 기억하고 싶은 순간(사진) · 5 영상 페이지(영상) · 6 나의 노래(노래). 미디어는 모두 작가 것(media_id) */
+await st(async()=>{ const T=(x,y,w,h,t)=>({id:crypto.randomUUID(),type:'text',x,y,w,h,html:t,fs:12,align:'left',color:'#1B2B25',font:'serif'}), M=(type,x,y,w,h)=>({id:crypto.randomUUID(),type,x,y,w,h,name:'',media_id:crypto.randomUUID(),src:'https://example.invalid/sample'});
+  const p2=crypto.randomUUID(), own=await new Promise(res=>{ const c=document.createElement('canvas'); c.width=40; c.height=30; c.getContext('2d').fillRect(0,0,40,30); res(c.toDataURL('image/png')); });
+  await DemoDraft.put({savedAt:Date.now(), title:'견본 구조 책', cur:0, pages:[
+    {id:crypto.randomUUID(),name:'표지',bg:'#FFFFFF',els:[T(16,22,120,8,'머리말'),T(16,34,120,42,'제목'),T(16,80,120,16,'부제'),M('image',16,112.5,120,67),T(16,196,120,8,'지은이')]},
+    {id:p2,name:'첫 번째 이야기',bg:'#FFFFFF',els:[T(16,23.7,120,12,'이야기 제목'),{...T(16,43.7,120,163,'체험 원고 보관 검사 · 내가 쓴 본문')}]},
+    {id:crypto.randomUUID(),name:'첫 번째 이야기 (이어서)',bg:'#FFFFFF',flowFrom:p2,els:[{...T(16,18,120,189,'이어진 본문'),cont:true}]},
+    {id:crypto.randomUUID(),name:'기억하고 싶은 순간',bg:'#F3F8F5',els:[T(16,24,120,12,'사진 제목'),M('image',16,65.5,120,67),T(16,160,120,40,'사진 설명')]},
+    {id:crypto.randomUUID(),name:'영상 페이지',bg:'#FFFFFF',els:[M('video',16,64.8,120,67.5),T(16,24.4,120,19.7,'영상 제목'),T(16,138.3,120,68.8,'영상 설명'),{id:crypto.randomUUID(),type:'image',x:16,y:140,w:40,h:30,name:'',src:own}]},
+    {id:crypto.randomUUID(),name:'나의 노래',bg:'#FBF1EA',els:[T(16,24,120,12,'노래 제목'),M('audio',16,44,120,34),T(16,86,120,121,'가사')]}]}); });
+const nMedia=await st(()=>__db.media.length);
+await pg.goto(`${U}/editor/`); await pg.waitForSelector('#diGo'); await Promise.all([pg.waitForURL(/import=demo/), pg.click('#diGo')]);
+await pg.waitForSelector('#canvas .pg'); for(let t=0;t<60 && !(await st(()=>/옮겼어요|옮기지 못했/.test(document.getElementById('toast').innerText)));t++) await pg.waitForTimeout(150);
+const S=await st(()=>state.pages.map(p=>({n:p.name, slots:p.els.filter(e=>e.type==='slot').map(e=>[e.kind,e.x,e.y,e.w,e.h].join(',')), media:p.els.filter(e=>e.media_id).length, flow:!!p.flowFrom})));
+ok('견본 구조 책 옮기기 → 6쪽 그대로 · 2→3쪽 이어짐 유지', S.length===6 && S[2].flow && await st(()=>flowsInto(1)), JSON.stringify(S.map(x=>x.n)));
+ok('견본 미디어 4개 자리 → 같은 위치·크기·종류의 빈 「넣기」 자리', JSON.stringify([S[0].slots,S[3].slots,S[4].slots,S[5].slots])===JSON.stringify([['image,16,112.5,120,67'],['image,16,65.5,120,67'],['video,16,64.8,120,67.5'],['audio,16,44,120,34']]), JSON.stringify(S.map(x=>x.slots)));
+ok('내가 직접 넣은 사진은 올라가서 따라옴', S[4].media===1 && (await st(()=>__db.media.length))===nMedia+1);
+ok('안내: 「견본 책의 사진·영상·노래 4개는 … 빈 자리로 뒀어요」', /4개는 작가 저작권 때문에 빼고 빈 자리로/.test(await pg.locator('#toast').innerText()), await pg.locator('#toast').innerText());
+// 정선C가 한 그대로: 4쪽에서 「이미지」 단추로 사진 올리기 → 빈 자리에 들어가고 쪽이 밀리지 않음
+await pg.locator('.th').nth(3).click(); await pg.waitForTimeout(100);
+{ const png=await st(()=>new Promise(res=>{ const c=document.createElement('canvas'); c.width=80; c.height=50; c.getContext('2d').fillRect(0,0,80,50); c.toBlob(bl=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.readAsDataURL(bl); },'image/png'); }));
+  const [fc]=await Promise.all([pg.waitForEvent('filechooser'), pg.click('[data-add=image]')]); await fc.setFiles({name:'mine.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')});
+  for(let t=0;t<40 && (await st(()=>state.pages[3].els.some(e=>e.type==='image')))===false;t++) await pg.waitForTimeout(150); }
+ok('4쪽에서 사진을 올리면 → 그 쪽 빈 자리에 들어감 · 쪽이 늘거나 밀리지 않음', await st(()=>state.pages.length===6 && state.pages[3].els.some(e=>e.type==='image'&&e.media_id) && !state.pages[3].els.some(e=>e.type==='slot') && state.pages[3].name==='기억하고 싶은 순간'), JSON.stringify(await st(()=>state.pages.map(p=>p.name))));
 ok('처리방침에 「이 기기의 브라우저 저장 공간(IndexedDB)에만 임시로」 · 지우는 방법', /IndexedDB\)에만 임시로/.test(fs.readFileSync(ROOT+'/privacy/index.html','utf8')));
 console.log(errs.length?errs.join('\n'):'JS 오류 없음');
 await b.close(); srv.close();

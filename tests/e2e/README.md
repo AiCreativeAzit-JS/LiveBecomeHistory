@@ -21,7 +21,7 @@ done
 - `r02-test`: 5쪽 넘게 이어진 원고(32문단)의 대량 삭제·이어진 쪽 이동·복제·삭제·독립 글상자(수정요청서 1차 R02, T08~T10)
 - `r03-test`: 느린 저장 중 추가 수정·저장 중 이동·임시저장·인터넷 끊김과 재연결(수정요청서 1차 R03, T11·T12). 가짜 Supabase의 `window.__slowWrite`(ms)·`window.__failWrite`
 - `r04-test`: 15MB 아래·위 영상·노래를 화면용 전자책 안에 담기, 인터넷 없이 열기, 미디어 1건 담기 실패 안내(수정요청서 1차 R04 T13·T14, 2차 R08 T31)
-- `r05-test`: 체험 원고를 이 기기(IndexedDB)에만 임시 보관 → 이어 쓰기/지우고 새로 시작 → 로그인 뒤 「내 서재로 옮기기」(견본 미디어 제외)·「지우기」(수정요청서 1차 R05 T15 + 정선C 결정). 체험 화면을 여러 번 여는 시험은 `indexedDB.deleteDatabase('moa-demo')`로 매번 새 기기처럼 시작
+- `r05-test`: 체험 원고를 이 기기(IndexedDB)에만 임시 보관 → 이어 쓰기/지우고 새로 시작 → 로그인 뒤 「내 서재로 옮기기」(견본 미디어는 빈 자리로, 실제 견본 책과 같은 구조로 시험)·「지우기」(수정요청서 1차 R05 T15 + 정선C 결정). 체험 화면을 여러 번 여는 시험은 `indexedDB.deleteDatabase('moa-demo')`로 매번 새 기기처럼 시작
 - `r06-test`: 편집 중 창 크기 변경·최대화/복원·확대/축소·한글 조립 중(수정요청서 1차 R06, T16)
 - `r07-test`: 9:16·1:1·16:9 영상을 실제 비율 상자에 · 편집·미리보기·화면용 전자책·서가에서 전체 보기(수정요청서 2차 R07, T29). 시험 영상 `media/tall.webm`·`square.webm`
 - `r09-test`: 넣을 곳은 파일을 고른 순간에 — 올리는 동안 다른 쪽 이동·완료 순서 역전·쪽 삭제(수정요청서 2차 R09, T32). 가짜 Supabase `window.__mediaDelays`
@@ -29,4 +29,4 @@ done
 - `r10-test`: 발행 뒤 제목만 바꿔도 「다시 발행」·비밀 링크 「새로 고침」 감지, 발행본 제목 일치(수정요청서 2차 R10, T33)
 - `r11-test`: 마우스 없이 Tab·Enter·F2·Esc로 기존 제목·본문·설명 고치기(수정요청서 2차 R11, T34)
 - `alt-test`: 사진 설명(대체 텍스트) 쓰기·편집/내려받기/서가에 반영, 미리보기를 지금 쪽부터·「처음부터」(정선C 결정 2026-10-19)
-- 기준(2026-10-19): 위 30개 모두 FAIL 0 (flow-test 57개, dialog-test 14개, pick-test 22개, output-test 33개, ux-test 27개, photo2-test 15개, r02-test 34개, r03-test 12개, r04-test 9개, r05-test 17개, r06-test 12개, r07-test 7개, r08-test 4개, r09-test 6개, r10-test 8개, r11-test 13개 · r02-test는 39개)
+- 기준(2026-10-19): 위 30개 모두 FAIL 0 (flow-test 57개, dialog-test 14개, pick-test 22개, output-test 33개, ux-test 27개, photo2-test 15개, r02-test 34개, r03-test 12개, r04-test 9개, r05-test 22개, r06-test 12개, r07-test 7개, r08-test 4개, r09-test 6개, r10-test 8개, r11-test 13개 · r02-test는 39개)

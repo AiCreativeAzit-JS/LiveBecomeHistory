@@ -409,7 +409,7 @@ const studioURL = id => '../studio/?book='+encodeURIComponent(id);
 async function showDemoImport(){ const box=document.getElementById('demoImport'); if(!box||!window.DemoDraft) return; const d=await DemoDraft.get(); if(!d||!document.body.contains(box)) return;
   box.innerHTML=`<div style="background:#FFF7E0;border:1px solid #F0D9A0;border-radius:12px;padding:12px 14px;margin:6px 0 14px;line-height:1.7">✨ 로그인 전에 이 기기에서 체험하며 만든 책 「<b>${esc(d.title||'제목 없는 책')}</b>」이 남아 있어요.
     <div style="margin-top:8px"><button class="gold small" id="diGo">내 서재로 옮기기</button> <button class="ghost small" id="diDel">지우기</button></div>
-    <small style="color:#7B8A83">옮기면 새 책으로 저장돼요(견본 책의 사진·영상·노래는 작가 저작권 보호를 위해 빼고). 체험 책은 이 기기에만 있었어요.</small></div>`;
+    <small style="color:#7B8A83">옮기면 새 책으로 저장돼요. 견본 책의 사진·영상·노래는 작가 저작권 보호를 위해 빼고, 그 자리는 빈 「넣기」 자리로 남겨요. 체험 책은 이 기기에만 있었어요.</small></div>`;
   document.getElementById('diGo').onclick=()=>{ location.href='../studio/?new=1&import=demo'; };
   document.getElementById('diDel').onclick=async()=>{ if(!confirm('이 기기에 남은 체험 책을 지울까요?\n(지우면 되돌릴 수 없어요)')) return; await DemoDraft.clear(); box.innerHTML=''; toast('체험 책을 지웠어요'); }; }
 function newBook(){ // 책은 스튜디오에서 처음 저장할 때 만들어진다(들어갔다 그냥 나오면 생기지 않음)

@@ -1462,10 +1462,12 @@ async function keepDemo(){ const t=demoToken(); if(t===demoLocal) return; if(t==
 function resumeDemo(d){ const live=new Map(state.pages.flatMap(p=>p.els).filter(e=>e.media_id&&e.src).map(e=>[e.media_id,e.src]));
   state.title=d.title||state.title; state.pages=d.pages.map(p=>({...p, els:(p.els||[]).filter(e=>!e.media_id||live.has(e.media_id)).map(e=>e.media_id?{...e,src:live.get(e.media_id)}:e)}));
   state.cur=Math.min(d.cur||0,state.pages.length-1); state.sel=null; state.editing=false; history=[]; future=[]; renderAll(); demoLocal=demoToken(); toast('지난번 체험하던 책을 펼쳤어요'); }
-// 로그인한 뒤 「내 서재로 옮기기」(?new=1&import=demo): 체험 원고를 새 책으로. 견본 책의 사진·영상·노래(작가 저작권)는 옮기지 않는다
+// 로그인한 뒤 「내 서재로 옮기기」(?new=1&import=demo): 체험 원고를 새 책으로.
+// 견본 책의 사진·영상·노래(작가 저작권)는 옮기지 않고, 그 자리에 같은 위치·크기의 빈 「넣기」 자리를 둔다(내 것으로 채우면 쪽이 밀리지 않게)
 async function importDemo(){ const d=await DemoDraft.get(); if(!d){ toast('이 기기에 옮길 체험 책이 없어요'); return; }
   const ids=new Map(), nid=id=>{ if(!ids.has(id)) ids.set(id,uid()); return ids.get(id); };   // 쪽·상자 번호는 새로(견본 책의 번호와 겹치지 않게)
-  state.title=d.title||'제목 없는 책'; state.pages=d.pages.map(p=>({id:nid(p.id), name:p.name||'', bg:p.bg||'#FFFFFF', flowFrom:p.flowFrom?nid(p.flowFrom):null, els:(p.els||[]).filter(e=>!e.media_id).map(e=>({...e,id:uid()}))}));
+  state.title=d.title||'제목 없는 책'; state.pages=d.pages.map(p=>({id:nid(p.id), name:p.name||'', bg:p.bg||'#FFFFFF', flowFrom:p.flowFrom?nid(p.flowFrom):null, els:(p.els||[]).map(e=>e.media_id ? {id:uid(),type:'slot',kind:e.type,...(e.slot||{x:e.x,y:e.y,w:e.w,h:e.h})} : {...e,id:uid()})}));
+  const slots=d.pages.flatMap(p=>p.els||[]).filter(e=>e.media_id).length;
   state.cur=0; state.sel=null; history=[]; future=[]; renderAll();
   const media=state.pages.flatMap(p=>p.els).filter(e=>/^data:/.test(e.src||'')); let n=0, fail=0;
   for(const e of media){ n++; toast(`체험 책을 옮기는 중… (사진·영상·노래 ${n}/${media.length})`);
@@ -1473,7 +1475,7 @@ async function importDemo(){ const d=await DemoDraft.get(); if(!d){ toast('이 �
       const r=await uploadMedia(f,e.type); e.media_id=r.id; e.src=r.src; }
     catch(err){ console.error(err); fail++; state.pages.forEach(p=>{ p.els=p.els.filter(x=>x!==e); }); } }
   renderAll(); await saveNow(true);
-  if(BOOK && serialize()===lastSaved && !fail){ await DemoDraft.clear(); toast('체험하던 책을 내 서재로 옮겼어요'); }
+  if(BOOK && serialize()===lastSaved && !fail){ await DemoDraft.clear(); toast('체험하던 책을 내 서재로 옮겼어요'+(slots?` · 견본 책의 사진·영상·노래 ${slots}개는 작가 저작권 때문에 빼고 빈 자리로 뒀어요(눌러서 내 것을 넣어 보세요)`:'')); }
   else toast(fail?`${fail}개는 옮기지 못했어요 · 체험 책은 이 기기에 그대로 남겨 뒀어요`:'저장하지 못했어요. 인터넷 연결을 확인해 주세요'); }
 async function loadSample(){
   if(QS.get('blank')==='1'||!window.supabase||!window.MediaClient) return false;
