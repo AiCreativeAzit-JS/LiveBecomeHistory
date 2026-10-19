@@ -47,7 +47,7 @@
   .lh small{font-weight:600;color:var(--muted);background:var(--bg);padding:1px 8px;border-radius:999px;margin-left:6px}
   .th{display:block;width:100%;cursor:pointer;user-select:none;padding:8px;border-radius:12px;border:1.5px solid transparent;margin-bottom:8px;text-align:center;position:relative}
   .th:hover{background:var(--bg)} .th.on{background:var(--brand-soft);border-color:var(--brand)}
-  .th .no{position:absolute;left:11px;top:8px;font-size:11.5px;color:var(--muted);font-weight:600}
+  .th .no{position:absolute;left:11px;top:8px;font-size:11.5px;color:var(--muted);font-weight:600} .th .lk{font-size:10.5px}
   .th .mini{width:118px;margin:0 auto;box-shadow:0 1px 4px rgba(0,0,0,.14);pointer-events:none;border-radius:2px;overflow:hidden}
   .th .nm{display:block;font-size:12.5px;margin-top:7px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .th.on .nm{color:var(--brand-2);font-weight:600}
@@ -310,13 +310,6 @@
   <button class="opt" data-draft="resume"><b>이어 쓰기</b><span>남겨 둔 책을 다시 펼쳐요.</span></button>
   <button class="opt" data-draft="fresh"><b>지우고 새로 시작</b><span>이 기기에 남은 체험 책을 지워요.</span></button>
 </div></div>
-<div class="modal" id="dupDlg" hidden role="dialog" aria-modal="true" aria-labelledby="dupT"><div class="mbox">
-  <h3 id="dupT">어디에 복제할까요?</h3>
-  <p style="color:var(--muted);font-size:14.5px;margin:0 0 12px;line-height:1.65">이 쪽은 다음 쪽과 <b>글이 이어져</b> 있어요(긴 글이 저절로 다음 쪽으로 넘어간 쪽).</p>
-  <button class="opt" data-dup="below"><b id="dupBelow">바로 아래에 복제</b><span>복제본이 이어진 글 사이에 들어가서, 글 흐름이 여기서 나뉘어요.</span></button>
-  <button class="opt" data-dup="after"><b id="dupAfter">이어진 글이 끝난 뒤에 복제</b><span>글은 지금처럼 계속 이어져요.</span></button>
-  <div style="text-align:right"><button class="btn" id="dupClose">취소</button></div>
-</div></div>
 <div class="modal" id="exDlg" hidden role="dialog" aria-modal="true" aria-labelledby="exT"><div class="mbox">
   <h3 id="exT">어떻게 내려받을까요?</h3>
   <button class="opt" data-ex="screen"><b>📱 화면용 전자책 (HTML)</b><span>컴퓨터·휴대폰에서 열어 보는 책이에요. 사진·영상·노래가 파일 안에 담겨 바로 재생돼요.</span></button>
@@ -479,8 +472,8 @@ function renderThumbs(){
   const a=document.activeElement, th=a&&$('thumbs').contains(a)&&a.closest('.th');
   const fid=th&&th.dataset.id, fsub=th&&a!==th?(a.matches('[data-pick]')?'[data-pick]':a.dataset.act?`[data-act="${a.dataset.act}"]`:''):'';
   const ins=i=>`<button class="ins" data-ins="${i}" title="여기에 새 페이지 끼워 넣기" aria-label="${i}쪽 뒤에 새 페이지"></button>`;
-  $('thumbs').innerHTML = state.pages.map((p,i)=>`<div class="th ${i===state.cur?'on':''} ${state.picked.has(p.id)?'picked':''}" data-i="${i}" data-id="${p.id}" draggable="true" role="button" tabindex="0" aria-label="${i+1}쪽 ${esc(p.name)}"${i===state.cur?' aria-current="page"':''}>
-    <span class="no">${String(i+1).padStart(2,'0')}</span>
+  $('thumbs').innerHTML = state.pages.map((p,i)=>`<div class="th ${i===state.cur?'on':''} ${state.picked.has(p.id)?'picked':''}" data-i="${i}" data-id="${p.id}" draggable="true" role="button" tabindex="0" aria-label="${i+1}쪽 ${esc(p.name)}${i>0&&flowsInto(i-1)?' · 앞 쪽에서 글이 이어짐':''}"${i===state.cur?' aria-current="page"':''}>
+    <span class="no">${String(i+1).padStart(2,'0')}${i>0&&flowsInto(i-1)?' <span class="lk" title="앞 쪽에서 글이 이어지는 쪽">🔗</span>':''}</span>
     <button class="pick" data-pick title="여러 쪽 고르기 (Ctrl·Shift+클릭도 돼요)" aria-label="${i+1}쪽 고르기" aria-pressed="${state.picked.has(p.id)}">✓</button>
     <span class="acts"><button data-act="dup" title="복제" aria-label="${i+1}쪽 복제"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/></svg></button><button data-act="del" class="del" title="삭제 (Delete)" aria-label="${i+1}쪽 삭제"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></span>
     <div class="mini">${pageHTML(p,'thumb')}</div><span class="nm">${esc(p.name)}</span></div>${ins(i+1)}`).join('');
@@ -829,17 +822,12 @@ let ptIndex=0;
 function askPageType(i){ endEdit(); ptIndex=i; $('ptDlg').hidden=false; $('ptDlg').querySelector('.opt').focus(); }
 $('ptDlg').addEventListener('click',ev=>{ if(ev.target.id==='ptDlg'||ev.target.id==='ptClose'){ $('ptDlg').hidden=true; return; }
   const o=ev.target.closest('[data-pt]'); if(o){ $('ptDlg').hidden=true; insertPageAt(ptIndex,o.dataset.pt); } });
-// 복제본은 따로 한 쪽(이어짐 표시 없음). 보통은 바로 아래에.
-// 다음 쪽과 글이 이어진 쪽이면 어디에 둘지 묻는다: 바로 아래(글 흐름이 거기서 나뉨) / 이어진 글이 끝난 뒤(글은 계속 이어짐)
-let dupIndex=0;
-function dupPage(i, where){
-  let j=i; while(flowsInto(j)) j++;
-  if(j>i && !where){ dupIndex=i; endEdit(); $('dupBelow').textContent=`바로 아래(${i+2}쪽)에 복제`; $('dupAfter').textContent=`이어진 글이 끝난 뒤(${j+2}쪽)에 복제`; $('dupDlg').hidden=false; $('dupDlg').querySelector('.opt').focus(); return; }
-  const at=where==='after'?j+1:i+1;
+// 복제는 언제나 바로 아래에, 따로 한 쪽으로(이어짐 표시 없음). 다음 쪽과 글이 이어진 쪽이었으면 이어짐은 여기서 나뉜다고 알린다
+// (복제본을 지우거나 옮기면 원래 쪽들이 다시 붙어 이어진다)
+function dupPage(i){ const split=flowsInto(i);
   endEdit(); snap(); const c=JSON.parse(JSON.stringify(state.pages[i])); c.id=uid(); c.name=state.pages[i].name+' (복제)'; c.flowFrom=null; c.els.forEach(e=>{ e.id=uid(); delete e.cont; });
-  state.pages.splice(at,0,c); state.cur=at; state.sel=null; renderAll(); toast(`${at+1}쪽에 복제했어요`); }
-$('dupDlg').addEventListener('click',ev=>{ if(ev.target.id==='dupDlg'||ev.target.id==='dupClose'){ $('dupDlg').hidden=true; return; }
-  const o=ev.target.closest('[data-dup]'); if(o){ $('dupDlg').hidden=true; dupPage(dupIndex,o.dataset.dup); } });
+  state.pages.splice(i+1,0,c); state.cur=i+1; state.sel=null; renderAll();
+  toast(`${i+2}쪽에 복제했어요`+(split?` · ${i+1}쪽에서 이어지던 글은 여기서 나뉘어요(복제본을 지우면 다시 이어져요)`:'')); }
 // 지우는 쪽이 이어진 원고의 한 쪽이면, 그 쪽에서 이어지던 쪽을 지운 쪽의 앞쪽에 다시 잇는다(지운 쪽의 글만 빠지고 원고는 계속 이어짐)
 function relinkRemoved(ids){ const gone=new Map(state.pages.filter(p=>ids.has(p.id)).map(p=>[p.id,p.flowFrom||null]));
   const up=id=>{ for(let n=0; gone.has(id) && n<1000; n++) id=gone.get(id); return id; };
@@ -1190,7 +1178,7 @@ document.addEventListener('focusin',ev=>{ if(!ev.target.closest('[role=dialog],#
   document.querySelectorAll('[role=dialog][aria-modal=true],#pv').forEach(d=>back.observe(d,{attributes:true,attributeFilter:['hidden']})); }
 document.addEventListener('keydown',ev=>{
   const typing = state.editing || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
-  if(ev.key==='Escape'){ ['ptDlg','exDlg','shDlg','joinDlg','dupDlg'].forEach(id=>$(id).hidden=true); if(!$('ctx').hidden||!$('fslist').hidden){ closeCtx(); closeFsList(); return; } if(!$('pv').hidden){ closePV(); return; } if(state.editing){ const id=state.sel; endEdit(); elNode(id)?.focus({preventScroll:true}); } else if(state.sel){ state.sel=null; decorate('__none'); renderPanels(); } return; }
+  if(ev.key==='Escape'){ ['ptDlg','exDlg','shDlg','joinDlg'].forEach(id=>$(id).hidden=true); if(!$('ctx').hidden||!$('fslist').hidden){ closeCtx(); closeFsList(); return; } if(!$('pv').hidden){ closePV(); return; } if(state.editing){ const id=state.sel; endEdit(); elNode(id)?.focus({preventScroll:true}); } else if(state.sel){ state.sel=null; decorate('__none'); renderPanels(); } return; }
   if(modalOpen()) return;
   // 글을 쓰는 중에도 Ctrl+Z·Ctrl+Y는 툴바와 같은 앱 기록을 쓴다(제목·쪽 이름 칸은 칸 자체 되돌리기). 한글 자판이어도 키 위치로 판단
   if((ev.ctrlKey||ev.metaKey) && !ev.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)){
