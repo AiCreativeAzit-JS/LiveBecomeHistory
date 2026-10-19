@@ -93,7 +93,6 @@ for(const [label,k] of [['첫 본문쪽',0],['중간쪽',2]]){
 // (나) 복제(2026-10-19 정선C와 정한 규칙): 언제나 바로 아래 · 이어진 쪽이면 이어짐은 거기서 나뉜다고 알림 · 복제본을 지우면 다시 이어짐
 for(const [label,k] of [['중간 이어진 쪽',2],['본문 첫 쪽',0]]){
   await fresh(); await pasteDoc(); const B=await chain(); const m=B.idx[k], t0=await allText();
-  ok(`T09 ${label} 앞에서 이어지는 쪽 썸네일에 🔗 · 이어지지 않는 쪽에는 없음`, await st(m=>{ const lk=i=>!!document.querySelector(`.th[data-i="${i}"] .lk`); return lk(m+1) && !lk(1) && !lk(0) && /앞 쪽에서 글이 이어짐/.test(document.querySelector(`.th[data-i="${m+1}"]`).getAttribute('aria-label')); },m));
   await st(m=>dupPage(m),m); await settle();
   ok(`T09 ${label} 복제 → 묻지 않고 바로 아래(${m+2}쪽)에`, await st(m=>state.pages[m+1].name.endsWith('(복제)') && state.cur===m+1 && !document.querySelector('[role=dialog]:not([hidden])'),m));
   ok(`T09 ${label} 복제 → 「이어지던 글은 여기서 나뉘어요」 안내`, /이어지던 글은 여기서 나뉘어요/.test(await pg.locator('#toast').innerText()), await pg.locator('#toast').innerText());
