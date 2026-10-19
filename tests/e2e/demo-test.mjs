@@ -36,7 +36,8 @@ ok('체험: 서버 호출 없음(media 함수·저장소)', await pg.evaluate(()
 // 내려받기
 await pg.click('#btnExport'); const [dl]=await Promise.all([pg.waitForEvent('download'), pg.click('[data-ex=screen]')]);
 ok('체험: 화면용 HTML 내려받기(사진 포함)', await (async()=>{ const t=fs.readFileSync(await dl.path(),'utf8'); return /<html/i.test(t) && t.includes('data:image/png;base64'); })());
-// 떠날 때 묻기
+// 떠날 때 묻기(내려받은 뒤 그대로면 묻지 않으므로, 한 군데 더 고친 뒤)
+await pg.evaluate(()=>{ snap(); state.title='내려받은 뒤 고친 제목'; });
 let asked=false; pg.on('dialog',d=>{ asked = d.type()==='beforeunload'; d.dismiss().catch(()=>{}); });
 await pg.click('#home'); await pg.waitForTimeout(800);
 ok('고친 뒤 떠나려 하면 한 번 묻기', asked && new URL(pg.url()).pathname==='/studio/');
