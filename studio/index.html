@@ -414,6 +414,10 @@ function qrSVG(text){ try{ const q=qrcode(0,'M'); q.addData(text); q.make(); ret
 function qrBlock(e){ const what=e.type==='video'?'영상':'노래', link=mediaLink(e), svg=link?qrSVG(link):'';
   if(!svg) return `<div class="qr noqr"><div class="qrt"><b>${what}</b><br>이 자리의 ${what}은<br>화면용 전자책에서 ${e.type==='video'?'볼':'들을'} 수 있어요</div></div>`; // 열 곳 없는 QR은 넣지 않는다
   return `<div class="qr">${svg}<div class="qrt"><b>${what}</b><br>휴대폰 카메라로 찍으면<br>${what}이 재생돼요</div></div>`; }
+function elLabel(e){ const w={image:'사진',video:'영상',audio:'노래'}[e.kind||e.type];
+  if(e.type==='text'){ const t=plain(e.html).replace(/\s+/g,' ').trim(); return `글상자: ${t?t.slice(0,30)+(t.length>30?'…':''):(e.ph?'(비어 있음) '+e.ph.split('\n')[0].slice(0,30):'(비어 있음)')} · Enter로 고치기`; }
+  if(e.type==='slot') return `${w} 자리 · Enter로 ${w} 넣기`;
+  return `${w} · 방향키로 옮기기, Delete로 지우기`; }
 function elHTML(e, mode){ // mode: edit | thumb | view | print
   if(mode==='print'){ if(e.type==='video'||e.type==='audio') return `<div class="el m" style="${elStyle(e)}">${qrBlock(e)}</div>`; mode='view'; }
   const ed = mode==='edit', view = mode==='view';
@@ -426,7 +430,8 @@ function elHTML(e, mode){ // mode: edit | thumb | view | print
   else if(e.type==='audio') inner = view ? `<div class="ap" data-src="${esc(e.src)}"><button type="button" class="ap-btn" aria-label="재생">▶</button><div class="ap-bar" aria-hidden="true"><i></i></div><span class="ap-t">0:00</span></div>`
     : `<div class="audio"><div class="ic">${ICON.music}</div><div class="bars">${bars()}</div><div class="lb">노래</div></div>`;
   const empty = e.type==='text' && !plain(e.html) ? ' empty' : '';
-  return `<div class="el ${e.type==='text'?'t':e.type==='slot'?'s':'m'}${empty}" data-id="${e.id}" style="${elStyle(e)}">${inner}</div>`;
+  const kb = ed ? ` tabindex="0" role="button" aria-label="${esc(elLabel(e))}"` : '';   // 키보드: Tab으로 찾아가 Enter로 고치기(R11)
+  return `<div class="el ${e.type==='text'?'t':e.type==='slot'?'s':'m'}${empty}" data-id="${e.id}" style="${elStyle(e)}"${kb}>${inner}</div>`;
 }
 function pageHTML(p, mode){ return `<div class="pg" style="background:${p.bg}">${p.els.map(e=>elHTML(e,mode)).join('')}</div>`; }
 // 글상자 안 서식은 아주 작은 허용 목록만 (붙여넣은 글의 위험한 코드를 막는다)
@@ -473,6 +478,7 @@ function renderThumbs(){
 function pageWidthPx(){ return Math.round(PW*3.7795*state.zoom); }
 function fitZoom(){ const c=$('center'); const availH=c.clientHeight-130, availW=c.clientWidth-60; return Math.max(.45,Math.min(1.4,Math.min(availH/(PH*3.7795),availW/(PW*3.7795)))); }
 function renderCanvas(){
+  const af=document.activeElement, fid=af&&af.classList&&af.classList.contains('el')&&af.closest('#canvas')?af.dataset.id:null; // 키보드로 고르던 상자
   if(!state.zoom) state.zoom=fitZoom();
   const p=page();
   $('canvasWrap').innerHTML = `<div class="canvas" id="canvas" style="width:${pageWidthPx()}px">${pageHTML(p,'edit')}</div>`;
@@ -481,6 +487,7 @@ function renderCanvas(){
   $('zVal').textContent = Math.round(state.zoom*100)+'%';
   p.els.forEach(e=>{ if(e.type==='text') checkOver(e.id); });
   if(state.sel) decorate(state.sel);
+  if(fid && !state.editing) (elNode(fid)||$('canvas').querySelector('.el'))?.focus({preventScroll:true});   // 지워졌으면 첫 상자로
 }
 function renderBottom(){ $('pos').textContent = `${state.cur+1} / ${state.pages.length} 페이지`; $('pPrev').disabled = state.cur===0; $('pNext').disabled = state.cur===state.pages.length-1; }
 const elNode = id => document.querySelector(`#canvas .el[data-id="${id}"]`);
@@ -561,7 +568,7 @@ function endEdit(){
   if(!state.editing) return; const e=selEl(); const n=e&&elNode(e.id); state.editing=false; hideMini();
   if(n){ const tx=n.querySelector('.tx'); tx.contentEditable='false'; e.html=sanitizeText(tx.innerHTML);
     if(!tx.textContent.trim()) e.html='';        // 비어 있어도 글상자는 그대로 둔다
-    tx.innerHTML=sanitizeText(e.html); n.classList.toggle('empty',!e.html);
+    tx.innerHTML=sanitizeText(e.html); n.classList.toggle('empty',!e.html); n.setAttribute('aria-label',elLabel(e));   // 키보드·화면 읽기: 고친 글로 이름도
     decorate(e.id); renderThumbs(); }
   getSelection().removeAllRanges(); $('hint').textContent=HINT;
 }
@@ -1161,7 +1168,7 @@ document.addEventListener('focusin',ev=>{ if(!ev.target.closest('[role=dialog],#
   document.querySelectorAll('[role=dialog][aria-modal=true],#pv').forEach(d=>back.observe(d,{attributes:true,attributeFilter:['hidden']})); }
 document.addEventListener('keydown',ev=>{
   const typing = state.editing || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
-  if(ev.key==='Escape'){ ['ptDlg','exDlg','shDlg','joinDlg'].forEach(id=>$(id).hidden=true); if(!$('ctx').hidden||!$('fslist').hidden){ closeCtx(); closeFsList(); return; } if(!$('pv').hidden){ closePV(); return; } if(state.editing) endEdit(); else if(state.sel){ state.sel=null; decorate('__none'); renderPanels(); } return; }
+  if(ev.key==='Escape'){ ['ptDlg','exDlg','shDlg','joinDlg'].forEach(id=>$(id).hidden=true); if(!$('ctx').hidden||!$('fslist').hidden){ closeCtx(); closeFsList(); return; } if(!$('pv').hidden){ closePV(); return; } if(state.editing){ const id=state.sel; endEdit(); elNode(id)?.focus({preventScroll:true}); } else if(state.sel){ state.sel=null; decorate('__none'); renderPanels(); } return; }
   if(modalOpen()) return;
   // 글을 쓰는 중에도 Ctrl+Z·Ctrl+Y는 툴바와 같은 앱 기록을 쓴다(제목·쪽 이름 칸은 칸 자체 되돌리기). 한글 자판이어도 키 위치로 판단
   if((ev.ctrlKey||ev.metaKey) && !ev.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)){
@@ -1173,6 +1180,11 @@ document.addEventListener('keydown',ev=>{
   if(ev.key==='Delete'||ev.key==='Backspace'){ ev.preventDefault(); delEl(); }
   else if(ev.key.startsWith('Arrow')){ ev.preventDefault(); snap(); const s=ev.shiftKey?5:1; if(ev.key==='ArrowLeft') e.x=Math.max(LIM.x0,e.x-s); if(ev.key==='ArrowRight') e.x=Math.min(LIM.x1-e.w,e.x+s); if(ev.key==='ArrowUp') e.y=Math.max(LIM.y0,e.y-s); if(ev.key==='ArrowDown') e.y=Math.min(LIM.y1-e.h,e.y+s); elNode(e.id).style.cssText=elStyle(e); decorate(e.id); renderThumbs(); }
 });
+$('center').addEventListener('focusin',ev=>{ const n=ev.target; if(!n.classList||!n.classList.contains('el')||!n.closest('#canvas')) return;   // 상자 자체에 포커스(글 쓰는 칸 말고)
+  if(state.editing && state.sel===n.dataset.id) return; if(state.editing) endEdit(); if(state.sel!==n.dataset.id) select(n.dataset.id); });
+$('center').addEventListener('keydown',ev=>{ const n=ev.target; if(!n.classList||!n.classList.contains('el')||!n.closest('#canvas')||state.editing) return;
+  if(ev.key!=='Enter'&&ev.key!=='F2') return; ev.preventDefault(); ev.stopPropagation(); const e=page().els.find(x=>x.id===n.dataset.id); if(!e) return;
+  if(e.type==='text') startEdit(e.id); else if(e.type==='slot') pickMedia(e.kind||'image', e.id); });
 document.addEventListener('focusout',ev=>{ if(state.editing&&ev.target.classList&&ev.target.classList.contains('tx')){ setTimeout(()=>{ if(state.editing&&!document.activeElement.classList.contains('tx')&&!document.activeElement.closest('#secSel, #mini')) endEdit(); },0); } });
 window.addEventListener('resize',()=>{ clearTimeout(window._rz); window._rz=setTimeout(()=>{ state.zoom=fitZoom(); redrawCanvas(); },150); });
 
