@@ -3,6 +3,8 @@
 import { R2_PREFIX, r2ViewUrl } from "./r2.ts";
 
 export const BUCKET = "book-media";
+// 사진의 인쇄용 원본(두 벌 보관): 화면용 키 "uid/book/uuid.jpg" ↔ 인쇄용 "uid/book/uuid@print.jpg"(같은 폴더)
+export const printKey = (key: string) => key.replace(/(\.[a-z0-9]{1,8})$/i, "@print$1");
 export type MediaRow = { id: string; owner_id: string; storage_path: string | null };
 
 export function pathOk(m: MediaRow) {

@@ -66,7 +66,7 @@ const qrs=h=>(h.match(/<div class="qr"><svg/g)||[]).length, noqrs=h=>(h.match(/c
     ok('T23 인쇄용: 「찍으면 재생돼요」·서가 첫 화면 주소 없음', !/찍으면/.test(h) && !/shelf\//.test(h)); }
   await pg.keyboard.press('Escape');
 
-  // ── F09 · T25 투명 PNG: 1920px 아래·경계·위 모두 투명 유지, 출력도 같음 ──
+  // ── F09 · T25 투명 PNG: 화면용 크기(1400px) 아래·경계·위 모두 투명 유지, 출력도 같음 ──
   await st(()=>{ state.pages[2].bg='#16261F'; renderAll(); });
   const mk=(n,alpha)=>st(([n,alpha])=>new Promise(res=>{ const c=document.createElement('canvas'); c.width=c.height=n; const g=c.getContext('2d');
     if(!alpha){ g.fillStyle='#E9D8A6'; g.fillRect(0,0,n,n); } g.fillStyle='#C0392B'; g.beginPath(); g.arc(n/2,n/2,n/3,0,7); g.fill();
@@ -75,18 +75,18 @@ const qrs=h=>(h.match(/<div class="qr"><svg/g)||[]).length, noqrs=h=>(h.match(/c
     im.onload=()=>{ const c=document.createElement('canvas'); c.width=im.naturalWidth; c.height=im.naturalHeight; const g=c.getContext('2d'); g.drawImage(im,0,0);
       res({type:e.src.slice(5,e.src.indexOf(';')), w:im.naturalWidth, corner:g.getImageData(1,1,1,1).data[3], mid:g.getImageData(c.width>>1,c.height>>1,1,1).data[3]}); }; im.src=e.src; }));
   const results={};
-  for(const n of [1200,1920,2200]){
+  for(const n of [1200,1400,2200]){
     const s3b=await slotOf(2); await put('image',s3b,{name:`alpha-${n}.png`,mimeType:'image/png',buffer:Buffer.from(await mk(n,true),'base64')}); await pg.waitForTimeout(400);
     const r=await look(); results[n]=r;
     ok(`T25 투명 PNG ${n}px → PNG·바탕 투명 그대로(모서리 투명, 가운데 불투명)`, r && r.type==='image/png' && r.corner===0 && r.mid===255, JSON.stringify(r));
-    ok(`T25 ${n}px → 긴 변 ${Math.min(n,1920)}px`, r && r.w===Math.min(n,1920), JSON.stringify(r));
-    if(n===2200){ ok('T25 2200px 「넣었어요」 안내에 줄인 사실 + 「투명한 바탕은 그대로」', /넣었어요.*1920px로 줄였어요.*투명한 바탕은 그대로/.test(await toastNow()), await toastNow());
+    ok(`T25 ${n}px → 긴 변 ${Math.min(n,1400)}px`, r && r.w===Math.min(n,1400), JSON.stringify(r));
+    if(n===2200){ ok('T25 2200px 「넣었어요」 안내에 줄인 사실 + 「투명한 바탕은 그대로」', /넣었어요.*줄였어요.*투명한 바탕은 그대로/.test(await toastNow()), await toastNow());
       const scr=await download(pg,'screen'), prt=await download(pg,'print'); const src=await st(()=>state.pages[2].els.find(e=>e.type==='image').src);
       ok('T25 내보내기(화면용·인쇄용)에도 같은 투명 PNG', scr.h.includes(src.slice(0,200)) && prt.h.includes(src.slice(0,200)) && src.startsWith('data:image/png')); }
     await pg.keyboard.press('Control+z'); await pg.waitForTimeout(150);
   }
   { const s3b=await slotOf(2); await put('image',s3b,{name:'photo-2200.png',mimeType:'image/png',buffer:Buffer.from(await mk(2200,false),'base64')}); await pg.waitForTimeout(400);
-    const r=await look(); ok('대조: 투명 없는 큰 PNG(일반 사진)는 전처럼 1920px JPEG로 줄임', r && r.type==='image/jpeg' && r.w===1920, JSON.stringify(r)); }
+    const r=await look(); ok('대조: 투명 없는 큰 PNG(일반 사진)는 화면용 1400px JPEG로 줄임', r && r.type==='image/jpeg' && r.w===1400, JSON.stringify(r)); }
   await ctx.close(); }
 
 /* ═════ 2) 로그인 책: 미발행 → 비밀 링크 → 발행 뒤 새로 넣은 노래 → 서가 발행 (T24) ═════ */

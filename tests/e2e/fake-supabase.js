@@ -77,16 +77,18 @@
         const canSee=m=>{ const bk=db.books.find(x=>x.id===m.book_id); return bk&&(bk.owner_id===uidNow||isAdm||(bk.is_public&&!bk.admin_hidden&&!bk.deleted_at)); };
         const url=m=>files[m.storage_path]?URL.createObjectURL(files[m.storage_path]):'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
         (window.__mediaCalls=window.__mediaCalls||[]).push(body);
-        if(body.action==='sign'){ const urls={}; db.media.filter(m=>body.ids.includes(m.id)&&m.storage_path&&canSee(m)).forEach(m=>urls[m.id]=url(m)); return {data:{urls},error:null}; }
+        const printKey=k=>k.replace(/(\.[a-z0-9]{1,8})$/i,'@print$1'); // 사진 두 벌 보관: 인쇄용 원본
+        if(body.action==='sign'){ const urls={}; db.media.filter(m=>body.ids.includes(m.id)&&m.storage_path&&canSee(m)).forEach(m=>{ const pk=printKey(m.storage_path);
+            urls[m.id]= body.variant==='print'&&m.owner_id===uidNow&&m.kind==='image'&&files[pk] ? url({storage_path:pk}) : url(m); }); return {data:{urls},error:null}; }
         if(!uidNow) return {data:{error:'unauthorized'},error:null};
         if(body.action==='migrate'){ if(!isAdm) return {data:{error:'forbidden'},error:null};
           const old=db.media.filter(m=>m.storage_path&&!m.storage_path.startsWith('r2:')); const now=old.slice(0,body.limit||10); now.forEach(m=>m.storage_path='r2:'+m.storage_path); persist();
           return {data:{moved:now.length,failed:[],remaining:old.length-now.length},error:null}; }
         const bk=db.books.find(x=>x.id===body.book_id&&x.owner_id===uidNow); if(!bk) return {data:{error:'forbidden'},error:null};
         if(body.action==='upload'){ const used=db.media.filter(m=>m.book_id===bk.id).reduce((n,m)=>n+Number(m.size_bytes||0),0); if(used+body.size>200*1048576) return {data:{error:'quota'},error:null};
-          return {data:{backend:'supabase',key:`${uidNow}/${bk.id}/${uid()}.${body.ext}`},error:null}; }
-        if(body.action==='commit'){ const f=files[body.key]; if(!f) return {data:{error:'missing'},error:null};
-          const d={id:uid(),book_id:bk.id,owner_id:uidNow,kind:body.kind,storage_path:body.key,size_bytes:f.size,created_at:new Date().toISOString()}; db.media.push(d); persist(); return {data:{media:d,url:url(d)},error:null}; }
+          const key=`${uidNow}/${bk.id}/${uid()}.${body.ext}`; return {data:{backend:'supabase',key,...(body.print&&body.kind==='image'&&!window.__oldMediaFn?{print_key:printKey(key)}:{})},error:null}; }
+        if(body.action==='commit'){ const f=files[body.key], pf=body.print_key&&files[printKey(body.key)]; if(!f||(body.print_key&&!pf)) return {data:{error:'missing'},error:null};
+          const d={id:uid(),book_id:bk.id,owner_id:uidNow,kind:body.kind,storage_path:body.key,size_bytes:f.size+(pf?pf.size:0),created_at:new Date().toISOString()}; db.media.push(d); persist(); return {data:{media:d,url:url(d)},error:null}; }
         if(body.action==='purge'){ let n=0; db.media.filter(m=>m.book_id===bk.id).forEach(m=>{ if(files[m.storage_path]){ delete files[m.storage_path]; } n++; }); window.__purged=(window.__purged||[]).concat(bk.id); return {data:{files:n},error:null}; }
         return {data:null,error:{message:'action'}};
       }

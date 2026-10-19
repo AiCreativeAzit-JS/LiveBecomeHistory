@@ -2,14 +2,17 @@
 // - verify_jwt=false: 로그인하지 않은 서가 독자도 '공개된 책'의 파일 주소는 받아야 해서. 로그인 여부는 함수 안에서 확인한다.
 // - 누가 어떤 파일을 볼 수 있는지는 DB 규칙(RLS)이 정한다: 부른 사람의 권한으로 media 기록을 읽어서, 읽히는 것만 서명한다.
 // - 동작(action)
-//   sign    { ids, ttl }                       → { urls }        볼 수 있는 파일의 임시 주소(공개 책 1시간, 내 책 최대 7일)
-//   upload  { book_id, kind, type, size, ext } → { backend, key, url? }  올릴 자리(내 책만). R2면 PUT 서명 주소(10분, 크기·종류 고정)
-//   commit  { book_id, kind, key, backend, ttl } → { media, url } 올린 파일을 확인(크기·종류)하고 기록을 만든다
+//   sign    { ids, ttl, variant? }             → { urls }        볼 수 있는 파일의 임시 주소(공개 책 1시간, 내 책 최대 7일)
+//           variant:'print' → 내 책 사진은 인쇄용 원본 주소(없으면 화면용). 남의 책에는 주지 않는다(원본 보호)
+//   upload  { book_id, kind, type, size, ext, print? } → { backend, key, url?, print_key?, print_url? }  올릴 자리(내 책만).
+//           R2면 PUT 서명 주소(10분, 크기·종류 고정). 사진은 print:{size}를 주면 인쇄용 원본 자리도 함께(두 벌 보관)
+//   commit  { book_id, kind, key, backend, ttl, print_key? } → { media, url } 올린 파일(두 벌이면 둘 다)을 확인하고 기록을 만든다.
+//           size_bytes = 두 벌 합계(용량 한도·관리자 저장 공간 계산이 두 벌을 함께 센다)
 //   purge   { book_id }                        → { files }       책을 완전히 지우기 전에 그 책의 파일을 모두 지운다(내 책만)
 //   migrate { limit }                          → { moved, remaining }  관리자: 예전 저장소 파일을 R2로 옮긴다
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { R2_PREFIX, r2Ready, r2Url, r2Head, r2Delete, r2Put, r2DeletePrefix } from "../_shared/r2.ts";
-import { BUCKET, signRows } from "../_shared/sign.ts";
+import { BUCKET, printKey, signRows } from "../_shared/sign.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -55,10 +58,17 @@ Deno.serve(async (req: Request) => {
       case "sign": {
         const ids = (Array.isArray(body.ids) ? body.ids : []).filter(isUuid).slice(0, 500);
         if (!ids.length) return json({ urls: {} });
-        const { data: rows, error } = await user.from("media").select("id,owner_id,storage_path").in("id", ids);
+        const { data: rows, error } = await user.from("media").select("id,owner_id,storage_path,kind").in("id", ids);
         if (error) return json({ error: "read_failed" });
         const uid = await me();
-        const mine = (rows ?? []).filter((m) => uid && m.owner_id === uid);
+        let mine = (rows ?? []).filter((m) => uid && m.owner_id === uid);
+        if (body.variant === "print" && r2Ready()) { // 내 사진만 인쇄용 원본으로 바꿔 서명(예전 사진처럼 없으면 화면용 그대로)
+          mine = await Promise.all(mine.map(async (m) => {
+            if (m.kind !== "image" || !m.storage_path?.startsWith(R2_PREFIX)) return m;
+            const pk = printKey(m.storage_path.slice(R2_PREFIX.length));
+            return (await r2Head(pk)) ? { ...m, storage_path: R2_PREFIX + pk } : m;
+          }));
+        }
         const others = (rows ?? []).filter((m) => !(uid && m.owner_id === uid));
         const urls = {
           ...(await signRows(admin, others, clampTtl(body.ttl, 3600))), // 남의 책(공개 서가·관리자): 1시간까지
@@ -73,14 +83,18 @@ Deno.serve(async (req: Request) => {
         const size = Number(body.size);
         if (!(kind in LIMIT) || typeof type !== "string" || !type.startsWith(kind + "/") || type.length > 100) return json({ error: "type" });
         if (!(size > 0) || size > LIMIT[kind]) return json({ error: "too_big" });
+        const pSize = kind === "image" && body.print ? Number(body.print.size) : 0; // 인쇄용 원본(사진만, 화면용과 같은 종류)
+        if (body.print && kind === "image" && (!(pSize > 0) || pSize > LIMIT.image)) return json({ error: "too_big" });
         if (!(await myBook(uid, book_id))) return json({ error: "forbidden" });
         const { data: used } = await user.from("media").select("size_bytes").eq("book_id", book_id);
-        if ((used ?? []).reduce((n, m) => n + Number(m.size_bytes || 0), 0) + size > BOOK_QUOTA) return json({ error: "quota" });
+        if ((used ?? []).reduce((n, m) => n + Number(m.size_bytes || 0), 0) + size + pSize > BOOK_QUOTA) return json({ error: "quota" });
         const ext = String(body.ext ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || "bin";
         const key = `${uid}/${book_id}/${crypto.randomUUID()}.${ext}`;
-        if (!r2Ready()) return json({ backend: "supabase", key });
+        if (!r2Ready()) return json({ backend: "supabase", key }); // 예전 저장소는 한 벌만
         const url = await r2Url("PUT", key, 600, { "content-type": type, "content-length": String(size) });
-        return json({ backend: "r2", key, url, headers: { "Content-Type": type } });
+        const out: any = { backend: "r2", key, url, headers: { "Content-Type": type } };
+        if (pSize) { out.print_key = printKey(key); out.print_url = await r2Url("PUT", out.print_key, 600, { "content-type": type, "content-length": String(pSize) }); }
+        return json(out);
       }
       case "commit": {
         const uid = await me();
@@ -88,23 +102,26 @@ Deno.serve(async (req: Request) => {
         const { book_id, kind, key, backend } = body;
         if (!(kind in LIMIT) || !(await myBook(uid, book_id))) return json({ error: "forbidden" });
         if (typeof key !== "string" || !new RegExp(`^${uid}/${book_id}/${UUID}\\.[a-z0-9]{1,8}$`, "i").test(key)) return json({ error: "forbidden" });
-        let info: { size: number; type: string } | null = null;
+        let info: { size: number; type: string } | null = null, pinfo: { size: number; type: string } | null = null;
         const r2 = backend === "r2";
+        const pk = r2 && kind === "image" && body.print_key ? printKey(key) : null;
+        if (pk && body.print_key !== pk) return json({ error: "forbidden" });
         if (r2) {
           if (!r2Ready()) return json({ error: "not_configured" });
-          info = await r2Head(key);
+          [info, pinfo] = await Promise.all([r2Head(key), pk ? r2Head(pk) : null]);
         } else {
           const dir = key.slice(0, key.lastIndexOf("/")), name = key.slice(key.lastIndexOf("/") + 1);
           const { data } = await admin.storage.from(BUCKET).list(dir, { search: name, limit: 5 });
           const f = (data ?? []).find((x: any) => x.name === name);
           if (f) info = { size: Number(f.metadata?.size ?? -1), type: String(f.metadata?.mimetype ?? "") };
         }
-        const drop = () => r2 ? r2Delete(key) : admin.storage.from(BUCKET).remove([key]);
-        if (!info) return json({ error: "missing" });
-        if (!(info.size > 0) || info.size > LIMIT[kind] || !info.type.startsWith(kind + "/")) { await drop(); return json({ error: "too_big" }); }
+        const drop = () => r2 ? Promise.all([r2Delete(key), pk ? r2Delete(pk) : true]) : admin.storage.from(BUCKET).remove([key]);
+        if (!info || (pk && !pinfo)) { await drop(); return json({ error: "missing" }); } // 두 벌이면 둘 다 있어야
+        const bad = (f: { size: number; type: string }) => !(f.size > 0) || f.size > LIMIT[kind] || !f.type.startsWith(kind + "/");
+        if (bad(info) || (pinfo && bad(pinfo))) { await drop(); return json({ error: "too_big" }); }
         const path = r2 ? R2_PREFIX + key : key;
         const { data: media, error } = await user.from("media")
-          .insert({ book_id, owner_id: uid, kind, storage_path: path, size_bytes: info.size }).select().single();
+          .insert({ book_id, owner_id: uid, kind, storage_path: path, size_bytes: info.size + (pinfo?.size ?? 0) }).select().single();
         if (error) { await drop(); return json({ error: error.code === "54000" ? "quota" : "insert_failed" }); }
         const urls = await signRows(admin, [media], clampTtl(body.ttl, 604800));
         return json({ media, url: urls[media.id] ?? null });

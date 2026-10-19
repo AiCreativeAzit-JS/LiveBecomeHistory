@@ -59,5 +59,30 @@ R2[`u1/${B2}/z.jpg`]={size:1,type:'image/jpeg'};
 ok('purge: 남의 책 거절', (await call({action:'purge',book_id:B2},'jwt-u1')).error==='forbidden');
 const pg=await call({action:'purge',book_id:B1},'jwt-u1');
 ok('purge: 내 책 폴더만 비움', pg.files===2 && !Object.keys(R2).some(k=>k.startsWith(`u1/${B1}/`)) && R2[`u1/${B2}/z.jpg`]);
+// ── 사진 두 벌 보관(화면용 display + 인쇄용 print) ──
+const B3='55555555-5555-4555-8555-555555555555'; S.books.push({id:B3,owner_id:'u1',is_public:true});
+const put=(url,size,headers)=>fetch(url,{method:'PUT',body:new Blob([new Uint8Array(size)]),headers});
+const u3=await call({action:'upload',book_id:B3,kind:'image',type:'image/jpeg',size:300,ext:'jpg',print:{size:1500}},'jwt-u1');
+ok('두 벌: upload가 인쇄용 자리(같은 폴더 @print)도 발급', u3.print_key===u3.key.replace(/\.jpg$/,'@print.jpg') && u3.print_url.includes('X-Amz-SignedHeaders=content-length%3Bcontent-type%3Bhost'));
+ok('두 벌: 영상·노래에는 인쇄용 자리 없음', !(await call({action:'upload',book_id:B3,kind:'audio',type:'audio/mpeg',size:300,ext:'mp3',print:{size:1500}},'jwt-u1')).print_key);
+ok('두 벌: 인쇄용이 한도(15MB) 넘으면 거절', (await call({action:'upload',book_id:B3,kind:'image',type:'image/jpeg',size:300,ext:'jpg',print:{size:16*1048576}},'jwt-u1')).error==='too_big');
+await put(u3.url,300,u3.headers); await put(u3.print_url,1500,u3.headers);
+ok('두 벌: 인쇄용 키를 바꿔 보내면 거절', (await call({action:'commit',book_id:B3,kind:'image',key:u3.key,backend:'r2',print_key:`u1/${B3}/${crypto.randomUUID()}@print.jpg`},'jwt-u1')).error==='forbidden');
+const c3=await call({action:'commit',book_id:B3,kind:'image',key:u3.key,backend:'r2',print_key:u3.print_key},'jwt-u1');
+ok('두 벌: commit → 기록은 화면용 경로 · 크기는 두 벌 합계', c3.media?.storage_path==='r2:'+u3.key && c3.media.size_bytes===1800 && c3.url.includes(encodeURI(u3.key.split('/').pop())));
+{ const u4=await call({action:'upload',book_id:B3,kind:'image',type:'image/jpeg',size:300,ext:'jpg',print:{size:1500}},'jwt-u1'); await put(u4.url,300,u4.headers);
+  const c4=await call({action:'commit',book_id:B3,kind:'image',key:u4.key,backend:'r2',print_key:u4.print_key},'jwt-u1');
+  ok('두 벌: 인쇄용이 안 올라왔으면 거절하고 화면용도 지움', c4.error==='missing' && !R2[u4.key]); }
+const id3=c3.media.id, nm=k=>k.split('/').pop();
+const signAs=async(jwt,variant)=>(await call({action:'sign',ids:[id3],ttl:3600,...(variant?{variant}:{})},jwt)).urls[id3]||'';
+ok('① 편집기·서가(기본): 화면용 주소만', (await signAs('jwt-u1')).includes(nm(u3.key)) && !(await signAs('jwt-u1')).includes('%40print') && !(await signAs()).includes('%40print'));
+ok('② 인쇄용 내려받기(주인 · variant print): 인쇄용 원본 주소', (await signAs('jwt-u1','print')).includes(encodeURIComponent(nm(u3.print_key))));
+{ const u5=await call({action:'upload',book_id:B3,kind:'image',type:'image/jpeg',size:300,ext:'jpg'},'jwt-u1'); await put(u5.url,300,u5.headers);
+  const c5=await call({action:'commit',book_id:B3,kind:'image',key:u5.key,backend:'r2'},'jwt-u1');
+  const u=(await call({action:'sign',ids:[c5.media.id],variant:'print'},'jwt-u1')).urls[c5.media.id]||'';
+  ok('③ 예전 사진(인쇄용 없음): print 요청에도 화면용으로 보임', c5.media.size_bytes===300 && u.includes(nm(u5.key)) && !u.includes('%40print')); }
+ok('④ 남의 공개 책·비로그인·관리자의 print 요청: 인쇄용 원본은 안 줌(화면용만)', [await signAs('jwt-u2','print'),await signAs(undefined,'print'),await signAs('jwt-adm','print')].every(u=>u.includes(nm(u3.key))&&!u.includes('%40print')));
+{ const pz=await call({action:'purge',book_id:B3},'jwt-u1');
+  ok('⑤ 책 지우기: 두 벌 모두 사라짐', !Object.keys(R2).some(k=>k.startsWith(`u1/${B3}/`)) && pz.files>=3); }
 // 설정 전(비밀 값 없음)
 for(const k of ['R2_ACCOUNT_ID','R2_ACCESS_KEY_ID','R2_SECRET_ACCESS_KEY','R2_BUCKET']) delete env[k];
