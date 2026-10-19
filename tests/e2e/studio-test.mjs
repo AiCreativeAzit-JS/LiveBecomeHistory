@@ -240,8 +240,8 @@ ok('앞쪽 글을 지우면 다음 쪽 글이 끌려 올라와 앞쪽이 다시 
 await pg.keyboard.press('Escape');
 // 안전
 ok('글상자 서식 정제(위험 코드 제거)', await st(()=>sanitizeText('<img src=x onerror=alert(1)><b onclick=1>ok</b><script>1</script><div>x</div>')==='<b>ok</b><div>x</div>'));
-// 미리보기 · 내려받기
-await pg.click('#btnPreview'); await pg.waitForSelector('#pv:not([hidden])');
+// 미리보기 · 내려받기(미리보기는 지금 보던 쪽부터 열리므로 1쪽에서)
+await st(()=>goPage(0)); await pg.click('#btnPreview'); await pg.waitForSelector('#pv:not([hidden])');
 const pvN=await st(()=>state.pages.length);
 ok('미리보기: 두 쪽 펼침 + 쪽 번호', (await pg.locator('#pvBody .bv-page').count())===2 && (await pg.locator('#pvBody .bv-no').innerText())===`1–2 / ${pvN}`);
 await pg.click('#pvBody .bv-next'); await pg.waitForTimeout(1200); ok('미리보기: 다음 펼침(3–4쪽)', (await pg.locator('#pvBody .bv-no').innerText()).startsWith('3–4 /'));
