@@ -266,7 +266,7 @@
   <div class="br"><svg viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M3 15a4 4 0 004 4h10a4 4 0 001-7.9A6 6 0 006 9a4 4 0 00-3 6z"/></svg>나만 보는 비공개 작업 공간</div>
 </div>
 
-<div class="pv" id="pv" hidden><div class="bar"><span>미리보기</span><button class="btn" id="pvClose">닫기 ✕</button></div><div id="pvBody"></div></div>
+<div class="pv" id="pv" hidden><div class="bar"><span>미리보기</span><span><button class="btn" id="pvFirst" style="margin-right:6px">처음부터</button><button class="btn" id="pvClose">닫기 ✕</button></span></div><div id="pvBody"></div></div>
 <div class="mini-tb" id="mini" hidden role="toolbar" aria-label="고른 글자 꾸미기">
   <button data-m="bold" title="굵게 (Ctrl+B)" style="font-weight:800">가</button>
   <button data-m="italic" title="기울임 (Ctrl+I)" style="font-style:italic;font-family:var(--serif)">가</button>
@@ -431,7 +431,7 @@ function elHTML(e, mode){ // mode: edit | thumb | view | print
   let inner='';
   if(e.type==='slot'){ if(view) return ''; inner = `<div class="slot">${e.kind==='video'?ICON.video:e.kind==='audio'?ICON.music:ICON.image}${mode==='edit'?`<span>눌러서 ${e.kind==='image'?'사진':e.kind==='audio'?'노래':'영상'} 넣기</span>`:''}</div>`; }
   else if(e.type==='text') inner = `<div class="tx ${e.font}" style="${txStyle(e)}" ${ed?`data-ph="${esc(e.ph||'여기를 눌러 글을 입력하세요')}" spellcheck="false"`:(mode==='thumb'&&e.ph?`data-ph="${esc(e.ph)}"`:'')}>${sanitizeText(e.html)}</div>`;
-  else if(e.type==='image') inner = `<img src="${e.src}" alt="${esc(e.name||'')}" draggable="false">`;
+  else if(e.type==='image') inner = `<img src="${e.src}" alt="${esc(e.alt||'')}" draggable="false">`;   // 사진 설명(화면 읽기용)
   else if(e.type==='video') inner = view ? `<video src="${e.src}" controls controlslist="nodownload" playsinline preload="metadata"></video>`
     : `<video src="${e.src}#t=0.1" preload="metadata" muted playsinline style="pointer-events:none"></video><div class="vplay"><i>${ICON.play}</i></div>`;
   else if(e.type==='audio') inner = view ? `<div class="ap" data-src="${esc(e.src)}"><button type="button" class="ap-btn" aria-label="재생">▶</button><div class="ap-bar" aria-hidden="true"><i></i></div><span class="ap-t">0:00</span></div>`
@@ -530,7 +530,7 @@ function renderPanels(){
   else if(e.type==='slot'){ const w=e.kind==='video'?'영상':e.kind==='audio'?'노래':'사진'; s+=`<p class="sub">견본 ${w} 자리예요. ${w}을(를) 넣으면 이 자리에 맞춰 들어가요. 책에는 틀이 보이지 않아요.</p>
     <button class="btn primary" id="fillSlot" style="width:100%;justify-content:center">${e.kind==='video'?ICON.video:e.kind==='audio'?ICON.music:ICON.image} ${w} 넣기</button>
     <div class="tools"><span class="sub" style="margin:0">필요 없으면 지워도 돼요</span><button class="iconbtn" id="delEl" title="자리 삭제"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></div>`; }
-  else s+=`<p class="sub">${KIND_KO[e.type]} · ${esc(e.name||'')}</p>
+  else s+=`<p class="sub">${KIND_KO[e.type]}${e.name?' · '+esc(e.name):''}</p>${e.type==='image'?`<label class="lab" for="altIn">사진 설명 <span style="font-weight:400">· 화면 읽기용(책에는 안 보여요)</span></label><textarea class="field" id="altIn" maxlength="300" rows="2" style="resize:vertical;margin-bottom:8px" placeholder="예: 할머니 댁 빨간 대문 앞에서 찍은 가족사진">${esc(e.alt||'')}</textarea>`:''}
     <button class="btn" id="addCap" style="width:100%;justify-content:center"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>${captionOf(e)?'설명 글 고치기':'설명 글 넣기'}</button>
     <div class="tools"><span class="sub" style="margin:0">끌어서 옮기고, 모서리로 크기를 바꿔요</span><button class="iconbtn" id="delEl" title="삭제"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></div>`;
   $('secSel').innerHTML=s;
@@ -1120,6 +1120,7 @@ $('thumbs').addEventListener('dragover',ev=>{ const t=ev.target.closest('.th'); 
 $('thumbs').addEventListener('drop',ev=>{ const t=ev.target.closest('.th'); if(!t) return; ev.preventDefault(); const to=+t.dataset.i; const from=dragFrom; dragFrom=null; if(from!=null){ state.cur=from; movePage(from,to); } });
 $('thumbs').addEventListener('dragend',()=>document.querySelectorAll('.th.drop').forEach(x=>x.classList.remove('drop')));
 $('secSel').addEventListener('click',ev=>{ if(ev.target.closest('#fsVal')) openFsList(); });
+$('secSel').addEventListener('input',ev=>{ if(ev.target.id!=='altIn') return; const e=selEl(); if(!e) return; snap('alt:'+e.id); e.alt=ev.target.value.slice(0,300); const im=elNode(e.id)?.querySelector('img'); if(im) im.alt=e.alt; }); // 눈이 불편한 분이 화면 읽기로 들을 때 읽히는 사진 설명
 $('secSel').addEventListener('keydown',ev=>{ if(ev.target.id==='fsVal'&&(ev.key==='Enter'||ev.key===' ')){ ev.preventDefault(); openFsList(); } });
 $('secSel').addEventListener('click',ev=>{
   const e=selEl(); if(!e) return; const b=ev.target.closest('button'); if(!b) return;
@@ -1203,9 +1204,9 @@ document.addEventListener('focusout',ev=>{ if(state.editing&&ev.target.classList
 window.addEventListener('resize',()=>{ clearTimeout(window._rz); window._rz=setTimeout(()=>{ state.zoom=fitZoom(); redrawCanvas(); },150); });
 
 /* 미리보기 · 내려받기 */
-function openPV(){ endEdit(); $('pv').hidden=false; if(window.BookViewer){ BookViewer.injectCSS(); BookViewer.flip($('pvBody'), state.pages.map(p=>pageHTML(p,'view')), {idPrefix:'pv'}); BookViewer.wireAudio($('pvBody')); BookViewer.wireVideo($('pvBody')); } else $('pvBody').innerHTML=state.pages.map(p=>pageHTML(p,'view')).join(''); }
+function openPV(){ endEdit(); $('pv').hidden=false; if(window.BookViewer){ BookViewer.injectCSS(); BookViewer.flip($('pvBody'), state.pages.map(p=>pageHTML(p,'view')), {idPrefix:'pv'}); BookViewer.wireAudio($('pvBody')); BookViewer.wireVideo($('pvBody')); $('pvBody')._bv?.go(state.cur,false); /* 지금 보던 쪽부터 */ } else $('pvBody').innerHTML=state.pages.map(p=>pageHTML(p,'view')).join(''); }
 function closePV(){ $('pv').hidden=true; ($('pvBody').querySelectorAll('audio,video')).forEach(m=>m.pause()); (window.__bvAudios||[]).forEach(a=>a.pause()); $('pvBody').innerHTML=''; }
-$('btnPreview').onclick=openPV; $('pvClose').onclick=closePV;
+$('btnPreview').onclick=openPV; $('pvClose').onclick=closePV; $('pvFirst').onclick=()=>$('pvBody')._bv?.go(0);
 const blobToDataURL = b => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(b); });
 async function exportPages(forPrint=false){
   const copy=JSON.parse(JSON.stringify(state.pages));
@@ -1291,7 +1292,7 @@ function fatal(title,msg,link){ $('center').innerHTML=`<div class="fatal"><h2>${
 const cleanEl = e => e.type==='slot' ? {id:e.id,type:'slot',kind:e.kind||'image',x:e.x,y:e.y,w:e.w,h:e.h}
   : e.type==='text'
   ? {id:e.id,type:'text',x:e.x,y:e.y,w:e.w,h:e.h,html:sanitizeText(e.html),fs:e.fs,align:e.align,color:e.color,font:e.font,b:!!e.b,i:!!e.i,u:!!e.u,...(e.ph?{ph:String(e.ph).slice(0,200)}:{}),...(e.cont?{cont:true}:{})}
-  : {id:e.id,type:e.type,x:e.x,y:e.y,w:e.w,h:e.h,name:e.name||'',media_id:e.media_id,...(e.slot&&[e.slot.x,e.slot.y,e.slot.w,e.slot.h].every(Number.isFinite)?{slot:{x:e.slot.x,y:e.slot.y,w:e.slot.w,h:e.slot.h}}:{})};
+  : {id:e.id,type:e.type,x:e.x,y:e.y,w:e.w,h:e.h,name:e.name||'',media_id:e.media_id,...(e.type==='image'&&e.alt?{alt:String(e.alt).slice(0,300)}:{}),...(e.slot&&[e.slot.x,e.slot.y,e.slot.w,e.slot.h].every(Number.isFinite)?{slot:{x:e.slot.x,y:e.slot.y,w:e.slot.w,h:e.slot.h}}:{})};
 function serialize(){ return JSON.stringify({title:state.title,pages:state.pages.map((p,i)=>({id:p.id,position:i,name:String(p.name||'').slice(0,60),bg:/^#[0-9a-f]{6}$/i.test(p.bg)?p.bg:'#FFFFFF',flow_from:p.flowFrom||null,els:p.els.filter(e=>e.type==='text'||e.type==='slot'||e.media_id).map(cleanEl)}))}); }
 // 새 책: 처음 저장할 때 books 행을 만든다(들어왔다 그냥 나가면 아무것도 생기지 않음)
 let creating=null;
