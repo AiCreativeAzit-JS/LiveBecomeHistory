@@ -200,12 +200,20 @@ async function imeType(cdp,text){ for(const ch of text){ if(ch===' '){ await cdp
   for(const s of stages(ch)){ await cdp.send('Input.imeSetComposition',{text:s,selectionStart:s.length,selectionEnd:s.length}); await pg.waitForTimeout(25); }
   await cdp.send('Input.insertText',{text:ch}); await pg.waitForTimeout(40); } }
 const PH='할머니의 빨간 대문 앞에서 늘 놀았다';
-for(const [label,how] of [['T07(모의) 한글 입력기로 쪽 끝에서 입력','ime'],['쪽 끝에서 보통 입력(되당김 경로)','type']]){
-  await fresh(); await pasteDoc(); await openBody(1,'end'); const D=await doc(); const g0=await st(()=>caretOffset(activeTx()));
+for(const [label,how,newPara] of [['T07(모의) 한글 입력기로 쪽 끝에서 입력','ime',false],['쪽 끝에서 보통 입력(되당김 경로)','type',false],
+    ['T07(모의) 다음 쪽이 새 문단으로 시작(견본 책처럼)','ime',true],['다음 쪽이 새 문단 · 보통 입력','type',true]]){
+  await fresh(); await pasteDoc();
+  if(newPara) await st(()=>{ // 정선C 화면 그대로: 앞쪽이 마지막 줄 끝까지 꽉 차고, 다음 쪽은 새 문단으로 시작
+    const e=flowEl(1), w='같은 자리에서 같은 불을 켠다. ', tail='다음날도그다음날도같은자리에서같은불을'.repeat(4); let s='';
+    measureOff(1,e,tx=>{ const fits=x=>{ tx.innerHTML='<div>'+x+'</div>'; return tx.scrollHeight<=tx.clientHeight+2; };
+      while(fits(s+w)) s+=w; let i=0; while(i<tail.length&&fits(s+tail.slice(0,i+1))) i++; s+=tail.slice(0,i); });
+    e.html='<div>'+s+'</div>'; const t=flowEl(2); t.html='<div>그 한결같음이 기다림의 전부다.</div>'+t.html; t.cont=false; renderAll(); });
+  await openBody(1,'end'); const D=await doc(); const g0=await st(()=>caretOffset(activeTx()));
   if(how==='ime') await imeType(await pg.context().newCDPSession(pg),PH); else await pg.keyboard.type(PH,{delay:20});
   await settle(); const A=await doc();
   const at=A.chars.indexOf(PH);
   ok(`${label} → 글자가 쪼개지거나 겹치지 않고 순서대로`, at===g0 && A.chars===D.chars.slice(0,g0)+PH+D.chars.slice(g0), JSON.stringify(A.chars.slice(g0-5,g0+PH.length+5)));
+  ok(`${label} → 입력한 글이 한 줄로 이어짐(중간에 줄이 갈라지지 않음)`, A.flat.includes(PH) && (!newPara || A.flat.includes(PH+'\n그 한결같음이 기다림의 전부다.')), JSON.stringify(A.flat.slice(A.flat.indexOf('있어야 할')-2, A.flat.indexOf('있어야 할')+60)));
   ok(`${label} → 커서가 다음 쪽으로 따라가 입력한 글 바로 뒤에`, await st(p=>{ const tx=activeTx(), o=caretOffset(tx); return tx.textContent.slice(0,o).endsWith(p.slice(-4)); },PH));
 }
 console.log(errs.length?errs.join('\n'):'JS 오류 없음');

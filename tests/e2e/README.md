@@ -13,4 +13,4 @@ done
 - `studio-test`는 예전 체험 견본 3쪽(`demo-fixture.json`)을 바탕으로 편집 기능을 시험
 - `flow-test`: 글 흐름 엔진(수정요청서 1차 T01~T06 + 문단 경계·제목 상자). 재현 원고 `docs/qa/모아_재현용_16문단.txt`를 `?blank=1` 2쪽 본문에 붙여 넣고 시작
 - `dialog-test`: 팝업(내려받기·새 쪽 종류·미리보기·가입 안내)이 떠 있을 때 뒤 원고 보존(수정요청서 2차 F07, T17·T18)
-- 기준(2026-10-19): 위 15개 모두 FAIL 0 (flow-test 48개, dialog-test 14개)
+- 기준(2026-10-19): 위 15개 모두 FAIL 0 (flow-test 56개, dialog-test 14개)

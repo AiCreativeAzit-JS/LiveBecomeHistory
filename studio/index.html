@@ -375,14 +375,14 @@ const state = {
 };
 let history = [], future = [];
 // 되돌리기 기록에는 편집 중이던 글상자와 커서 위치도 담는다(되돌리면 그 자리에서 이어 쓴다)
-const snapJSON = () => JSON.stringify({pages:state.pages,cur:state.cur,title:state.title,sel:state.sel,editing:state.editing,caret:state.editing&&activeTx()?caretOffset(activeTx()):null});
+const snapJSON = () => JSON.stringify({pages:state.pages,cur:state.cur,title:state.title,sel:state.sel,editing:state.editing,caret:state.editing&&activeTx()?caretOffset(activeTx()):null,caretAfter:state.editing&&activeTx()?caretAfterText(activeTx()):false});
 // group: 같은 글상자에서 이어 치는 글자는 잠깐 멈출 때까지 한 번의 되돌리기로 묶는다(워드처럼)
 let snapGroup=null;
 function snap(group){ const now=Date.now();
   if(group && snapGroup && snapGroup.key===group && now-snapGroup.at<1500){ snapGroup.at=now; return; }
   history.push(snapJSON()); if(history.length>100) history.shift(); future=[]; snapGroup=group?{key:group,at:now}:null; updUndo(); }
 function restore(j){ const o=JSON.parse(j); state.pages=o.pages; state.cur=Math.min(o.cur,o.pages.length-1); state.title=o.title; state.sel=null; state.editing=false; snapGroup=null; renderAll();
-  if(o.editing && o.sel && page().els.some(e=>e.id===o.sel)){ select(o.sel); startEdit(o.sel); const tx=activeTx(); if(tx&&o.caret!=null) placeCaretAt(tx,o.caret); } }
+  if(o.editing && o.sel && page().els.some(e=>e.id===o.sel)){ select(o.sel); startEdit(o.sel); const tx=activeTx(); if(tx&&o.caret!=null) placeCaretAt(tx,o.caret,o.caretAfter); } }
 function undo(){ if(!history.length) return; future.push(snapJSON()); restore(history.pop()); updUndo(); }
 function redo(){ if(!future.length) return; history.push(snapJSON()); restore(future.pop()); updUndo(); }
 function updUndo(){ $('uUndo').disabled=!history.length; $('uRedo').disabled=!future.length; }
@@ -792,11 +792,11 @@ function cutOverflow(tx){
   const before=document.createRange(); before.setStart(tx,0); before.setEnd(cn,ck);
   const line=flat(before.cloneContents()); const cont=line.length>0 && !line.endsWith('\n');
   const cutR=document.createRange(); cutR.setStart(cn,ck); cutR.setEndAfter(tx.lastChild);
-  const s=getSelection(); let caret=null;
-  if(s.rangeCount&&tx.contains(s.anchorNode)&&cutR.isPointInRange(s.anchorNode,s.anchorOffset)){ const c=document.createRange(); c.setStart(cn,ck); c.setEnd(s.anchorNode,s.anchorOffset); caret=c.toString().length; }
+  const s=getSelection(); let caret=null, caretAfterChar=false;
+  if(s.rangeCount&&tx.contains(s.anchorNode)&&cutR.isPointInRange(s.anchorNode,s.anchorOffset)){ const c=document.createRange(); c.setStart(cn,ck); c.setEnd(s.anchorNode,s.anchorOffset); caret=c.toString().length; const f=flat(c.cloneContents()); caretAfterChar=f.length>0&&!f.endsWith('\n'); }
   const holder=document.createElement('div'); holder.appendChild(cutR.extractContents());
   while(isBlk(tx.lastChild) && !tx.lastChild.textContent && !tx.lastChild.querySelector('br')) tx.lastChild.remove(); // 떼고 남은 빈 껍데기
-  return {html:sanitizeText(holder.innerHTML), cont, caret};
+  return {html:sanitizeText(holder.innerHTML), cont, caret, after:caretAfterChar};
 }
 // box 끝에 이어지는 글을 붙인다. cont면 첫 줄을 box의 마지막 줄에 이어 붙여 한 문단으로 되돌린다(덧붙이는 공백 없음)
 function joinFlow(box, html, cont){
@@ -850,17 +850,18 @@ function flowOverflow(e, quiet=false){
   const r=cutOverflow(tx); if(!r) return false;
   e.html=sanitizeText(tx.innerHTML);
   const target=pushOverflow(state.cur,r,e);
-  if(r.caret!=null) followCaret(target, r.caret);
+  if(r.caret!=null) followCaret(target, r.caret, r.after);
   else { autoGrow(e); settle(state.cur+1); renderThumbs(); renderBottom(); }
   if(!quiet) toast('글이 넘쳐서 다음 페이지로 이어졌어요');
   return true;
 }
 // 커서가 넘어간 뒷부분에 있었으면 다음 페이지에서 이어 쓴다(그 페이지도 넘치면 계속)
-function followCaret(target, caret){
-  state.editing=false; state.cur++; state.sel=target.id; renderAll(); startEdit(target.id); placeCaretAt(elNode(target.id).querySelector('.tx'), caret);
+function followCaret(target, caret, after){
+  state.editing=false; state.cur++; state.sel=target.id; renderAll(); startEdit(target.id); placeCaretAt(elNode(target.id).querySelector('.tx'), caret, after);
   requestAnimationFrame(()=>{ const t2=selEl(); if(t2&&t2.id===target.id){ autoGrow(t2); flowOverflow(t2); } });
 }
 // 워드처럼: 앞 페이지 글을 지워 자리가 생기면 다음 「(이어서)」 페이지의 글을 끌어 온다
+function caretAfterText(tx){ const s=getSelection(); if(!tx||!s.rangeCount||!tx.contains(s.anchorNode)) return false; const r=document.createRange(); r.setStart(tx,0); r.setEnd(s.anchorNode,s.anchorOffset); const f=flat(r.cloneContents()); return f.length>0&&!f.endsWith('\n'); }
 function caretOffset(tx){ const s=getSelection(); if(!tx||!s.rangeCount||!tx.contains(s.anchorNode)) return null; const r=document.createRange(); r.selectNodeContents(tx); r.setEnd(s.anchorNode,s.anchorOffset); return r.toString().length; }
 function pullBack(e){
   const pi=state.cur;
@@ -871,7 +872,7 @@ function pullBack(e){
   if(!pullInto(tx,pi)) return false;
   const r=cutOverflow(tx); e.html=sanitizeText(tx.innerHTML);                   // 다시 넘치는 만큼은 다음 페이지로 돌려보낸다
   const target=r&&pushOverflow(pi,r,e);
-  if(r&&r.caret!=null){ followCaret(target, r.caret); return true; }           // 방금 친 글자가 넘어갔으면 커서도 따라간다
+  if(r&&r.caret!=null){ followCaret(target, r.caret, r.after); return true; }           // 방금 친 글자가 넘어갔으면 커서도 따라간다
   while(flowsInto(pi) && dropEmptyNext(pi));
   if(flowsInto(pi)) settle(pi+1);
   if(state.pages.length<before) toast('다음 페이지 글을 끌어 왔어요');
@@ -941,8 +942,10 @@ $('center').addEventListener('keydown',ev=>{
   if(!ev.ctrlKey && !ev.metaKey && !ev.altKey && crossPageDelete(tx, ev.key==='Backspace')){ ev.preventDefault(); return; }
   if(ev.key==='Backspace' && mergeLineUp(tx)) ev.preventDefault();
 });
-function placeCaretAt(tx, offset){ const pos=textPositions(tx); const r=document.createRange();
-  if(!pos.length||offset>=pos.length){ r.selectNodeContents(tx); r.collapse(false); } else { const [n,k]=pos[Math.max(0,offset)]; r.setStart(n,k); r.collapse(true); }
+// after=true: 커서를 앞 글자 「바로 뒤」에 둔다. 문단 경계에서는 「앞 문단 끝」과 「다음 문단 맨 앞」이 같은 글자 수라서, 방금 친 글자 뒤에 있던 커서는 앞 문단 끝에 남아야 한다
+function placeCaretAt(tx, offset, after=false){ const pos=textPositions(tx); const r=document.createRange();
+  if(after && offset>0 && offset<=pos.length){ const [n,k]=pos[offset-1]; r.setStart(n,k+1); r.collapse(true); }
+  else if(!pos.length||offset>=pos.length){ r.selectNodeContents(tx); r.collapse(false); } else { const [n,k]=pos[Math.max(0,offset)]; r.setStart(n,k); r.collapse(true); }
   const s=getSelection(); s.removeAllRanges(); s.addRange(r); }
 
 /* ═══════════════ 고른 글자만 꾸미기 (워드 방식) ═══════════════ */
