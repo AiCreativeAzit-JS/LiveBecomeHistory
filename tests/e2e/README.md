@@ -4,7 +4,7 @@
 
 ```bash
 cd tests/e2e
-for t in test online-test studio-test share-test shelf-test admin-test me-test newbook-test real-book-test demo-test sample-test mouse-test prefetch-test flow-test dialog-test pick-test output-test ux-test photo2-test r02-test r03-test r04-test r05-test; do
+for t in test online-test studio-test share-test shelf-test admin-test me-test newbook-test real-book-test demo-test sample-test mouse-test prefetch-test flow-test dialog-test pick-test output-test ux-test photo2-test r02-test r03-test r04-test r05-test r06-test; do
   r=$(node $t.mjs "$PWD/fake-supabase.js" 2>&1); echo "$t PASS=$(echo "$r"|grep -c '^PASS') FAIL=$(echo "$r"|grep -c '^FAIL')"; echo "$r"|grep '^FAIL'
 done
 ```
@@ -22,4 +22,5 @@ done
 - `r03-test`: 느린 저장 중 추가 수정·저장 중 이동·임시저장·인터넷 끊김과 재연결(수정요청서 1차 R03, T11·T12). 가짜 Supabase의 `window.__slowWrite`(ms)·`window.__failWrite`
 - `r04-test`: 15MB 아래·위 영상·노래를 화면용 전자책 안에 담기, 인터넷 없이 열기, 미디어 1건 담기 실패 안내(수정요청서 1차 R04 T13·T14, 2차 R08 T31)
 - `r05-test`: 체험 원고 보존 범위 안내·로그인 전환 전 내려받기 길·떠나기 전 확인(수정요청서 1차 R05, T15)
-- 기준(2026-10-19): 위 23개 모두 FAIL 0 (flow-test 57개, dialog-test 14개, pick-test 22개, output-test 33개, ux-test 27개, photo2-test 15개, r02-test 34개, r03-test 12개, r04-test 9개, r05-test 9개)
+- `r06-test`: 편집 중 창 크기 변경·최대화/복원·확대/축소·한글 조립 중(수정요청서 1차 R06, T16)
+- 기준(2026-10-19): 위 24개 모두 FAIL 0 (flow-test 57개, dialog-test 14개, pick-test 22개, output-test 33개, ux-test 27개, photo2-test 15개, r02-test 34개, r03-test 12개, r04-test 9개, r05-test 9개, r06-test 12개)

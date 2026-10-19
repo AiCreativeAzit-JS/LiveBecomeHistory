@@ -743,7 +743,7 @@ $('center').addEventListener('dblclick',ev=>{ const node=ev.target.closest('#can
 // 한글을 조립하는 동안(ㅂ→바→받)에는 쪽 넘기기를 미룬다. 조립 중인 줄을 다음 쪽으로 옮기면 글자가 쪼개지거나 겹친다. 글자가 완성되면 그때 넘긴다
 let composing=false;
 $('center').addEventListener('compositionstart',()=>{ composing=true; });
-$('center').addEventListener('compositionend',ev=>{ composing=false; const tx=ev.target.closest&&ev.target.closest('.tx'); if(tx) setTimeout(()=>{ if(!composing&&state.editing&&tx.isConnected) tx.dispatchEvent(new Event('input',{bubbles:true})); },0); });
+$('center').addEventListener('compositionend',ev=>{ composing=false; const tx=ev.target.closest&&ev.target.closest('.tx'); if(tx) setTimeout(()=>{ if(!composing&&state.editing&&tx.isConnected) tx.dispatchEvent(new Event('input',{bubbles:true})); if(!composing&&redrawCanvas.wait) redrawCanvas(); },0); });
 $('center').addEventListener('input',ev=>{ const tx=ev.target.closest&&ev.target.closest('.tx'); if(!tx||!state.editing) return; const e=selEl(); if(!e) return; e.html=tx.innerHTML; autoGrow(e);
   if(composing||ev.isComposing) return;
   if(!flowOverflow(e) && !pullBack(e)){ clearTimeout(input._t); input._t=setTimeout(renderThumbs,250); } });
@@ -1019,6 +1019,17 @@ const MINI_COLORS = ['#1B2B25','#C0392B','#E67E22','#2E6FB5','#0F5B48','#8A6E22'
 $('miniSw').innerHTML = MINI_COLORS.map(c=>`<button class="dot" data-mc="${c}" style="background:${c}" title="${c}" aria-label="글자색 ${c}"></button>`).join('');
 let savedRange=null;
 function activeTx(){ const e=selEl(); return state.editing&&e ? elNode(e.id)?.querySelector('.tx') : null; }
+// 창 크기·확대 비율이 바뀌어 캔버스를 다시 그릴 때: 쓰던 글상자는 편집을 이어 간다(커서·고른 범위 그대로).
+// 한글을 조립하는 중이면 다시 그리지 않고(조립 중인 글자가 깨짐) 조립이 끝난 뒤에 그린다
+function redrawCanvas(){
+  if(composing){ redrawCanvas.wait=true; return; } redrawCanvas.wait=false;
+  const tx=activeTx(), e=tx&&selEl(); let a=null, z=null;
+  if(tx){ e.html=tx.innerHTML; const s=getSelection();
+    if(s.rangeCount&&tx.contains(s.anchorNode)){ const r=s.getRangeAt(0), at=(n,o)=>{ const q=document.createRange(); q.setStart(tx,0); q.setEnd(n,o); return q.toString().length; }; a=at(r.startContainer,r.startOffset); z=at(r.endContainer,r.endOffset); } }
+  renderCanvas();
+  if(!e) return; startEdit(e.id); const nt=activeTx(); if(!nt||a==null) return;
+  const pos=textPositions(nt), pt=k=>k<pos.length?[pos[k][0],pos[k][1]]:(()=>{ const q=document.createRange(); q.selectNodeContents(nt); q.collapse(false); return [q.startContainer,q.startOffset]; })();
+  const r=document.createRange(); r.setStart(...pt(a)); r.setEnd(...pt(z)); const s=getSelection(); s.removeAllRanges(); s.addRange(r); }
 function selInTx(){ const tx=activeTx(); const s=getSelection(); if(!tx||!s.rangeCount||s.isCollapsed) return null; const r=s.getRangeAt(0); return tx.contains(r.commonAncestorContainer)?r:null; }
 function hideMini(){ $('mini').hidden=true; }
 function placeMini(){
@@ -1116,7 +1127,7 @@ $('secPage').addEventListener('input',ev=>{ if(ev.target.id==='pname'){ page().n
 $('secPage').addEventListener('focusin',ev=>{ if(ev.target.id==='pname') snap(); });
 $('title').addEventListener('input',()=>{ state.title=$('title').value; });
 $('pPrev').onclick=()=>goPage(state.cur-1); $('pNext').onclick=()=>goPage(state.cur+1);
-$('zIn').onclick=()=>{ state.zoom=Math.min(1.6,state.zoom+.1); renderCanvas(); }; $('zOut').onclick=()=>{ state.zoom=Math.max(.4,state.zoom-.1); renderCanvas(); };
+$('zIn').onclick=()=>{ state.zoom=Math.min(1.6,state.zoom+.1); redrawCanvas(); }; $('zOut').onclick=()=>{ state.zoom=Math.max(.4,state.zoom-.1); redrawCanvas(); };
 $('uUndo').onclick=undo; $('uRedo').onclick=redo;
 // 체험 모드(로그인 없이 /studio/): 모든 작업은 방문자 브라우저 안에서만. 저장·공개·비밀 링크는 베타 신청 안내
 function openJoin(why){ endEdit(); $('joinWhy').textContent=why||''; $('joinWhy').hidden=!why;
@@ -1151,7 +1162,7 @@ document.addEventListener('keydown',ev=>{
   else if(ev.key.startsWith('Arrow')){ ev.preventDefault(); snap(); const s=ev.shiftKey?5:1; if(ev.key==='ArrowLeft') e.x=Math.max(LIM.x0,e.x-s); if(ev.key==='ArrowRight') e.x=Math.min(LIM.x1-e.w,e.x+s); if(ev.key==='ArrowUp') e.y=Math.max(LIM.y0,e.y-s); if(ev.key==='ArrowDown') e.y=Math.min(LIM.y1-e.h,e.y+s); elNode(e.id).style.cssText=elStyle(e); decorate(e.id); renderThumbs(); }
 });
 document.addEventListener('focusout',ev=>{ if(state.editing&&ev.target.classList&&ev.target.classList.contains('tx')){ setTimeout(()=>{ if(state.editing&&!document.activeElement.classList.contains('tx')&&!document.activeElement.closest('#secSel, #mini')) endEdit(); },0); } });
-window.addEventListener('resize',()=>{ clearTimeout(window._rz); window._rz=setTimeout(()=>{ state.zoom=fitZoom(); renderCanvas(); },150); });
+window.addEventListener('resize',()=>{ clearTimeout(window._rz); window._rz=setTimeout(()=>{ state.zoom=fitZoom(); redrawCanvas(); },150); });
 
 /* 미리보기 · 내려받기 */
 function openPV(){ endEdit(); $('pv').hidden=false; if(window.BookViewer){ BookViewer.injectCSS(); BookViewer.flip($('pvBody'), state.pages.map(p=>pageHTML(p,'view')), {idPrefix:'pv'}); BookViewer.wireAudio($('pvBody')); BookViewer.wireVideo($('pvBody')); } else $('pvBody').innerHTML=state.pages.map(p=>pageHTML(p,'view')).join(''); }
