@@ -36,11 +36,12 @@ ok('체험: 서버 호출 없음(media 함수·저장소)', await pg.evaluate(()
 // 내려받기
 await pg.click('#btnExport'); const [dl]=await Promise.all([pg.waitForEvent('download'), pg.click('[data-ex=screen]')]);
 ok('체험: 화면용 HTML 내려받기(사진 포함)', await (async()=>{ const t=fs.readFileSync(await dl.path(),'utf8'); return /<html/i.test(t) && t.includes('data:image/png;base64'); })());
-// 떠날 때 묻기(내려받은 뒤 그대로면 묻지 않으므로, 한 군데 더 고친 뒤)
-await pg.evaluate(()=>{ snap(); state.title='내려받은 뒤 고친 제목'; });
-let asked=false; pg.on('dialog',d=>{ asked = d.type()==='beforeunload'; d.dismiss().catch(()=>{}); });
-await pg.click('#home'); await pg.waitForTimeout(800);
-ok('고친 뒤 떠나려 하면 한 번 묻기', asked && new URL(pg.url()).pathname==='/studio/');
+// 떠날 때 묻기: 이 기기에 아직 못 남긴 수정이 있을 때만(1.5초마다 남기므로, 고치자마자 떠나는 경우)
+let asked=false; pg.on('dialog',d=>{ if(d.type()==='beforeunload') asked=true; d.dismiss().catch(()=>{}); });
+await pg.evaluate(()=>{ snap(); state.title='내려받은 뒤 고친 제목'; document.getElementById('home').click(); }); await pg.waitForTimeout(800);
+ok('고치자마자(이 기기에 남기기 전) 떠나려 하면 한 번 묻기', asked && new URL(pg.url()).pathname==='/studio/');
+await pg.waitForTimeout(2000); asked=false;
+ok('잠시 뒤에는 이 기기에 남아 있음(제목까지)', await pg.evaluate(async()=>((await DemoDraft.get())||{}).title==='내려받은 뒤 고친 제목'));
 // 로그인 화면 → 체험
 await pg.evaluate(()=>{ window.onbeforeunload=null; }); const p2=await ctx.newPage(); await p2.route('**/*supabase-js*',r=>r.fulfill({contentType:'application/javascript',body:fs.readFileSync(FAKE,'utf8')}));
 await p2.goto(U+'/editor/'); await p2.waitForSelector('#f'); ok('로그인 화면에 체험 링크', await p2.locator('.trybox a[href="../studio/"]').count()===1);

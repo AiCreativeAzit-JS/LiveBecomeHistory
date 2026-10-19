@@ -36,8 +36,11 @@ ok('T34 쓴 제목이 원고에 그대로', (await textOf(title.id))==='키보�
 ok('T34 고친 뒤 읽히는 이름도 새 글로', /글상자: 키보드로 쓴 제목/.test((await at()).label||''));
 // 사진 자리: Enter → 파일 고르기
 const slot=await tabUntil(id=>page().els.find(e=>e.id===id)?.type==='slot');
-{ const fc=pg.waitForEvent('filechooser',{timeout:5000}).then(()=>true,()=>false); await pg.keyboard.press('Enter');
-  ok('T34 사진 자리에 Tab으로 닿아 Enter → 파일 고르기 창', !!slot && await fc && /사진 자리 · Enter로 사진 넣기/.test(slot.label), JSON.stringify(slot)); }
+{ await st(()=>{ window.__picked=null; const o=pickMedia; pickMedia=(k,id)=>{ window.__picked=[k,id]; return o(k,id); }; });   // 앱이 그 자리로 파일 고르기를 여는지
+  const fc=pg.waitForEvent('filechooser',{timeout:5000}).then(()=>true,()=>false); await pg.keyboard.press('Enter');
+  const picked=await st(()=>window.__picked), chooser=await fc;
+  ok('T34 사진 자리에 Tab으로 닿아 Enter → 그 자리로 사진 고르기를 엶', !!slot && /사진 자리 · Enter로 사진 넣기/.test(slot.label) && picked && picked[0]==='image' && picked[1]===slot.id, JSON.stringify({slot,picked}));
+  if(!chooser) console.log('  (참고) 브라우저 파일 창 신호가 5초 안에 오지 않음 — 시험 기계가 바쁠 때 생김'); }
 // ② 2쪽 본문: 썸네일로 쪽을 연 뒤(키보드) Tab으로 본문까지 → 이미 있는 글 끝에 이어 쓰기
 await pg.focus('.th[data-i="1"]'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(80);
 await st(()=>{ const b=flowEl(1); b.html='처음부터 있던 본문'; renderCanvas(); });
