@@ -7,6 +7,7 @@
   else if(window.__seed){ Object.keys(window.__seed).forEach(k=>db[k]=JSON.parse(JSON.stringify(window.__seed[k]))); } const listeners=[];
   const uid=()=>'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>(Math.random()*16|0).toString(16));
   window.__db=db; const persist=()=>{ try{ localStorage.setItem('fakeDB',JSON.stringify(db)); }catch{} }; window.__persist=persist; window.__files=files;
+  const sync=()=>{ if(!window.__multiTab) return; try{ const s=JSON.parse(localStorage.getItem('fakeDB')||'null'); if(s) Object.keys(s).forEach(k=>{ db[k]=s[k]; }); }catch{} }; // 같은 브라우저의 다른 탭이 저장한 것을 본다
   function q(table){
     const real=table; if(table==='shelf_books') table='books';
     let rng=null; let op='select', rows=null, filters=[], one=null, patch=null, ord=null;
@@ -29,13 +30,13 @@
         if(w&&window.__slowWrite) setTimeout(go,window.__slowWrite); else go(); } // __slowWrite(ms)·__failWrite: 느린 저장·끊긴 인터넷 흉내
     };
     function run(){
-      let out;
+      sync(); let out;
       if(op==='upsert'){ const arr=Array.isArray(patch)?patch:[patch]; const key=(table==='book_snapshots'||table==='book_shares')?'book_id':'id'; out=arr.map(v=>{ const ex=db[table].find(r=>r[key]===v[key]); if(ex){ Object.assign(ex,v); return ex; } const d={...v}; db[table].push(d); return d; }); persist(); }
       else if(op==='insert'){
         const arr=Array.isArray(patch)?patch:[patch];
         if(table==='reports'&&arr.some(v=>db.reports.some(r=>r.book_id===v.book_id&&r.reporter_id===v.reporter_id))) return {data:null,error:{code:'23505',message:'dup'}};
         out=arr.map(v=>{ const now=new Date().toISOString();
-          const d={ id:uid(), created_at:now, updated_at:now, deleted_at:null, is_public:false, admin_hidden:false, title:table==='books'?'제목 없는 책':'', subtitle:'', author_name:'', content:'', published_at:null, ...v };
+          const d={ id:uid(), created_at:now, updated_at:now, deleted_at:null, is_public:false, admin_hidden:false, title:table==='books'?'제목 없는 책':'', subtitle:'', author_name:'', content:'', published_at:null, ...(table==='books'?{rev:0}:{}), ...v };
           db[table].push(d); return d; }); persist();
       } else {
         let m=db[table].filter(r=>filters.every(f=>f(r)));
@@ -101,6 +102,24 @@
       const urls={}; db.media.filter(m=>m.book_id===b.id).forEach(m=>{ urls[m.id]=files[m.storage_path]?URL.createObjectURL(files[m.storage_path]):'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='; });
       return {data:{title:sn.title,author_name:sn.author_name,pages:sn.pages,urls},error:null}; } },
     async rpc(name,args){
+      if(name==='save_pages'){ // 가짜 save_pages: 판 번호(rev) 검사 + 보낸 쪽 upsert + 지운 쪽 delete 를 한 번에(모두 되거나 모두 안 됨)
+        (window.__saveCalls=window.__saveCalls||[]).push(Date.now()); (window.__saveArgs=window.__saveArgs||[]).push(args);
+        if(window.__slowWrite) await new Promise(r=>setTimeout(r,window.__slowWrite));
+        if(window.__failWrite) return {data:null,error:{message:'Failed to fetch'}};
+        if(window.__authExpired) return {data:null,error:{code:'PGRST301',message:'JWT expired'},status:401};
+        if(window.__denyWrite) return {data:null,error:{code:'42501',message:'new row violates row-level security policy'},status:403};
+        sync();
+        const me=session&&session.user.id, b=db.books.find(x=>x.id===args.p_book&&x.owner_id===me&&!x.deleted_at);
+        if(!b) return {data:null,error:{code:'42501',message:'book not found'},status:403};
+        const cur=b.rev||0;
+        if(!args.p_replace && args.p_rev!=null && cur!==args.p_rev) return {data:{ok:false,conflict:true,rev:cur},error:null};
+        const ts=new Date().toISOString();
+        for(const p of (args.p_pages||[])){ const row={...p,book_id:b.id}; const ex=db.pages.find(r=>r.id===p.id); if(ex) Object.assign(ex,row,{updated_at:ts}); else db.pages.push({created_at:ts,updated_at:ts,...row}); }
+        if(args.p_replace){ const keep=new Set((args.p_pages||[]).map(p=>p.id)); db.pages=db.pages.filter(r=>r.book_id!==b.id||keep.has(r.id)); }
+        else if(args.p_deleted&&args.p_deleted.length){ const del=new Set(args.p_deleted); db.pages=db.pages.filter(r=>!(r.book_id===b.id&&del.has(r.id))); }
+        b.rev=cur+1; if(args.p_title){ const t=String(args.p_title).trim().slice(0,120); if(t) b.title=t; } b.updated_at=ts; persist();
+        return {data:{ok:true,rev:b.rev},error:null};
+      }
       const isAdm = !!session && (window.__admins||[]).includes(session.user.id);
       if(name==='am_i_admin') return {data:isAdm,error:null};
       if(name==='admin_usage'){ if(!isAdm) return {data:null,error:{message:'forbidden'}};

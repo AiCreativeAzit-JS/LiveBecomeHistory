@@ -15,6 +15,7 @@ if (-not $env:PW_CHROME) {
 }
 Set-Location $here
 $fake = (Join-Path $here 'fake-supabase.js').Replace('\', '/')
+if ($Tests) { $Tests = @($Tests | ForEach-Object { $_ -split ',' } | Where-Object { $_ }) }   # -Tests a,b,c (powershell -File passes it as one string)
 if (-not $Tests) { $Tests = 'test','online-test','studio-test','share-test','shelf-test','admin-test','me-test','newbook-test','real-book-test','demo-test','sample-test','mouse-test','prefetch-test','flow-test','dialog-test','pick-test','output-test','ux-test','photo2-test','r02-test','r03-test','r04-test','r05-test','r06-test','r07-test','r08-test','r09-test','r10-test','r11-test','alt-test' }
 if (-not $LogDir) { $LogDir = Join-Path $here 'logs' }
 New-Item -ItemType Directory -Force $LogDir | Out-Null
