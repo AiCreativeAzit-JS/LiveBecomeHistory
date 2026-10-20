@@ -677,7 +677,7 @@ $('file').onchange = async ()=>{ let f=$('file').files[0]; if(!f) return; const 
   const name=''; // 파일 이름은 저장하지 않는다(썸네일·QR·서가에 드러나지 않게)
   const o={note, ratio:meta.ratio||0, pageId:to.pageId}, place=(src,id)=> to.slot ? fillSlot(to.slot,kind,src,name,id,o) : addMediaPage(kind,src,name,id,o);
   if(ONLINE){ toast(`${KIND_KO[kind]} 올리는 중…`); uploadMedia(f,kind,print).then(r=>place(r.src,r.id))
-      .catch(err=>{ console.error(err); toast(err.message==='quota'||err.code==='54000'?'이 책에 올릴 수 있는 용량(200MB)을 넘어요':err.code==='too_big'?'파일이 너무 커요 (사진 15MB · 영상 50MB · 노래 30MB 이하)':err.code==='type'?'파일 종류가 맞지 않아요':'올리지 못했어요. 다시 시도해 주세요'); }); return; }
+      .catch(err=>{ console.error(err); toast(err.message==='quota'||err.code==='54000'?'이 책에 올릴 수 있는 용량(200MB)을 넘어요':err.code==='not_approved'?'계정 승인이 끝나면 올릴 수 있어요':err.code==='too_big'?'파일이 너무 커요 (사진 15MB · 영상 50MB · 노래 30MB 이하)':err.code==='type'?'파일 종류가 맞지 않아요':'올리지 못했어요. 다시 시도해 주세요'); }); return; }
   const r=new FileReader(); r.onload=()=>place(r.result); r.readAsDataURL(f); };
 const WHAT={image:'사진을',video:'영상을',audio:'노래를'}; // 「…을/를 넣었어요」
 // 다 올라왔을 때 사용자가 다른 쪽에 가 있으면 화면을 끌고 가지 않는다(그 쪽 편집도 끊지 않음) → 「n쪽에 담았어요」

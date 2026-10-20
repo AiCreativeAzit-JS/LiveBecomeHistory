@@ -8,6 +8,8 @@
 //           R2면 PUT 서명 주소(10분, 크기·종류 고정). 사진은 print:{size}를 주면 인쇄용 원본 자리도 함께(두 벌 보관)
 //   commit  { book_id, kind, key, backend, ttl, print_key? } → { media, url } 올린 파일(두 벌이면 둘 다)을 확인하고 기록을 만든다.
 //           size_bytes = 두 벌 합계(용량 한도·관리자 저장 공간 계산이 두 벌을 함께 센다)
+//           기록은 서비스 키로 만든다(회원은 media 표에 직접 쓸 수 없다, 마이그레이션 0011): 크기·경로·소유자는 서버가 확인한 값만.
+//           upload·commit 은 승인된 회원만(am_i_approved, 가입 승인제 0009) → 아니면 { error:'not_approved' }
 //   purge   { book_id }                        → { files }       책을 완전히 지우기 전에 그 책의 파일을 모두 지운다(내 책만)
 //   migrate { limit }                          → { moved, remaining }  관리자: 예전 저장소 파일을 R2로 옮긴다
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -47,6 +49,11 @@ Deno.serve(async (req: Request) => {
     const { data } = await admin.auth.getUser(jwt);
     return data?.user?.id ?? null;
   };
+  // 승인된 회원인가(부른 사람 권한으로 DB 함수에 묻는다). 함수가 없거나 오류면 닫힌 쪽(거절)으로
+  const approved = async () => {
+    const { data } = await user.rpc("am_i_approved");
+    return data === true;
+  };
   const myBook = async (uid: string, bookId: unknown) => {
     if (!isUuid(bookId)) return false;
     const { data } = await user.from("books").select("id").eq("id", bookId).eq("owner_id", uid).maybeSingle();
@@ -85,6 +92,7 @@ Deno.serve(async (req: Request) => {
         if (!(size > 0) || size > LIMIT[kind]) return json({ error: "too_big" });
         const pSize = kind === "image" && body.print ? Number(body.print.size) : 0; // 인쇄용 원본(사진만, 화면용과 같은 종류)
         if (body.print && kind === "image" && (!(pSize > 0) || pSize > LIMIT.image)) return json({ error: "too_big" });
+        if (!(await approved())) return json({ error: "not_approved" });
         if (!(await myBook(uid, book_id))) return json({ error: "forbidden" });
         const { data: used } = await user.from("media").select("size_bytes").eq("book_id", book_id);
         if ((used ?? []).reduce((n, m) => n + Number(m.size_bytes || 0), 0) + size + pSize > BOOK_QUOTA) return json({ error: "quota" });
@@ -100,7 +108,9 @@ Deno.serve(async (req: Request) => {
         const uid = await me();
         if (!uid) return json({ error: "unauthorized" });
         const { book_id, kind, key, backend } = body;
-        if (!(kind in LIMIT) || !(await myBook(uid, book_id))) return json({ error: "forbidden" });
+        if (!(kind in LIMIT)) return json({ error: "forbidden" });
+        if (!(await approved())) return json({ error: "not_approved" });
+        if (!(await myBook(uid, book_id))) return json({ error: "forbidden" });
         if (typeof key !== "string" || !new RegExp(`^${uid}/${book_id}/${UUID}\\.[a-z0-9]{1,8}$`, "i").test(key)) return json({ error: "forbidden" });
         let info: { size: number; type: string } | null = null, pinfo: { size: number; type: string } | null = null;
         const r2 = backend === "r2";
@@ -120,7 +130,9 @@ Deno.serve(async (req: Request) => {
         const bad = (f: { size: number; type: string }) => !(f.size > 0) || f.size > LIMIT[kind] || !f.type.startsWith(kind + "/");
         if (bad(info) || (pinfo && bad(pinfo))) { await drop(); return json({ error: "too_big" }); }
         const path = r2 ? R2_PREFIX + key : key;
-        const { data: media, error } = await user.from("media")
+        // 기록은 서비스 키로(회원 권한에는 media INSERT 가 없다). 책이 내 것인지는 위에서 부른 사람 권한(RLS)으로 확인했고,
+        // 크기는 저장소에 실제 올라간 파일에서 읽은 값만 쓴다. 용량 한도(200MB)는 DB 트리거가 서비스 키에도 그대로 건다(54000)
+        const { data: media, error } = await admin.from("media")
           .insert({ book_id, owner_id: uid, kind, storage_path: path, size_bytes: info.size + (pinfo?.size ?? 0) }).select().single();
         if (error) { await drop(); return json({ error: error.code === "54000" ? "quota" : "insert_failed" }); }
         const urls = await signRows(admin, [media], clampTtl(body.ttl, 604800));

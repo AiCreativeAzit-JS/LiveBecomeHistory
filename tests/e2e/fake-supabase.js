@@ -125,7 +125,8 @@
       const isAdm = !!session && (window.__admins||[]).includes(session.user.id);
       if(name==='am_i_admin') return {data:isAdm,error:null};
       if(name==='admin_usage'){ if(!isAdm) return {data:null,error:{message:'forbidden'}};
-        const sz=db.media.reduce((a,m)=>a+Number(m.size_bytes||0),0); return {data:{db_bytes:window.__dbBytes??(12*1024*1024),storage_bytes:sz,storage_files:db.media.length},error:null}; }
+        const isR2=m=>String(m.storage_path||'').startsWith('r2:'), sum=f=>db.media.filter(f).reduce((a,m)=>a+Number(m.size_bytes||0),0); // 0011: 예전 저장소(storage_bytes)와 R2(r2_bytes)를 따로
+        return {data:{db_bytes:window.__dbBytes??(12*1024*1024),storage_bytes:sum(m=>!isR2(m)),storage_files:db.media.filter(m=>!isR2(m)).length,r2_bytes:sum(isR2),media_files:db.media.length},error:null}; }
       if(name==='admin_set_approved'){ // 가입 승인·취소(관리자만)
         if(!isAdm) return {data:null,error:{message:'forbidden'}};
         const p=db.profiles.find(x=>x.id===args.u); if(p) p.approved=!!args.ok; persist(); return {data:null,error:null};

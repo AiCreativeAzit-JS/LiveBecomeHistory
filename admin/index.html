@@ -229,7 +229,7 @@ function paneDash(){
   const openReports=data.reports.filter(r=>r.status==='open').length;
   const trash=data.books.filter(b=>b.deleted_at).length;
   const u=data.usage;
-  const storageUsed = data.media.reduce((s,m)=>s+Number(m.size_bytes||0),0); // 파일은 R2에 있어서 미디어 기록의 크기를 더한다
+  const storageUsed = (u && u.r2_bytes!=null) ? Number(u.r2_bytes)+Number(u.storage_bytes||0) : data.media.reduce((s,m)=>s+Number(m.size_bytes||0),0); // 서버 집계(R2 = 미디어 기록 크기 합 + 예전 저장소). 예전 함수면 화면에서 더한다
   // 할 일
   const todo=[];
   todo.push(openReports?`<li class="warn">처리할 신고 ${openReports}건 → <a href="#" data-go="reports">신고 탭</a></li>`:`<li class="ok">✅ 처리할 신고 없음</li>`);

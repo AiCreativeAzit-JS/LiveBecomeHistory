@@ -1,5 +1,5 @@
 // 아주 작은 가짜 supabase: 표 + RLS 흉내(내 책/공개 책/관리자) + 저장소
-export const S = globalThis.__S = { books:[], media:[], admins:['adm'], files:{}, users:{'jwt-u1':'u1','jwt-u2':'u2','jwt-adm':'adm'} };
+export const S = globalThis.__S = { books:[], media:[], admins:['adm'], unapproved:[], userInserts:0, files:{}, users:{'jwt-u1':'u1','jwt-u2':'u2','jwt-adm':'adm'} };
 const pub = b => b && b.is_public && !b.admin_hidden && !b.deleted_at;
 export function createClient(url, key, opts={}){
   const service = key==='SERVICE';
@@ -14,7 +14,7 @@ export function createClient(url, key, opts={}){
       limit(n){ lim=n; return api; }, single(){ one='s'; return api; }, maybeSingle(){ one='m'; return api; },
       then(res){ res(run()); } };
     function run(){
-      if(op==='insert'){ if(!service){ const b=S.books.find(x=>x.id===patch.book_id); if(!b||b.owner_id!==uid||patch.owner_id!==uid) return {data:null,error:{code:'42501'}}; }
+      if(op==='insert'){ if(!service){ S.userInserts++; const b=S.books.find(x=>x.id===patch.book_id); if(!b||b.owner_id!==uid||patch.owner_id!==uid) return {data:null,error:{code:'42501'}}; } // 회원 권한 INSERT 는 0011 뒤엔 실제로 불가(권한 없음) — 횟수만 센다
         const used=S.media.filter(m=>m.book_id===patch.book_id).reduce((n,m)=>n+m.size_bytes,0); if(used+patch.size_bytes>200*1048576) return {data:null,error:{code:'54000'}};
         const r={id:crypto.randomUUID(),...patch}; S.media.push(r); return {data:r,error:null}; }
       let rows=S[t].filter(r=>visible(t,r)&&f.every(g=>g(r)));
@@ -29,6 +29,6 @@ export function createClient(url, key, opts={}){
     async list(dir,{search}){ const k=dir+'/'+search; return {data:S.files[k]?[{name:search,metadata:{size:S.files[k].size,mimetype:S.files[k].type}}]:[]}; },
     async remove(ps){ ps.forEach(p=>delete S.files[p]); return {error:null}; },
     async download(p){ const f=S.files[p]; return f?{data:new Blob([new Uint8Array(f.size)],{type:f.type}),error:null}:{data:null,error:{}}; } }; } };
-  return { from:q, storage, rpc:async n=>({data:n==='am_i_admin'&&S.admins.includes(uid)}),
+  return { from:q, storage, rpc:async n=>({data: n==='am_i_admin' ? S.admins.includes(uid) : n==='am_i_approved' ? (!!uid && !S.unapproved.includes(uid)) : null}),
     auth:{ async getUser(j){ const u=S.users[j]; return {data:{user:u?{id:u}:null}}; } } };
 }

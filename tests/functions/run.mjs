@@ -84,5 +84,18 @@ ok('② 인쇄용 내려받기(주인 · variant print): 인쇄용 원본 주소
 ok('④ 남의 공개 책·비로그인·관리자의 print 요청: 인쇄용 원본은 안 줌(화면용만)', [await signAs('jwt-u2','print'),await signAs(undefined,'print'),await signAs('jwt-adm','print')].every(u=>u.includes(nm(u3.key))&&!u.includes('%40print')));
 { const pz=await call({action:'purge',book_id:B3},'jwt-u1');
   ok('⑤ 책 지우기: 두 벌 모두 사라짐', !Object.keys(R2).some(k=>k.startsWith(`u1/${B3}/`)) && pz.files>=3); }
+// ── D22(RT-002): 기록은 서버 키로만 · 승인된 회원만 올린다 · 한도 ──
+S.users['jwt-u3']='u3'; S.unapproved.push('u3'); const B4='66666666-6666-4666-8666-666666666666'; S.books.push({id:B4,owner_id:'u3',is_public:false});
+ok('D22: 미승인 회원은 올릴 자리를 못 받음(not_approved)', (await call({action:'upload',book_id:B4,kind:'image',type:'image/jpeg',size:100,ext:'jpg'},'jwt-u3')).error==='not_approved');
+ok('D22: 미승인 회원은 commit도 거절', (await call({action:'commit',book_id:B4,kind:'image',key:`u3/${B4}/${crypto.randomUUID()}.jpg`,backend:'r2'},'jwt-u3')).error==='not_approved');
+ok('D22: 승인된 회원의 남의 책은 여전히 forbidden(승인 검사가 소유 검사를 대신하지 않음)', (await call({action:'upload',book_id:B4,kind:'image',type:'image/jpeg',size:100,ext:'jpg'},'jwt-u1')).error==='forbidden');
+ok('D22: 지금까지 만든 media 기록은 모두 서비스 키로(회원 권한 INSERT 0건)', S.userInserts===0 && S.media.length>0);
+{ S.media.push({id:crypto.randomUUID(),book_id:B1,owner_id:'u1',kind:'video',storage_path:'r2:full',size_bytes:200*1048576-50});
+  ok('D22: 한도가 찬 책은 올릴 자리 거절(quota)', (await call({action:'upload',book_id:B1,kind:'image',type:'image/jpeg',size:100,ext:'jpg'},'jwt-u1')).error==='quota');
+  // 자리를 받은 뒤 다른 파일이 먼저 한도를 채우면 commit 때 DB 트리거(54000)가 막고, 올린 파일은 지운다
+  S.media.pop(); const slot=await call({action:'upload',book_id:B1,kind:'image',type:'image/jpeg',size:10,ext:'jpg'},'jwt-u1'); S.media.push({id:crypto.randomUUID(),book_id:B1,owner_id:'u1',kind:'video',storage_path:'r2:full',size_bytes:200*1048576-5});
+  await put(slot.url,10,slot.headers);
+  const c6=await call({action:'commit',book_id:B1,kind:'image',key:slot.key,backend:'r2'},'jwt-u1');
+  ok('D22: commit 때 한도 넘으면 트리거(54000)→quota, 올린 파일은 지움', c6.error==='quota' && !R2[slot.key]); S.media.pop(); }
 // 설정 전(비밀 값 없음)
 for(const k of ['R2_ACCOUNT_ID','R2_ACCESS_KEY_ID','R2_SECRET_ACCESS_KEY','R2_BUCKET']) delete env[k];
