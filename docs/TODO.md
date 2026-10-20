@@ -25,13 +25,10 @@
 - 약관·방침 노란 칸 채우기(오픈 전, docs/OPERATIONS.md 0번)
 - 도메인 연결, Supabase Pro·백업
 
-## ⏸ 가입 승인제 — DB 작업 중단(2026-10-01, Supabase 커넥터 쓰기 시간 초과 반복)
-- 적용됨: `profiles.approved` 컬럼(기본 false). 아직 아무 규칙도 이 값을 쓰지 않아 **서비스 영향 없음**.
-- 남은 DB 작업(파일 `supabase/migrations/20261001_0009_signup_approval.sql`의 나머지, 한 문장씩·lock_timeout 걸고):
-  1. `update profiles set approved=true` (운영자 계정 먼저 승인!) 2. 프로필 UPDATE 권한을 display_name만으로
-  3. `private.is_approved()`, `admin_set_approved()` 4. RESTRICTIVE 정책 7개(books·pages·media·snapshots·shares·storage)
-- 남은 화면 작업: 내 서재 「승인 대기」 화면, 관리자 회원 탭 「승인」 버튼·대시보드 대기 인원.
-- ⚠️ 순서 주의: 4번(정책)은 반드시 1번 뒤에. 거꾸로 하면 운영자도 책을 못 쓴다.
+## ✅ 가입 승인제 — DB 적용 완료(2026-10-21)
+- 운영 DB에 `0010_save_pages`(쪽 저장 한 묶음 + 판 번호) → `0009_signup_approval`(승인 함수 2개·RESTRICTIVE 정책 7개·프로필은 이름만 고치기) 순으로 적용. 저장소 파일과 같다(0009는 기존 회원 일괄 승인 대신 관리자만 승인하는 판).
+- 승인·취소: 관리자 화면 → 「회원」 탭 → 「승인하기」/「승인 취소」(DB 함수 `admin_set_approved`). 승인 전 회원은 내 서재에 「승인 대기」 안내가 보이고 「새 책 만들기」가 잠긴다(읽기·내려받기는 됨).
+- 가입 창은 베타 기간 동안 닫혀 있고(운영자가 계정을 드립니다 안내), 다시 열 때는 `editor/index.html`의 `window.MOA_SIGNUP_OPEN`을 true로.
 
 ## 운영 방침 (2026-10-02)
 - 소통: 정선C에게 새 작업을 부탁할 때는 "왜 필요한지"를 쉬운 비유로 먼저 설명하고, 할 일은 단계별로(2026-10-19 요청). 화면 안내는 로그인 첫 화면부터 전체 경로로, 실제 화면 캡처의 메뉴 이름(번역된 이름 포함)에 맞춰서

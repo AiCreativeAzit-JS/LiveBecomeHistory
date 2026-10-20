@@ -157,7 +157,7 @@ async function loadAll(){
   const [reports, books, profiles, notes, media, usage] = await Promise.all([
     sb.from('reports').select('id,book_id,reporter_id,reason,status,created_at').order('created_at',{ascending:false}),
     sb.from('books').select('id,owner_id,title,author_name,is_public,admin_hidden,deleted_at,published_at,created_at').order('created_at',{ascending:false}),
-    sb.from('profiles').select('id,display_name,created_at').order('created_at',{ascending:false}),
+    sb.from('profiles').select('id,display_name,created_at,approved').order('created_at',{ascending:false}),
     sb.from('book_admin_notes').select('book_id,note'),
     sb.from('media').select('book_id,kind,size_bytes,created_at,storage_path'), // 크기·종류·보관 위치만(내용·설명은 읽지 않음)
     sb.rpc('admin_usage')
@@ -233,6 +233,8 @@ function paneDash(){
   // 할 일
   const todo=[];
   todo.push(openReports?`<li class="warn">처리할 신고 ${openReports}건 → <a href="#" data-go="reports">신고 탭</a></li>`:`<li class="ok">✅ 처리할 신고 없음</li>`);
+  const pendingN=data.profiles.filter(p=>p.approved===false).length; // 가입 승인제(레드팀 D1)
+  if(pendingN) todo.push(`<li class="warn">승인 대기 회원 ${pendingN}명 → <a href="#" data-go="members">회원 탭</a></li>`);
   if(u && u.db_bytes/LIMIT.db>=.8) todo.push(`<li class="warn">데이터베이스가 ${Math.round(u.db_bytes/LIMIT.db*100)}% 찼어요 → 요금제 올리기 검토</li>`);
   if(storageUsed/LIMIT.storage>=.8) todo.push(`<li class="warn">파일 저장 공간이 ${Math.round(storageUsed/LIMIT.storage*100)}% 찼어요 → 요금제 올리기 검토</li>`);
   if(trash) todo.push(`<li>휴지통에 있는 책 ${trash}권 (작가가 직접 되살리거나 지울 수 있어요)</li>`);
@@ -371,13 +373,28 @@ function paneBooks(){
   };
 }
 
+// 가입 승인제(레드팀 D1): 승인한 회원만 책을 만들고 저장·올리기·발행할 수 있다(DB 규칙). 승인·취소는 admin_set_approved 함수(관리자만)
+async function rpcApprove(userId,ok){ const { error } = await sb.rpc('admin_set_approved',{ u:userId, ok }); if(error) throw error; }
 function paneMembers(){
   const pane=document.getElementById('pane');
   const n = id => data.books.filter(b=>b.owner_id===id&&!b.deleted_at).length;
-  pane.innerHTML = data.profiles.length ? data.profiles.map(p=>`<div class="item">
+  const pendingN=data.profiles.filter(p=>p.approved===false).length;
+  pane.innerHTML = `<p class="meta" style="margin:0 0 14px">승인한 회원만 책을 만들고 저장할 수 있어요. 승인 전 회원은 내 서재에서 「승인 대기」 안내를 봐요.${pendingN?` · <b>승인 대기 ${pendingN}명</b>`:''}</p>` +
+    (data.profiles.length ? data.profiles.map(p=>`<div class="item" data-u="${p.id}">
+      <div>${p.approved===false?'<span class="badge warn">승인 대기</span>':'<span class="badge ok">승인됨</span>'}</div>
       <h3>${esc(p.display_name||'(이름 없음)')}</h3>
-      <div class="meta">가입 ${fmt(p.created_at)} · 책 ${n(p.id)}권 · 회원 번호 ${esc(p.id.slice(0,8))}</div></div>`).join('')
-    : '<div class="empty">아직 회원이 없어요.</div>';
+      <div class="meta">가입 ${fmt(p.created_at)} · 책 ${n(p.id)}권 · 회원 번호 ${esc(p.id.slice(0,8))}</div>
+      <div class="row" style="margin-top:10px">${p.approved===false?`<button class="small" data-act="approve">승인하기</button>`:`<button class="ghost small" data-act="revoke">승인 취소</button>`}</div></div>`).join('')
+    : '<div class="empty">아직 회원이 없어요.</div>');
+  pane.onclick=async e=>{
+    const btn=e.target.closest('[data-act]'); if(!btn) return;
+    const id=btn.closest('[data-u]').dataset.u, p=data.profiles.find(x=>x.id===id); btn.disabled=true;
+    try{
+      if(btn.dataset.act==='approve'){ await rpcApprove(id,true); }
+      else { if(!confirm(`“${p.display_name||'(이름 없음)'}” 회원의 승인을 취소할까요?\n새 책 만들기·저장·올리기·발행이 막혀요(이미 쓴 책은 남아요).`)){ btn.disabled=false; return; } await rpcApprove(id,false); }
+      await loadAll(); render(); toast(btn.dataset.act==='approve'?'승인했어요':'승인을 취소했어요');
+    }catch(err){ console.error(err); toast('처리하지 못했어요'); btn.disabled=false; }
+  };
 }
 </script>
 </body>

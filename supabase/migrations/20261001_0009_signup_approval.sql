@@ -1,7 +1,9 @@
 -- 가입 승인제: 가입은 누구나, 책 만들기·저장·올리기·발행은 관리자가 승인한 회원만.
 -- 화면이 아니라 DB 규칙(RESTRICTIVE 정책)으로 막는다 → 화면을 우회해도 못 쓴다.
-alter table public.profiles add column approved boolean not null default false;
-update public.profiles set approved = true;                 -- 지금까지의 회원(운영자)은 승인 상태로 시작
+-- 운영 적용 이력: approved 열만 2026-10-01 적용, 나머지는 2026-10-21 적용(레드팀 RT-001 수정, D1).
+--   운영 적용 때는 열 추가를 건너뛰고, 기존 회원 일괄 승인 대신 관리자(admin_users)만 승인했다.
+--   그 밖의 계정 승인·취소는 public.admin_set_approved(uuid, boolean) 로 한다.
+alter table public.profiles add column if not exists approved boolean not null default false;
 update public.profiles set approved = true where id in (select user_id from public.admin_users);
 
 -- 본인이 스스로 승인하지 못하게: 프로필은 이름만 고칠 수 있다
@@ -33,3 +35,15 @@ as $$ begin
 end $$;
 revoke all on function public.admin_set_approved(uuid, boolean) from public, anon;
 grant execute on function public.admin_set_approved(uuid, boolean) to authenticated;
+
+-- 되돌리기(rollback)
+-- drop policy if exists books_need_approval on public.books;
+-- drop policy if exists pages_need_approval_i on public.pages;
+-- drop policy if exists pages_need_approval_u on public.pages;
+-- drop policy if exists media_need_approval on public.media;
+-- drop policy if exists snap_need_approval on public.book_snapshots;
+-- drop policy if exists share_need_approval on public.book_shares;
+-- drop policy if exists upload_need_approval on storage.objects;
+-- drop function if exists public.admin_set_approved(uuid, boolean);
+-- drop function if exists private.is_approved();
+-- grant update on public.profiles to authenticated;

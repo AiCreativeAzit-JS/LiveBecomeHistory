@@ -10,7 +10,7 @@ const now=new Date().toISOString();
 const id=i=>`00000000-0000-4000-8000-00000000000${i}`;
 const B=(i,t,au,pub,hid=false,del=null,own='u1')=>({id:id(i),owner_id:own,title:t,subtitle:'',author_name:au,is_public:pub,admin_hidden:hid,deleted_at:del,published_at:pub?now:null,created_at:new Date(Date.now()-i*1000).toISOString(),updated_at:now});
 const seed={
- profiles:[{id:'u1',display_name:'김정선',created_at:now},{id:'u2',display_name:'홍길동',created_at:now},{id:'adm',display_name:'관리자',created_at:now}],
+ profiles:[{id:'u1',display_name:'김정선',created_at:now,approved:true},{id:'u2',display_name:'홍길동',created_at:now,approved:false},{id:'adm',display_name:'관리자',created_at:now,approved:true}],
  books:[B(1,'나의 인생 이야기','김정선',true),B(2,'비공개 일기','김정선',false),B(3,'문제 있는 글','홍길동',true,false,null,'u2'),B(4,'이미 숨긴 책','홍길동',true,true,null,'u2'),B(5,'지운 책','홍길동',false,false,now,'u2')],
  reports:[{id:'r1',book_id:id(3),reporter_id:'aaaaaaaa-1111',reason:'욕설이 있어요',status:'open',created_at:now},{id:'r2',book_id:id(3),reporter_id:'bbbbbbbb-2222',reason:'광고글이에요',status:'open',created_at:now},{id:'r3',book_id:id(1),reporter_id:'cccccccc-3333',reason:'문제 없어 보이는 신고',status:'open',created_at:now},{id:'r4',book_id:id(4),reporter_id:'dddddddd-4444',reason:'예전 신고',status:'resolved',created_at:now}],
  book_admin_notes:[{book_id:id(4),note:'욕설로 숨김'}],
@@ -42,6 +42,7 @@ await pg.waitForSelector('.dash');
 const dt=await pg.locator('.dash').innerText();
 ok('대시보드가 기본 화면', await pg.locator('.tab.on').innerText()==='한눈에 보기');
 ok('대시보드: 할 일에 신고 3건', dt.includes('처리할 신고 3건'));
+ok('대시보드: 할 일에 승인 대기 회원 1명', dt.includes('승인 대기 회원 1명'));
 ok('대시보드: 30일 추이 차트 2개(오늘 막대 강조)', await pg.locator('svg.chart').count()===2 && await pg.locator('svg.chart rect.today').count()===2);
 ok('대시보드: 새 회원 3명·새 책 4권', /3\s*명/.test(dt) && /4\s*권/.test(dt));
 ok('대시보드: 저장 공간 53MB / 10.00GB, 파일 3개', dt.includes('53MB / 10.00GB') && dt.includes('3개'));
@@ -79,6 +80,13 @@ ok('비공개 책에는 "열어 보기"·숨기기 버튼 없음', await (async(
 // 회원 탭
 await pg.click('[data-t=members]'); ok('회원 3명 표시', (await pg.locator('.item').count())===3);
 const mt=await pg.locator('#pane').innerText(); ok('회원별 책 수 표시(김정선2·홍길동2·관리자0)', /김정선[\s\S]*?책 2권/.test(mt)&&/홍길동[\s\S]*?책 2권/.test(mt)&&/관리자[\s\S]*?책 0권/.test(mt));
+// 가입 승인제(D1): 배지·승인·취소
+ok('회원 탭: 승인 배지(승인됨 2·승인 대기 1)', await pg.locator('#pane .badge.ok').count()===2 && await pg.locator('#pane .badge.warn').count()===1 && mt.includes('승인 대기 1명'));
+await pg.locator('.item',{hasText:'홍길동'}).locator('[data-act=approve]').click(); await pg.waitForTimeout(400);
+ok('승인하기 → DB approved=true·대기 배지 없음', await pg.evaluate(()=>__db.profiles.find(p=>p.id==='u2').approved===true) && await pg.locator('#pane .badge.warn').count()===0);
+await pg.locator('.item',{hasText:'김정선'}).locator('[data-act=revoke]').click(); await pg.waitForTimeout(400);
+ok('승인 취소(확인 뒤) → approved=false·대기 배지 1', await pg.evaluate(()=>__db.profiles.find(p=>p.id==='u1').approved===false) && await pg.locator('#pane .badge.warn').count()===1);
+ok('일반 회원 세션으로는 승인 함수 거부', await pg.evaluate(async()=>{ const s=window.__admins; window.__admins=[]; const r=await (window.supabase.createClient('x','y')).rpc('admin_set_approved',{u:'u2',ok:false}); window.__admins=s; return !!r.error && __db.profiles.find(p=>p.id==='u2').approved===true; }));
 await pg.screenshot({path:'/tmp/admin2.png'});
 // R2로 옮기기 버튼
 { const has=await pg.locator('#migR2').count(); if(!has){ await pg.click('.tab[data-t=dash]'); await pg.waitForTimeout(400); }

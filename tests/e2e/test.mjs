@@ -15,6 +15,12 @@ const ok=(n,c)=>console.log((c?'PASS ':'FAIL ')+n);
 await pg.goto('http://localhost:8765/editor/');
 await pg.waitForSelector('#f');
 ok('로그인 화면 표시', await pg.locator('h1').innerText()==='로그인');
+// 베타 기간: 가입 창 대신 「운영자가 계정을 드립니다」 안내(레드팀 D12)
+await pg.click('#sw'); await pg.waitForSelector('#signupClosed');
+ok('베타: 가입 대신 운영자 안내(가입 칸 없음·체험 길 있음)', (await pg.locator('#signupClosed').innerText()).includes('운영자가 직접 계정') && await pg.locator('#nm').count()===0 && await pg.locator('.trybox a').count()===1);
+await pg.click('#sw'); await pg.waitForSelector('#f'); ok('안내에서 로그인으로 돌아가기', await pg.locator('h1').innerText()==='로그인');
+// 가입을 다시 열었을 때(window.MOA_SIGNUP_OPEN=true)의 가입 창
+await pg.addInitScript(()=>{ window.MOA_SIGNUP_OPEN=true; }); await pg.goto('http://localhost:8765/editor/'); await pg.waitForSelector('#f');
 await pg.click('#sw'); await pg.waitForSelector('#pw2');
 ok('가입 화면에 비밀번호 확인 칸', await pg.locator('#pw2').count()===1);
 ok('비밀번호 기본은 숨김', (await pg.getAttribute('#pw','type'))==='password');

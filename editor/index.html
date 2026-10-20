@@ -206,7 +206,20 @@ function openDoc(url){
   d.querySelector('button').onclick=close; d.addEventListener('cancel',close);
 }
 const TERMS_VERSION='2026-10'; // 이용약관 버전(동의 기록용). 약관을 바꾸면 올린다.
+const SIGNUP_OPEN = window.MOA_SIGNUP_OPEN === true; // 베타 기간: 가입 창을 닫고 운영자가 계정을 만들어 준다(레드팀 D12). 가입을 다시 열 때 true 로
+function viewSignupClosed(){
+  $top.innerHTML='';
+  $app.innerHTML = `<div class="narrow card">
+    <h1 class="serif">회원가입</h1>
+    <p class="sub">베타 기간에는 운영자가 계정을 드립니다.</p>
+    <div class="msg ok" role="status" id="signupClosed">지금은 신청해 주신 분께 운영자가 직접 계정을 만들어 드리는 베타 기간이에요.<br>
+      <a href="https://archive4everyone.com/#contact" target="_blank" rel="noopener">인물대백과사 「문의하기」</a>로 신청해 주시면 안내 드릴게요.</div>
+    <div class="row" style="margin-top:20px"><button type="button" class="gold" id="sw">로그인으로 돌아가기</button></div>
+    <p class="trybox">계정이 없어도 괜찮아요. <a href="../studio/">로그인 없이 모아 편집기 체험하기 →</a></p></div>`;
+  document.getElementById('sw').onclick = ()=>viewAuth('login');
+}
 function viewAuth(mode='login'){
+  if(mode==='signup' && !SIGNUP_OPEN) return viewSignupClosed();
   $top.innerHTML='';
   const signup = mode==='signup';
   $app.innerHTML = `<div class="narrow card">
@@ -329,6 +342,7 @@ async function viewLibrary(){
   $app.innerHTML = `<div class="row between"><div><h1 class="serif">내 서재</h1><p class="sub">내가 쓰는 책들이에요. 책은 언제든 내려받아 간직할 수 있어요.</p></div>
     <button class="gold" id="nb">＋ 새 책 만들기</button></div>
     <div class="libtabs" role="tablist"><button role="tab" data-tab="books">📚 내 책 <span id="cBooks"></span></button><button role="tab" data-tab="trash">🗑 휴지통 <span id="cTrash"></span></button></div>
+    <div id="pending"></div>
     <div id="demoImport"></div>
     <div id="list" class="books">불러오는 중…</div>
     <div class="acct">${window.MOA_VERSION?`<span style="font-size:11px;color:#9AA7A1;margin-right:8px">판 ${esc(MOA_VERSION)}</span>`:''}<button type="button" class="link" id="me">내 정보(이름·비밀번호)</button> · <a href="../privacy/">개인정보 처리방침</a> · <a href="../terms/">이용약관</a> · <button type="button" class="link" id="quit">회원 탈퇴</button></div>`;
@@ -337,8 +351,10 @@ async function viewLibrary(){
   document.getElementById('quit').onclick = openQuit;
   document.getElementById('me').onclick = openMe;
   document.querySelectorAll('.libtabs [data-tab]').forEach(b=>b.onclick=()=>{ libTab=b.dataset.tab; viewLibrary(); });
-  const { data, error } = await sb.from('books').select('id,title,subtitle,is_public,admin_hidden,updated_at,format,deleted_at,published_at')
-    .eq('owner_id', user.id).order('updated_at',{ascending:false});
+  const [{ data, error }, prof] = await Promise.all([
+    sb.from('books').select('id,title,subtitle,is_public,admin_hidden,updated_at,format,deleted_at,published_at').eq('owner_id', user.id).order('updated_at',{ascending:false}),
+    sb.from('profiles').select('approved').eq('id',user.id).maybeSingle() ]);
+  showPending(!!prof && !!prof.data && prof.data.approved===false);
   const list=document.getElementById('list');
   if(error){ list.innerHTML=msgBox('err','책 목록을 불러오지 못했어요.'); return; }
   const live=data.filter(b=>!b.deleted_at), trash=data.filter(b=>b.deleted_at);
@@ -406,6 +422,12 @@ async function purgeBook(b){
   toast(error?'지우지 못했어요':'완전히 지웠어요');
 }
 const studioURL = id => '../studio/?book='+encodeURIComponent(id);
+// 가입 승인제(레드팀 D1): 승인 전에는 책을 만들고 저장할 수 없다(DB 규칙이 막는다). 화면에서도 미리 알려 주고 「새 책 만들기」를 잠근다
+function showPending(pending){
+  const box=document.getElementById('pending'), nb=document.getElementById('nb'); if(!box||!nb) return;
+  box.innerHTML = pending ? `<div class="trybox" role="status" id="pendingMsg" style="margin:0 0 14px">⏳ <b>계정 승인을 기다리고 있어요.</b> 운영자가 승인하면 새 책을 만들고 저장할 수 있어요. 승인 전에도 내 책을 읽고 내려받는 건 돼요.</div>` : '';
+  nb.disabled = !!pending; nb.title = pending ? '계정 승인이 끝나면 만들 수 있어요' : '';
+}
 // 로그인 전에 이 기기에서 체험하며 만든 책이 있으면: 「내 서재로 옮기기」(새 책으로) · 「지우기」
 async function showDemoImport(){ const box=document.getElementById('demoImport'); if(!box||!window.DemoDraft) return; const d=await DemoDraft.get(); if(!d||!document.body.contains(box)) return;
   box.innerHTML=`<div style="background:#FFF7E0;border:1px solid #F0D9A0;border-radius:12px;padding:12px 14px;margin:6px 0 14px;line-height:1.7">✨ 로그인 전에 이 기기에서 체험하며 만든 책 「<b>${esc(d.title||'제목 없는 책')}</b>」이 남아 있어요.

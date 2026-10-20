@@ -4,7 +4,7 @@
 
 ```bash
 cd tests/e2e
-for t in test online-test studio-test share-test shelf-test admin-test me-test newbook-test real-book-test demo-test sample-test mouse-test prefetch-test flow-test dialog-test pick-test output-test ux-test photo2-test r02-test r03-test r04-test r05-test r06-test r07-test r08-test r09-test r10-test r11-test alt-test; do
+for t in test online-test studio-test share-test shelf-test admin-test me-test newbook-test real-book-test demo-test sample-test mouse-test prefetch-test flow-test dialog-test pick-test output-test ux-test photo2-test r02-test r03-test r04-test r05-test r06-test r07-test r08-test r09-test r10-test r11-test alt-test save-test recover-test flow-order-test approval-test; do
   r=$(node $t.mjs "$PWD/fake-supabase.js" 2>&1); echo "$t PASS=$(echo "$r"|grep -c '^PASS') FAIL=$(echo "$r"|grep -c '^FAIL')"; echo "$r"|grep '^FAIL'
 done
 ```
@@ -29,4 +29,9 @@ done
 - `r10-test`: 발행 뒤 제목만 바꿔도 「다시 발행」·비밀 링크 「새로 고침」 감지, 발행본 제목 일치(수정요청서 2차 R10, T33)
 - `r11-test`: 마우스 없이 Tab·Enter·F2·Esc로 기존 제목·본문·설명 고치기(수정요청서 2차 R11, T34)
 - `alt-test`: 사진 설명(대체 텍스트) 쓰기·편집/내려받기/서가에 반영, 미리보기를 지금 쪽부터·「처음부터」(정선C 결정 2026-10-19)
+- `save-test`: 저장을 한 묶음(rpc save_pages)으로 + 판 번호(rev) 잠금 — 두 탭에서 같은 책을 열면 알림(#multiBar), 나중 저장이 덮어쓰지 않고 충돌 대화상자(#cfDlg), 재시도 점증, 열 때 ✓(레드팀 RT-101·106, D13·D16). 가짜 Supabase `window.__multiTab`·`__slowWrite`·`__failWrite`
+- `recover-test`: 끊김·로그인 풀림에도 글이 남게 — 기기 사본(keepLocal)·복구 제안(#rcDlg)·저장 실패 종류(auth/perm/err) 안내·재로그인 창(#reDlg)(RT-102·103, D14·D15). `__authExpired`·`__denyWrite`·`__fireAuth`
+- `flow-order-test`: 이어진 원고 사이에 쪽을 끼우고 앞쪽에 글을 더해 넘친 뒤 끼운 쪽을 지워도 읽는 순서가 그대로(워드 순서) + 열 때 healFlow(RT-401, D24)
+- `approval-test`: 가입 승인제 — 승인 전 회원은 내 서재에 「승인 대기」 안내와 「새 책 만들기」 잠금, 승인되면 풀림(RT-001, D1). 가입 창 닫힘 안내는 `test`(D12), 관리자 회원 탭의 승인·취소 버튼은 `admin-test`
+- 윈도우: `run-all.ps1`(`-Label`·`-Tests a,b`), 로그 `logs/<Label>.log`. 저장소·크로미움 경로는 `MOA_ROOT`·`PW_CHROME` 환경 변수로
 - 기준(2026-10-19): 위 30개 모두 FAIL 0 (flow-test 57개, dialog-test 14개, pick-test 22개, output-test 33개, ux-test 27개, photo2-test 15개, r02-test 34개, r03-test 12개, r04-test 9개, r05-test 22개, r06-test 12개, r07-test 7개, r08-test 4개, r09-test 6개, r10-test 8개, r11-test 13개 · r02-test는 40개)

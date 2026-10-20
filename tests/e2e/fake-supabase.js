@@ -1,6 +1,6 @@
 // 메모리 기반 가짜 supabase-js (화면 로직 검증용)
 (function(){
-  const db={books:[],chapters:[],pages:[],book_snapshots:[],book_shares:[],media:[],reports:[],book_admin_notes:[],profiles:[{id:'u1',display_name:'김정선'}]};
+  const db={books:[],chapters:[],pages:[],book_snapshots:[],book_shares:[],media:[],reports:[],book_admin_notes:[],profiles:[{id:'u1',display_name:'김정선',approved:true}]};
   const files={}; let session=null; try{ session=JSON.parse(localStorage.getItem('fakeSession')||'null'); }catch{}
   let __saved=null; try{ __saved=JSON.parse(localStorage.getItem('fakeDB')||'null'); }catch{}
   if(__saved) Object.assign(db,__saved);
@@ -126,6 +126,10 @@
       if(name==='am_i_admin') return {data:isAdm,error:null};
       if(name==='admin_usage'){ if(!isAdm) return {data:null,error:{message:'forbidden'}};
         const sz=db.media.reduce((a,m)=>a+Number(m.size_bytes||0),0); return {data:{db_bytes:window.__dbBytes??(12*1024*1024),storage_bytes:sz,storage_files:db.media.length},error:null}; }
+      if(name==='admin_set_approved'){ // 가입 승인·취소(관리자만)
+        if(!isAdm) return {data:null,error:{message:'forbidden'}};
+        const p=db.profiles.find(x=>x.id===args.u); if(p) p.approved=!!args.ok; persist(); return {data:null,error:null};
+      }
       if(name==='admin_set_hidden'){
         if(!isAdm) return {data:null,error:{message:'forbidden'}};
         const b=db.books.find(x=>x.id===args.b); if(b) b.admin_hidden=args.hidden;
