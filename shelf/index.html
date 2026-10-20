@@ -215,10 +215,8 @@ async function viewBook(id, pageNo=0, mediaId=null){
   if(b.data && b.data.format==='pages'){ // 새 편집기 책: 독자는 '발행본'만 본다(작가가 고치는 초안은 보이지 않음)
     const sn = await sb.from('book_snapshots').select('title,author_name,pages').eq('book_id',id).maybeSingle();
     if(sn.data){ shelfPages = sn.data.pages; if(sn.data.title) b.data.title = sn.data.title; if(sn.data.author_name) b.data.author_name = sn.data.author_name; }
-    else if(!(c.data||[]).length){ // 발행본이 없는 예전 책: 현재 페이지로 보여 준다
-      const pg = await sb.from('pages').select('id,position,bg,els').eq('book_id',id).order('position');
-      if(pg.error){ $app.innerHTML='<div class="wrap"><div class="msg err" style="margin-top:30px">책을 불러오지 못했어요.</div></div>'; return; }
-      shelfPages = pg.data; }
+    else if(!(c.data||[]).length){ // 발행본이 없으면 초안(pages)은 보여 주지 않는다 — 독자는 발행본만(레드팀 RT-203·D23). anon 은 pages 를 읽을 수도 없다
+      $app.innerHTML='<div class="wrap"><div class="empty">이 책은 아직 발행본이 없어요.<br>작가가 편집기에서 「발행하기」를 누르면 서가에서 볼 수 있어요.<br><a href="#/">← 서가로 돌아가기</a></div></div>'; return; }
     // 발행본이 없고 옛 글(장)이 있으면: 새 편집기로 옮기기 전의 발행 내용을 그대로 보여 준다
   }
   if(shelfPages){

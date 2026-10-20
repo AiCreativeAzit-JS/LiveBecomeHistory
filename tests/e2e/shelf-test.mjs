@@ -9,7 +9,8 @@ const b=await chromium.launch({executablePath:process.env.PW_CHROME||'/opt/pw-br
 const ctx=await b.newContext({viewport:{width:1100,height:900}});
 const now=new Date().toISOString();
 const B=(i,t,au,pub,hid=false,del=null)=>({id:`00000000-0000-4000-8000-00000000000${i}`,owner_id:'u9',title:t,subtitle:'부제'+i,author_name:au,is_public:pub,admin_hidden:hid,deleted_at:del,published_at:new Date(Date.now()-i*1000).toISOString(),created_at:now,updated_at:now});
-const seed={books:[B(1,'나의 인생 이야기','김정선',true),B(2,'비공개 일기','홍길동',false),B(3,'숨겨진 책','박숨김',true,true),B(4,'삭제한 책','이삭제',true,false,now),B(5,'바다의 기억','최바다',true)],
+const seed={books:[B(1,'나의 인생 이야기','김정선',true),B(2,'비공개 일기','홍길동',false),B(3,'숨겨진 책','박숨김',true,true),B(4,'삭제한 책','이삭제',true,false,now),B(5,'바다의 기억','최바다',true),{...B(6,'발행 전 초안책','정초안',true),format:'pages'}],
+ pages:[{id:'p6',book_id:B(6).id,position:0,bg:'#FFFFFF',els:[{type:'text',html:'<p>아직 고치는 중인 초안 문장</p>',x:5,y:5,w:90,h:30}]}],
  chapters:[{id:'c1',book_id:B(1).id,position:0,title:'태어난 날',content:'<p>그날은 비가 왔다.</p><p onclick="x()">안전<script>window.__xss=1<\/script></p><img data-media="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa">'},{id:'c2',book_id:B(1).id,position:1,title:'학교',content:'<p>두 번째 장.</p>'},{id:'c3',book_id:B(2).id,position:0,title:'비밀',content:'<p>비밀 내용</p>'}],
  media:[{id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',book_id:B(1).id,storage_path:'u9/b1/a.png'}]};
 await ctx.addInitScript(s=>{ window.__seed=s; },seed);
@@ -22,9 +23,14 @@ const ok=(n,c)=>console.log((c?'PASS ':'FAIL ')+n);
 await pg.goto('http://localhost:8766/shelf/');
 await pg.waitForSelector('.book');
 const titles=await pg.locator('.book h3').allInnerTexts();
-ok('공개 책만 노출(2권)', titles.length===2&&titles.includes('나의 인생 이야기')&&titles.includes('바다의 기억')); console.log('  목록:',titles.join(' / '));
+ok('공개 책만 노출(3권)', titles.length===3&&titles.includes('나의 인생 이야기')&&titles.includes('바다의 기억')&&titles.includes('발행 전 초안책')); console.log('  목록:',titles.join(' / '));
 ok('비공개·숨김·삭제 책 안 보임', !titles.some(t=>['비공개 일기','숨겨진 책','삭제한 책'].includes(t)));
 ok('최신 공개순 정렬', titles[0]==='나의 인생 이야기');
+// 발행본 없는 새 편집기 책(D23): 초안을 보여 주지 않고 안내만
+await pg.goto('http://localhost:8766/shelf/#/book/00000000-0000-4000-8000-000000000006'); await pg.waitForSelector('.empty');
+ok('발행본 없는 공개 책: 「아직 발행본이 없어요」 안내', (await pg.locator('.empty').innerText()).includes('아직 발행본이 없어요'));
+ok('발행본 없는 공개 책: 초안 문장이 화면에 없음', !(await pg.locator('body').innerText()).includes('아직 고치는 중인 초안 문장'));
+await pg.goto('http://localhost:8766/shelf/'); await pg.waitForSelector('.book');
 await pg.fill('#q','바다'); await pg.click('#sf button'); await pg.waitForTimeout(300);
 ok('검색(제목)', (await pg.locator('.book').count())===1);
 await pg.fill('#q','김정선'); await pg.click('#sf button'); await pg.waitForTimeout(300);
