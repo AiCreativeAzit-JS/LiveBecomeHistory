@@ -66,8 +66,8 @@ await st(B,()=>{ window.__failWrite=false; nextSaveAt=0; });
 ok('준비: B 다시 충돌', await waitVisible(B,'#cfDlg'));
 await B.click('#cfDlg [data-cf="replace"]');
 ok('D13 「내 내용으로 덮어쓰기」 → B의 내용이 서버에(A3는 빠짐) · ✓', await waitSaved(B) && /B3/.test((await db(B)).text) && !/A3/.test((await db(B)).text), JSON.stringify(await db(B)));
-await A.waitForTimeout(1000);
-ok('D13 고친 것이 없는 탭 A는 다른 탭의 저장을 조용히 불러옴', /B3/.test(await text0(A)) && (await saveState(A))==='ok', await text0(A));
+for(let i=0;i<30 && !/B3/.test(await text0(A));i++) await A.waitForTimeout(200); // 다른 탭의 저장을 불러오기까지 최대 6초(고정 1초는 느린 PC에서 흔들림)
+ok('D13 고친 것이 없는 탭 A는 다른 탭의 저장을 조용히 불러옴', /B3/.test(await text0(A)) && (await saveState(A))==='ok', (await text0(A))+' · '+JSON.stringify(await st(A,()=>({editing:state.editing,saveRun:!!saveRun,conflict:!!conflict,rev:bookRow.rev,dirty:serialize()!==lastSaved,save:document.getElementById('save').dataset.state,bar:document.getElementById('multiBar').hidden?'':document.getElementById('multiBar').textContent.slice(0,30)})))+' · B rev '+(await db(B)).rev);
 
 /* ── 바뀐 쪽·지운 쪽만 보내기 ── */
 await st(A,()=>{ window.__saveArgs=[]; }); await typeIn(A,0,'e1',' A4'); await waitSaved(A);

@@ -3,7 +3,7 @@
 import { execSync } from 'child_process';
 const R=execSync('npm root -g').toString().trim();
 const { chromium } = await import((p=>/^[A-Za-z]:/.test(p)?'file:///'+p.replace(/\\/g,'/'):p)(R+'/playwright/index.mjs'));
-import http from 'http'; import fs from 'fs'; import path from 'path';
+import http from 'http'; import fs from 'fs'; import path from 'path'; import os from 'os';
 const ROOT=process.env.MOA_ROOT||'/home/user/LiveBecomeHistory';
 const types={'.html':'text/html','.js':'application/javascript'};
 const srv=http.createServer((req,res)=>{ const p=req.url.split('?')[0]; const f=path.join(ROOT,p.endsWith('/')?p+'index.html':p);
@@ -35,8 +35,8 @@ await pg.click('#btnPreview'); await pg.waitForSelector('#pv:not([hidden])'); aw
 ok('T29 미리보기의 영상도 전체 보기(모든 펼침면)', await st(()=>{ const c=$('pvBody'), v=c._bv, fits=[]; for(let i=0;i<v.count;i+=(v.spread?2:1)){ v.go(i,false); c.querySelectorAll('video').forEach(x=>fits.push(getComputedStyle(x).objectFit)); } return fits.length===3 && fits.every(f=>f==='contain'); }));
 await pg.keyboard.press('Escape');
 // 화면용 전자책
-{ await pg.click('#btnExport'); const [d]=await Promise.all([pg.waitForEvent('download'),pg.click('#exDlg [data-ex=screen]')]); const fp='/tmp/r07.html'; await d.saveAs(fp);
-  const ex=await pg.context().newPage(); await ex.goto('file://'+fp); await ex.waitForSelector('.bv-page'); await ex.waitForTimeout(300);
+{ await pg.click('#btnExport'); const [d]=await Promise.all([pg.waitForEvent('download'),pg.click('#exDlg [data-ex=screen]')]); const fp=path.join(os.tmpdir(),'r07.html'); await d.saveAs(fp);
+  const ex=await pg.context().newPage(); await ex.goto('file:///'+fp.split(path.sep).join('/').replace(/^[/]+/,'')); await ex.waitForSelector('.bv-page'); await ex.waitForTimeout(300);
   const fits=await ex.evaluate(()=>{ const c=document.getElementById('book'), v=c._bv, out=[]; for(let i=0;i<v.count;i+=(v.spread?2:1)){ v.go(i,false); c.querySelectorAll('video').forEach(x=>{ const r=x.parentElement.getBoundingClientRect(); out.push({fit:getComputedStyle(x).objectFit, ratio:+(r.height/r.width).toFixed(2)}); }); } return out; });
   ok('T29 화면용 전자책: 영상 3개 모두 전체 보기 · 상자 비율 = 영상 비율(세로·정사각·가로)', fits.length===3 && fits.every(f=>f.fit==='contain') && fits.some(f=>near(f.ratio,16/9)) && fits.some(f=>near(f.ratio,1)) && fits.some(f=>near(f.ratio,9/16)), JSON.stringify(fits)); await ex.close(); }
 ok('T29 서가·비밀 링크(공통 책 그리기)도 영상은 전체 보기', /\.bk-pg video\{object-fit:contain\}/.test(fs.readFileSync(ROOT+'/lib/book-render.js','utf8')));

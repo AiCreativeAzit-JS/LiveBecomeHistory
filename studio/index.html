@@ -1457,7 +1457,10 @@ const tabs={
       if(m.type==='hello'){ bc.postMessage({type:'here',tab:TAB_ID}); tabs.warn(); }
       else if(m.type==='here') tabs.warn();
       else if(m.type==='saved' && typeof m.rev==='number' && m.rev>(bookRow.rev??-1)){
-        if(serialize()===lastSaved && !state.editing && !saveRun && !conflict){ if(await reloadFromServer()) toast('다른 탭에서 저장한 내용을 불러왔어요'); }   // 고친 게 없으면 조용히 최신으로
+        if(serialize()===lastSaved && !state.editing && !saveRun && !conflict){   // 고친 게 없으면 조용히 최신으로
+          let got=await reloadFromServer();
+          for(let i=0;i<3 && got && (bookRow.rev??-1)<m.rev && serialize()===lastSaved && !state.editing && !saveRun; i++){ await new Promise(r=>setTimeout(r,500)); got=await reloadFromServer(); } // 알림보다 서버 반영이 늦게 보이면 잠시 뒤 다시 읽는다
+          if(got) toast('다른 탭에서 저장한 내용을 불러왔어요'); }
         else tabs.warn(true); } };
     bc.postMessage({type:'hello',tab:TAB_ID}); },
   saved(){ if(bc) bc.postMessage({type:'saved',tab:TAB_ID,rev:bookRow.rev}); },

@@ -3,7 +3,7 @@
 import { execSync } from 'child_process';
 const R=execSync('npm root -g').toString().trim();
 const { chromium } = await import((p=>/^[A-Za-z]:/.test(p)?'file:///'+p.replace(/\\/g,'/'):p)(R+'/playwright/index.mjs'));
-import http from 'http'; import fs from 'fs'; import path from 'path';
+import http from 'http'; import fs from 'fs'; import path from 'path'; import os from 'os';
 const ROOT=process.env.MOA_ROOT||'/home/user/LiveBecomeHistory';
 const types={'.html':'text/html','.js':'application/javascript'};
 const srv=http.createServer((req,res)=>{ const p=req.url.split('?')[0]; const f=path.join(ROOT,p.endsWith('/')?p+'index.html':p);
@@ -30,7 +30,7 @@ await pg.goto(`${U}/studio/?book=${BK}`); await pg.waitForSelector('#canvas .pg'
 await st(MB=>{ window.__files['u1/bk/a.mp3']=new Blob([new Uint8Array(1*MB)],{type:'audio/mpeg'}); window.__files['u1/bk/v.mp4']=new Blob([new Uint8Array(20*MB)],{type:'video/mp4'}); },MB);
 const download=async(kind='screen')=>{ await pg.click('#btnExport'); await pg.waitForSelector('#exDlg:not([hidden])'); const warn=await pg.locator('#exWarn').innerText();
   const dl=pg.waitForEvent('download',{timeout:60000}).catch(()=>null); await pg.click(`#exDlg [data-ex=${kind}]`); const d=await dl; if(!d) return {warn,h:null};
-  const fp=`/tmp/r04-${kind}.html`; await d.saveAs(fp); return {warn,h:fs.readFileSync(fp,'utf8'),fp}; };
+  const fp=path.join(os.tmpdir(),`r04-${kind}.html`); await d.saveAs(fp); return {warn,h:fs.readFileSync(fp,'utf8'),fp}; };
 
 /* ── T13 15MB 아래·위 미디어 출력 ── */
 { const {h,fp}=await download('screen');
@@ -38,8 +38,8 @@ const download=async(kind='screen')=>{ await pg.click('#btnExport'); await pg.wa
   ok('T13 15MB 넘는 영상(20MB)도 파일 안에(data:) — 만료되는 링크 없음', /data:video\/mp4;base64,/.test(h) && !/X-Amz-|blob:|https?:\/\/[^"'\s]*\.(mp4|mp3)/.test(h) && fs.statSync(fp).size>20*MB*1.3, `${(fs.statSync(fp).size/MB).toFixed(1)}MB`);
   ok('T13 「이 파일 하나로 언제든」 안내와 실제 포함 방식이 일치', /이 파일 하나로 언제든 열어볼 수 있어요/.test(h));
   // T14 오프라인: 인터넷을 모두 막고 연 내려받은 파일 → 바깥 요청 없이 영상·노래가 파일 안 주소
-  const off=await b.newContext(); const net=[]; await off.route('**/*',r=>{ if(r.request().url().startsWith('file:')) return r.continue(); net.push(r.request().url()); r.abort(); });
-  const ex=await off.newPage(); await ex.goto('file://'+fp); await ex.waitForSelector('.bv-page'); await ex.waitForTimeout(400);
+  const off=await b.newContext(); const net=[]; await off.route(/^https?:/,r=>{ net.push(r.request().url()); r.abort(); }); // file:// 은 가로채지 않는다(윈도우에서 continue 가 ERR_FILE_NOT_FOUND)
+  const ex=await off.newPage(); await ex.goto('file:///'+fp.split(path.sep).join('/').replace(/^\/+/,'')); await ex.waitForSelector('.bv-page'); await ex.waitForTimeout(400);
   const srcs=await ex.evaluate(async()=>{ const c=document.getElementById('book'), v=c._bv, out=[]; for(let i=0;i<v.count;i+=(v.spread?2:1)){ v.go(i,false); c.querySelectorAll('video').forEach(x=>out.push('v:'+x.src.slice(0,5))); c.querySelectorAll('.ap').forEach(x=>out.push('a:'+(x._audio?x._audio.src.slice(0,5):x.dataset.src?.slice(0,5)))); } return out; });
   ok('T14 인터넷 없이 연 파일: 영상·노래가 모두 파일 안 주소(data:) · 바깥 요청 0', srcs.length>=2 && srcs.every(s=>s.endsWith('data:')) && net.length===0, JSON.stringify({srcs,net}));
   await off.close(); }
