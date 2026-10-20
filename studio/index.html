@@ -842,9 +842,10 @@ function mediaPageTemplate(kind, name){
 }
 function insertPageAt(i, kind='text'){
   endEdit(); snap(); const p = kind==='text' ? blankPage() : mediaPageTemplate(kind);
+  const split = i>0 && flowsInto(i-1);   // 이어진 원고 한가운데에 끼우면 원고는 이 쪽을 건너뛰어 나뉜다(지우면 다시 이어진다)
   state.pages.splice(i,0,p); state.cur=i;
-  if(kind==='text'){ state.sel=p.els[0].id; renderAll(); startEdit(p.els[0].id); }
-  else { state.sel=null; renderAll(); toast(`줄무늬 자리를 눌러 ${kind==='image'?'사진':kind==='video'?'영상':'노래'}을(를) 넣으세요`); }
+  if(kind==='text'){ state.sel=p.els[0].id; renderAll(); startEdit(p.els[0].id); if(split) toast('이어진 원고 사이에 끼웠어요 · 앞쪽 글은 이 쪽을 건너 뒤쪽으로 이어져요(이 쪽을 지우면 다시 붙어요)'); }
+  else { state.sel=null; renderAll(); toast(`줄무늬 자리를 눌러 ${kind==='image'?'사진':kind==='video'?'영상':'노래'}을(를) 넣으세요`+(split?' · 이어진 원고 사이라 앞쪽 글은 이 쪽을 건너 이어져요':'')); }
 }
 let ptIndex=0;
 function askPageType(i){ endEdit(); ptIndex=i; $('ptDlg').hidden=false; $('ptDlg').querySelector('.opt').focus(); }
@@ -857,6 +858,13 @@ function dupPage(i){ const split=flowsInto(i);
   state.pages.splice(i+1,0,c); state.cur=i+1; state.sel=null; renderAll();
   toast(`${i+2}쪽에 복제했어요`+(split?` · ${i+1}쪽에서 이어지던 글은 여기서 나뉘어요(복제본을 지우면 다시 이어져요)`:'')); }
 // 지우는 쪽이 이어진 원고의 한 쪽이면, 그 쪽에서 이어지던 쪽을 지운 쪽의 앞쪽에 다시 잇는다(지운 쪽의 글만 빠지고 원고는 계속 이어짐)
+function healFlow(){ const ids=new Set(state.pages.map(p=>p.id)), seen=new Map(); let n=0;
+  state.pages.forEach(p=>{ if(!p.flowFrom) return;
+    if(!ids.has(p.flowFrom)||p.flowFrom===p.id){ p.flowFrom=null; n++; return; }
+    if(!seen.has(p.flowFrom)){ seen.set(p.flowFrom,p); return; }
+    let end=seen.get(p.flowFrom); for(let g=0; g<1000; g++){ const nx=state.pages.find(q=>q!==p&&q.flowFrom===end.id); if(!nx) break; end=nx; }   // 먼저 잇던 쪽의 사슬 끝에 붙인다
+    p.flowFrom=end.id; seen.set(end.id,p); n++; });
+  return n; }
 function relinkRemoved(ids){ const gone=new Map(state.pages.filter(p=>ids.has(p.id)).map(p=>[p.id,p.flowFrom||null]));
   const up=id=>{ for(let n=0; gone.has(id) && n<1000; n++) id=gone.get(id); return id; };
   state.pages.forEach(p=>{ if(!gone.has(p.id) && p.flowFrom && gone.has(p.flowFrom)) p.flowFrom=up(p.flowFrom); }); }
@@ -937,6 +945,7 @@ function pushOverflow(i, r, src){
   const np=blankPage(); np.name=/\(이어서\)$/.test(me.name)?me.name:me.name+' (이어서)'; np.flowFrom=me.id; const t=np.els[0];
   Object.assign(t,{html:r.html,cont:r.cont,fs:src.fs,font:src.font,color:src.color,align:src.align,b:src.b,i:src.i,u:src.u});
   if(flowsInto(i)) state.pages[i+1].flowFrom=np.id;     // 글상자 없는 이어진 쪽이 있었다면 새 쪽 뒤로 잇는다
+  else { const d=state.pages.find((p,k)=>k!==i&&p.flowFrom===me.id); if(d) d.flowFrom=np.id; }   // 끼운 쪽 때문에 떨어져 있던 「(이어서)」는 새 조각 뒤에 다시 잇는다(끼운 쪽을 지우면 원고가 한 줄로 이어진다)
   state.pages.splice(i+1,0,np); return t;
 }
 function dropEmptyNext(i){ // 비어 버린 다음 이어진 쪽을 지우고 그 뒤 쪽을 이 쪽에 잇는다
@@ -1421,7 +1430,7 @@ function watchAuth(){ sb.auth.onAuthStateChange((ev,session)=>{ if(!ONLINE||!boo
 let mediaUrls={};                                   // 이 책 미디어의 임시 주소(media_id → url)
 const rowsToPages = (rows,urls) => rows.map(r=>({id:r.id,name:r.name,bg:r.bg,flowFrom:r.flow_from,els:(Array.isArray(r.els)?r.els:[]).map(e=>e.media_id?{...e,src:urls[e.media_id]||''}:e)}));
 // 서버에서 받은 쪽들을 화면에 올리고 「마지막 저장본」으로 삼는다
-function applyRows(rows){ state.pages=rowsToPages(rows,mediaUrls); state.cur=Math.min(state.cur,state.pages.length-1); state.sel=null; state.editing=false; history=[]; future=[]; renderAll(); updPublish();
+function applyRows(rows){ state.pages=rowsToPages(rows,mediaUrls); healFlow(); state.cur=Math.min(state.cur,state.pages.length-1); state.sel=null; state.editing=false; history=[]; future=[]; renderAll(); updPublish();
   lastSaved=serialize(); savedRows=new Map(JSON.parse(lastSaved).pages.map(p=>[p.id,JSON.stringify(p)])); }
 // 서버의 최신 원고를 다시 불러온다(다른 곳에서 먼저 저장한 뒤 「최신 내용 불러오기」, 다른 탭이 저장했을 때)
 async function reloadFromServer(){
