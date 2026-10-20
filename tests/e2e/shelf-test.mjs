@@ -44,6 +44,7 @@ ok('목차 2장', (await pg.locator('.toc li').count())===2);
 ok('본문 표시', (await pg.locator('#c0 .body').innerText()).includes('그날은 비가 왔다.'));
 ok('스크립트/속성 제거', !(await pg.evaluate(()=>window.__xss)) && !(await pg.locator('#c0 [onclick]').count()));
 ok('사진 불러옴', await pg.evaluate(()=>{const i=document.querySelector('#c0 img');return i&&i.src.startsWith('data:image')}));
+ok('D40 서가는 사진 기록에서 경로·주인 열을 읽지 않음(번호·종류만)', await pg.evaluate(()=>{ const s=(window.__selects||[]).filter(x=>x.t==='media'); return s.length>0 && s.every(x=>!/owner_id|storage_path|\*/.test(x.c)); }), await pg.evaluate(()=>JSON.stringify((window.__selects||[]).filter(x=>x.t==='media'))));
 ok('옛 형식 책: 저작권 안내(내려받기·인쇄 불가)', (await pg.locator('.copynote').first().innerText()).includes('저작권'));
 ok('브라우저 제목', (await pg.title()).includes('나의 인생 이야기'));
 // 비공개 책 직접 주소

@@ -208,7 +208,7 @@ async function viewBook(id, pageNo=0, mediaId=null){
   const [b,c,m] = await Promise.all([
     sb.from('shelf_books').select('id,title,subtitle,author_name,published_at,format').eq('id',id).maybeSingle(),
     sb.from('chapters').select('id,position,title,content').eq('book_id',id).order('position'),
-    sb.from('media').select('id,storage_path').eq('book_id',id)
+    sb.from('media').select('id,kind').eq('book_id',id)   // 비로그인은 사진 번호·종류만 읽는다(경로·주인은 서버 함수가 서명할 때만, RT-602·D40)
   ]);
   let pagesHTML = null;
   let shelfPages = null;

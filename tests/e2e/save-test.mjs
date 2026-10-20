@@ -59,6 +59,7 @@ ok('RT-101 B의 저장 표시가 「저장됨」이 아님(실제와 일치)', (
 /* 선택 1: 최신 내용 불러오기 */
 await B.click('#cfDlg [data-cf="reload"]'); await B.waitForTimeout(800);
 ok('D13 「최신 내용 불러오기」 → B에 A의 글과 새 쪽이 보이고 ✓', (await st(B,()=>state.pages.length))===3 && /A2/.test(await text0(B)) && !/B2/.test(await text0(B)) && await waitSaved(B), `${await st(B,()=>state.pages.length)}쪽 · ${await text0(B)} · ${await saveState(B)}`);
+ok('D41 불러온 뒤 띠는 기본 문구로(「다른 탭에서 저장했어요」가 남지 않음)', await B.locator('#multiBar').isVisible() && !/다른 탭에서 이 책을 저장/.test(await B.locator('#multiBar').innerText()) && /다른 탭\(창\)에도/.test(await B.locator('#multiBar').innerText()), await B.locator('#multiBar').innerText());
 /* 선택 2: 내 내용으로 덮어쓰기 */
 await st(B,()=>{ window.__failWrite=true; }); await typeIn(B,0,'e1',' B3'); await waitState(B,'err',8000);
 await typeIn(A,0,'e1',' A3'); await waitSaved(A);
@@ -85,5 +86,10 @@ ok('RT-104 실패 중 24초 동안 저장 시도 6회 이하(1.5초마다가 아
 ok('RT-104 실패한 저장은 서버에 아무것도 남기지 않음(지운 쪽이 유령처럼 남지 않음)', JSON.stringify(await db(A))===JSON.stringify(before), JSON.stringify(await db(A)));
 await st(A,()=>{ window.__failWrite=false; window.dispatchEvent(new Event('online')); });
 ok('RT-104 연결이 돌아오면 곧바로 저장(쪽 삭제 반영)', await waitSaved(A,3000) && (await db(A)).n===1, JSON.stringify(await db(A)));
+/* ── D41: 다른 탭을 닫으면 「다른 탭」 띠가 사라진다 ── */
+ok('준비: A에 「다른 탭에도 열려 있어요」 띠', await A.locator('#multiBar').isVisible() && /다른 탭\(창\)에도/.test(await A.locator('#multiBar').innerText()), await A.locator('#multiBar').innerText());
+await B.goto(U+'/lib/demo-draft.js'); // B 를 다른 주소로 보내 편집기 탭을 닫음(pagehide → bye). about:blank 는 가짜 Supabase 초기화가 막혀 오류가 찍힘
+let barGone=false; for(let i=0;i<30&&!barGone;i++){ barGone=!(await A.locator('#multiBar').isVisible()); if(!barGone) await A.waitForTimeout(100); }
+ok('D41 다른 탭을 닫으면 띠가 사라짐', barGone, await A.locator('#multiBar').innerText());
 console.log(errs.length?errs.join('\n'):'JS 오류 없음');
 await b.close(); srv.close();

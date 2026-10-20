@@ -260,6 +260,7 @@ function paneDash(){
       ${kTotal?`<div class="kinds" aria-hidden="true">${Object.entries(byKind).map(([k,v])=>v?`<i style="width:${(v/kTotal*100).toFixed(1)}%;background:${K[k][1]}"></i>`:'').join('')}</div>
       <div class="legend">${Object.entries(byKind).map(([k,v])=>`<span><b style="background:${K[k][1]}"></b>${K[k][0]} ${mb(v)}</span>`).join('')}</div>`:''}
       ${oldFiles?`<div class="row" style="justify-content:space-between;margin-top:10px"><span class="meta" style="margin:0">예전 저장소(Supabase)에 남은 파일 <b>${oldFiles}개</b></span><button class="small" id="migR2">R2로 옮기기</button></div>`:''}
+      <div class="row" style="justify-content:space-between;margin-top:10px;gap:8px"><span class="meta" style="margin:0" id="auditOut">기록과 실제 R2 파일이 맞는지 확인할 수 있어요</span><button class="small ghost" id="auditR2">실제 파일과 대조</button></div>
       <div class="row" style="justify-content:space-between;margin-top:14px"><b>데이터베이스(글·페이지)</b><span class="meta" style="margin:0">${u?`${mb(Number(u.db_bytes))} / ${mb(LIMIT.db)}`:'확인 못 함'}</span></div>${u?meter(Number(u.db_bytes),LIMIT.db):''}
     </section>
     <section class="panel"><h2>최근 가입한 회원</h2><ul class="mini">${data.profiles.slice(0,5).map(p=>`<li><span>${esc(p.display_name||'(이름 없음)')}</span><span class="meta">${fmt(p.created_at)}</span></li>`).join('')||'<li class="meta">아직 없어요</li>'}</ul></section>
@@ -268,6 +269,19 @@ function paneDash(){
   </div>`;
   pane.onclick=e=>{ const a=e.target.closest('[data-go]'); if(a){ e.preventDefault(); tab=a.dataset.go; render(); } };
   const mig=document.getElementById('migR2'); if(mig) mig.onclick=migrateToR2;
+  const au=document.getElementById('auditR2'); if(au) au.onclick=auditR2;
+}
+// 실제 R2 파일과 media 기록 대조(읽기만, 레드팀 RT-601·D39): 기록 없이 남은 파일이 있으면 개수·용량을 보여 준다
+async function auditR2(){
+  const btn=document.getElementById('auditR2'), out=document.getElementById('auditOut'); btn.disabled=true; out.textContent='대조하는 중…';
+  try{
+    const { data:r, error } = await sb.functions.invoke('media',{ body:{ action:'audit' } });
+    if(error||!r||r.error) throw new Error((r&&r.error)||'연결 오류');
+    out.innerHTML=`실제 R2 <b>${Number(r.r2_files).toLocaleString()}개 · ${mb(Number(r.r2_bytes))}</b>(인쇄용 사본 포함) / 기록 ${Number(r.rows).toLocaleString()}개 · ${mb(Number(r.row_bytes))}`
+      +(r.orphan_files?` · <b style="color:var(--danger)">기록 없는 파일 ${r.orphan_files}개(${mb(Number(r.orphan_bytes))})</b>`:' · 기록 없는 파일 0')
+      +(r.missing_files?` · 파일 없는 기록 ${r.missing_files}개`:'');
+  }catch(err){ console.error(err); out.textContent='대조하지 못했어요: '+err.message; }
+  finally{ btn.disabled=false; }
 }
 // 예전 Supabase 저장소 파일을 R2로 옮기기(10개씩, 남은 수 0까지). 옮긴 파일은 경로만 바뀌고 책·서가는 그대로 보인다
 async function migrateToR2(){

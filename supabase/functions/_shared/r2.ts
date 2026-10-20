@@ -94,6 +94,28 @@ export async function r2List(prefix: string): Promise<string[]> {
   }
   return out;
 }
+// 접두어 아래 파일 이름과 크기(관리자·회원의 「실제 파일 ↔ 기록」 대조용, 읽기만)
+export async function r2ListSized(prefix: string): Promise<{ key: string; size: number }[]> {
+  const out: { key: string; size: number }[] = [];
+  const unxml = (s: string) => s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+  let token = "";
+  for (let guard = 0; guard < 100; guard++) {
+    const query: Record<string, string> = { "list-type": "2", prefix, "max-keys": "1000" };
+    if (token) query["continuation-token"] = token;
+    const url = await presign({ method: "GET", host: host(), path: `/${uri(R2.bucket)}`, region: "auto", accessKey: R2.key, secret: R2.secret, expires: 60, query });
+    const r = await fetch(url);
+    if (!r.ok) throw new Error("r2 list " + r.status);
+    const xml = await r.text();
+    for (const c of xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)) {
+      const k = c[1].match(/<Key>([^<]*)<\/Key>/), s = c[1].match(/<Size>(\d+)<\/Size>/);
+      if (k) out.push({ key: unxml(k[1]), size: Number(s?.[1] ?? 0) });
+    }
+    const next = xml.match(/<NextContinuationToken>([^<]*)<\/NextContinuationToken>/);
+    if (!/<IsTruncated>true<\/IsTruncated>/.test(xml) || !next) break;
+    token = next[1];
+  }
+  return out;
+}
 export async function r2DeletePrefix(prefix: string) {
   const keys = (await r2List(prefix)).filter((k) => k.startsWith(prefix));
   for (let i = 0; i < keys.length; i += 8) {

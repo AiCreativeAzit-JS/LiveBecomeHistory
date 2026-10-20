@@ -12,7 +12,7 @@
     const real=table; if(table==='shelf_books') table='books';
     let rng=null; let op='select', rows=null, filters=[], one=null, patch=null, ord=null;
     const api={
-      select(){ if(op==='insert'||op==='update') return api; op='select'; return api; },
+      select(c){ if(op==='insert'||op==='update') return api; op='select'; (window.__selects=window.__selects||[]).push({t:real,c:String(c==null?'*':c)}); return api; }, // 어떤 열을 읽는지 기록(서가가 경로·주인을 안 읽는지 시험)
       insert(v){ op='insert'; patch=v; return api; },
       upsert(v){ op='upsert'; patch=v; return api; },
       not(k,o,v){ const list=String(v).replace(/[()]/g,'').split(','); filters.push(r=>!list.includes(String(r[k]))); return api; },
@@ -89,6 +89,8 @@
         if(body.action==='migrate'){ if(!isAdm) return {data:{error:'forbidden'},error:null};
           const old=db.media.filter(m=>m.storage_path&&!m.storage_path.startsWith('r2:')); const now=old.slice(0,body.limit||10); now.forEach(m=>m.storage_path='r2:'+m.storage_path); persist();
           return {data:{moved:now.length,failed:[],remaining:old.length-now.length},error:null}; }
+        if(body.action==='audit'){ const rows=db.media.filter(m=>isAdm||m.owner_id===uidNow), bytes=rows.reduce((n,m)=>n+Number(m.size_bytes||0),0), on=window.__orphans||0, ob=window.__orphanBytes||0; // 가짜 대조(실제 파일 = 기록 + 일부러 둔 「기록 없는 파일」)
+          return {data:{scope:isAdm?'all':'mine',r2_files:rows.length+on,r2_bytes:bytes+ob,rows:rows.length,row_bytes:bytes,orphan_files:on,orphan_bytes:ob,missing_files:0},error:null}; }
         const bk=db.books.find(x=>x.id===body.book_id&&x.owner_id===uidNow); if(!bk) return {data:{error:'forbidden'},error:null};
         if(body.action==='upload'){ const used=db.media.filter(m=>m.book_id===bk.id).reduce((n,m)=>n+Number(m.size_bytes||0),0); if(used+body.size>200*1048576) return {data:{error:'quota'},error:null};
           const key=`${uidNow}/${bk.id}/${uid()}.${body.ext}`; return {data:{backend:'supabase',key,...(body.print&&body.kind==='image'&&!window.__oldMediaFn?{print_key:printKey(key)}:{})},error:null}; }

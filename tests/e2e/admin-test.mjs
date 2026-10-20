@@ -94,5 +94,12 @@ await pg.screenshot({path:'/tmp/admin2.png'});
   ok('대시보드: 예전 저장소 파일 수와 「R2로 옮기기」 버튼', n0>0 && await pg.locator('#migR2').count()===1 && (await pg.locator('.dash').innerText()).includes(n0+'개'));
   await pg.click('#migR2'); await pg.waitForTimeout(800);
   ok('R2로 옮기기: 모두 옮겨지고 버튼 사라짐', await pg.evaluate(()=>__db.media.every(m=>!m.storage_path||m.storage_path.startsWith('r2:'))) && await pg.locator('#migR2').count()===0); }
+/* ── D39: 실제 R2 파일과 기록 대조(관리자 대시보드) ── */
+{ await pg.click('.tab[data-t=dash]'); await pg.waitForSelector('#auditR2');
+  await pg.click('#auditR2'); await pg.waitForFunction(()=>/실제 R2/.test(document.getElementById('auditOut').textContent));
+  const t1=await pg.locator('#auditOut').innerText(); ok('D39 대시보드: 실제 R2와 기록 대조 · 기록 없는 파일 0', /실제 R2/.test(t1)&&/기록 없는 파일 0/.test(t1), t1);
+  await pg.evaluate(()=>{ window.__orphans=2; window.__orphanBytes=3*1048576; });
+  await pg.click('#auditR2'); await pg.waitForFunction(()=>/기록 없는 파일 2개/.test(document.getElementById('auditOut').textContent));
+  const t2=await pg.locator('#auditOut').innerText(); ok('D39 대시보드: 기록 없는 파일이 있으면 개수·용량 표시', /기록 없는 파일 2개\(3\.0MB\)/.test(t2), t2); }
 console.log(errs.length?errs.join('\n'):'JS 오류 없음');
 await b.close(); srv.close();

@@ -1439,7 +1439,7 @@ async function reloadFromServer(){
   endEdit(); Object.assign(bookRow,b.data); state.title=bookRow.title;
   snapPagesJSON=sn&&sn.data?JSON.stringify(sn.data.pages):null; snapTitle=sn&&sn.data?(sn.data.title??null):null; shareToken=sh&&sh.data?sh.data.token:null;
   mediaInfo={}; md.data.forEach(m=>mediaInfo[m.id]=m); mediaUrls=await signAll(md.data);
-  applyRows(pg.data); conflict=null; saveFails=0; nextSaveAt=0; setSave('ok'); return true;
+  applyRows(pg.data); conflict=null; saveFails=0; nextSaveAt=0; setSave('ok'); tabs.settled(); return true;
 }
 // 다른 곳에서 먼저 저장했을 때: 최신 내용 불러오기 / 내 내용으로 덮어쓰기
 function openConflict(){ endEdit(); $('cfDlg').hidden=false; $('cfDlg').querySelector('.opt').focus(); }
@@ -1451,22 +1451,34 @@ $('cfDlg').addEventListener('click',async ev=>{
 });
 // 같은 브라우저에서 같은 책을 연 다른 탭과 신호를 주고받는다(다른 기기는 저장 때 rev 검사가 지킨다)
 const TAB_ID=uid(); let bc=null;
+// 같은 책을 연 다른 탭(탭 번호 → 마지막으로 신호를 들은 시각). 닫히면 bye 로 빠지고, 갑자기 꺼진 탭은 신호가 끊긴 지 2분여 뒤 빠진다.
+// 띠는 「다른 탭이 열려 있을 때」 또는 「다른 탭이 저장해 이 탭이 어긋났을 때」만 보인다(레드팀 RT-603·D41)
+const peers=new Map(); let changedNotice=false; const PEER_TTL=130000;
 const tabs={
   open(){ if(!BOOK||!('BroadcastChannel' in window)||bc) return; bc=new BroadcastChannel('moa-book-'+BOOK);
     bc.onmessage=async ev=>{ const m=ev.data||{}; if(!m.type||m.tab===TAB_ID) return;
-      if(m.type==='hello'){ bc.postMessage({type:'here',tab:TAB_ID}); tabs.warn(); }
-      else if(m.type==='here') tabs.warn();
+      if(m.type==='bye'){ peers.delete(m.tab); tabs.render(); return; }
+      peers.set(m.tab,Date.now());
+      if(m.type==='hello'){ bc.postMessage({type:'here',tab:TAB_ID}); tabs.render(); }
+      else if(m.type==='here'||m.type==='ping') tabs.render();
       else if(m.type==='saved' && typeof m.rev==='number' && m.rev>(bookRow.rev??-1)){
         if(serialize()===lastSaved && !state.editing && !saveRun && !conflict){   // 고친 게 없으면 조용히 최신으로
           let got=await reloadFromServer();
           for(let i=0;i<3 && got && (bookRow.rev??-1)<m.rev && serialize()===lastSaved && !state.editing && !saveRun; i++){ await new Promise(r=>setTimeout(r,500)); got=await reloadFromServer(); } // 알림보다 서버 반영이 늦게 보이면 잠시 뒤 다시 읽는다
           if(got) toast('다른 탭에서 저장한 내용을 불러왔어요'); }
-        else tabs.warn(true); } };
-    bc.postMessage({type:'hello',tab:TAB_ID}); },
-  saved(){ if(bc) bc.postMessage({type:'saved',tab:TAB_ID,rev:bookRow.rev}); },
-  warn(changed){ const d=$('multiBar'); d.hidden=false;
-    d.innerHTML = changed ? '⚠ 다른 탭에서 이 책을 저장했어요. 이 탭에서 고친 내용을 저장할 때 어느 쪽을 남길지 물어요.'
-                          : '⚠ 이 책이 다른 탭(창)에도 열려 있어요. <b>한 곳에서만</b> 고쳐 주세요 — 두 곳에서 고치면 저장할 때 어느 쪽을 남길지 물어요.'; }
+        else { changedNotice=true; tabs.render(); } }
+      else tabs.render(); };
+    bc.postMessage({type:'hello',tab:TAB_ID});
+    setInterval(()=>{ if(!bc) return; bc.postMessage({type:'ping',tab:TAB_ID}); const t=Date.now(); let gone=false;
+      peers.forEach((v,k)=>{ if(t-v>PEER_TTL){ peers.delete(k); gone=true; } }); if(gone) tabs.render(); },20000);   // 신호 없이 꺼진 탭 정리
+    window.addEventListener('pagehide',()=>{ try{ bc.postMessage({type:'bye',tab:TAB_ID}); }catch{} });            // 이 탭이 닫히면 다른 탭에 알림
+    window.addEventListener('pageshow',e=>{ if(e.persisted&&bc) bc.postMessage({type:'hello',tab:TAB_ID}); }); },   // 뒤로 가기로 돌아오면 다시 인사
+  saved(){ changedNotice=false; tabs.render(); if(bc) bc.postMessage({type:'saved',tab:TAB_ID,rev:bookRow.rev}); },
+  settled(){ changedNotice=false; tabs.render(); },   // 다른 곳의 저장을 불러와 맞췄을 때(최신 내용 불러오기·조용히 불러오기)
+  render(){ const d=$('multiBar'); if(!changedNotice&&!peers.size){ d.hidden=true; d.innerHTML=''; return; } d.hidden=false;
+    d.innerHTML = changedNotice ? '⚠ 다른 탭에서 이 책을 저장했어요. 이 탭에서 고친 내용을 저장할 때 어느 쪽을 남길지 물어요.'
+                                : '⚠ 이 책이 다른 탭(창)에도 열려 있어요. <b>한 곳에서만</b> 고쳐 주세요 — 두 곳에서 고치면 저장할 때 어느 쪽을 남길지 물어요.'; },
+  warn(changed){ if(changed) changedNotice=true; tabs.render(); }
 };
 async function signAll(list){ try{ return await MediaClient.sign(sb,list,21600); }catch(err){ console.error(err); return {}; } }
 async function uploadMedia(f,kind,print=null){
@@ -1610,7 +1622,7 @@ async function loadSample(){
   if(QS.get('blank')==='1'||!window.supabase||!window.MediaClient) return false;
   try{
     sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-    const [sn,md]=await Promise.all([sb.from('book_snapshots').select('title,pages').eq('book_id',SAMPLE_BOOK).maybeSingle(), sb.from('media').select('id,storage_path').eq('book_id',SAMPLE_BOOK)]);
+    const [sn,md]=await Promise.all([sb.from('book_snapshots').select('title,pages').eq('book_id',SAMPLE_BOOK).maybeSingle(), sb.from('media').select('id,kind').eq('book_id',SAMPLE_BOOK)]);
     const pages=sn.data&&Array.isArray(sn.data.pages)?sn.data.pages:[]; if(!pages.length) return false;
     const urls=await MediaClient.sign(sb,md.data||[],3600);
     state.pages=pages.map(r=>({id:r.id||uid(),name:r.name||'',bg:/^#[0-9a-f]{6}$/i.test(r.bg)?r.bg:'#FFFFFF',flowFrom:r.flow_from||null,

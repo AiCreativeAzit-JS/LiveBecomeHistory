@@ -7,7 +7,7 @@ globalThis.fetch=async (url,init={})=>{ const u=new URL(url); if(!u.host.endsWit
   if(!u.searchParams.get('X-Amz-Signature')) return new Response('',{status:403});
   const signed=u.searchParams.get('X-Amz-SignedHeaders').split(';'); const m=(init.method||'GET');
   const key=decodeURIComponent(u.pathname.replace(/^\/book-media\/?/,''));
-  if(m==='GET'&&u.searchParams.get('list-type')){ const pre=u.searchParams.get('prefix'); return new Response(`<x>${Object.keys(R2).filter(k=>k.startsWith(pre)).map(k=>`<Key>${k}</Key>`).join('')}<IsTruncated>false</IsTruncated></x>`); }
+  if(m==='GET'&&u.searchParams.get('list-type')){ const pre=u.searchParams.get('prefix')||''; return new Response(`<x>${Object.keys(R2).filter(k=>k.startsWith(pre)).map(k=>`<Contents><Key>${k}</Key><Size>${R2[k].size}</Size></Contents>`).join('')}<IsTruncated>false</IsTruncated></x>`); }
   if(m==='PUT'){ const body=init.body; const size=body.size; if(signed.includes('content-length')&&init.__len!==undefined&&init.__len!==size) return new Response('',{status:403}); R2[key]={size,type:(init.headers||{})['Content-Type']||(init.headers||{})['content-type']}; return new Response(''); }
   if(m==='HEAD'){ const o=R2[key]; return o?new Response(null,{headers:{'content-length':String(o.size),'content-type':o.type}}):new Response(null,{status:404}); }
   if(m==='DELETE'){ delete R2[key]; return new Response(null,{status:204}); }
@@ -97,5 +97,20 @@ ok('D22: 지금까지 만든 media 기록은 모두 서비스 키로(회원 권�
   await put(slot.url,10,slot.headers);
   const c6=await call({action:'commit',book_id:B1,kind:'image',key:slot.key,backend:'r2'},'jwt-u1');
   ok('D22: commit 때 한도 넘으면 트리거(54000)→quota, 올린 파일은 지움', c6.error==='quota' && !R2[slot.key]); S.media.pop(); }
+// ── D40(RT-602): 비로그인은 media 의 경로·주인 열을 못 읽어도(0015) 공개 책 사진 서명은 된다 ──
+{ const B5='77777777-7777-4777-8777-777777777777', M5='88888888-8888-4888-8888-888888888888';
+  S.books.push({id:B5,owner_id:'u2',is_public:true}); S.media.push({id:M5,book_id:B5,owner_id:'u2',kind:'image',storage_path:`r2:u2/${B5}/p.jpg`,size_bytes:5}); R2[`u2/${B5}/p.jpg`]={size:5,type:'image/jpeg'};
+  const { createClient } = await import('./mock-sb.mjs');
+  ok('D40: 가짜 DB도 비로그인의 media 경로·주인 열 읽기를 거부(0015 흉내)', (await createClient('u','ANON').from('media').select('id,owner_id,storage_path').in('id',[M5])).error?.code==='42501');
+  ok('D40: 비로그인도 공개 책 사진 서명은 받음(함수는 id 만 읽고 경로는 서비스 키로)', !!(await call({action:'sign',ids:[M5]})).urls[M5]);
+  S.books.find(b=>b.id===B5).is_public=false;
+  ok('D40: 비공개가 되면 비로그인은 서명 못 받음(볼 수 있는지는 여전히 RLS 로)', !(await call({action:'sign',ids:[M5]})).urls[M5]);
+  // ── D39(RT-601): 실제 R2 파일과 기록 대조 ──
+  R2[`u2/${B5}/orphan.jpg`]={size:77,type:'image/jpeg'}; R2[`u2/${B5}/p@print.jpg`]={size:9,type:'image/jpeg'};
+  const mine=await call({action:'audit'},'jwt-u2');
+  ok('D39 대조(회원): 자기 폴더만 · 기록 없는 파일 1개(77B) · 인쇄용 사본은 기록 있는 것으로', mine.scope==='mine' && mine.r2_files===3 && mine.orphan_files===1 && mine.orphan_bytes===77 && mine.missing_files===0 && mine.rows===1, JSON.stringify(mine));
+  const all=await call({action:'audit'},'jwt-adm');
+  ok('D39 대조(관리자): 전체 범위', all.scope==='all' && all.r2_files>mine.r2_files && all.orphan_files>=1, JSON.stringify(all));
+  ok('D39 대조: 비로그인 거절', (await call({action:'audit'})).error==='unauthorized'); }
 // 설정 전(비밀 값 없음)
 for(const k of ['R2_ACCOUNT_ID','R2_ACCESS_KEY_ID','R2_SECRET_ACCESS_KEY','R2_BUCKET']) delete env[k];

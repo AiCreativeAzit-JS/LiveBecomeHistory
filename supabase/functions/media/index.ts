@@ -12,8 +12,10 @@
 //           upload·commit 은 승인된 회원만(am_i_approved, 가입 승인제 0009) → 아니면 { error:'not_approved' }
 //   purge   { book_id }                        → { files }       책을 완전히 지우기 전에 그 책의 파일을 모두 지운다(내 책만)
 //   migrate { limit }                          → { moved, remaining }  관리자: 예전 저장소 파일을 R2로 옮긴다
+//   audit   { scope? }                         → { r2_files, r2_bytes, rows, row_bytes, orphan_files, orphan_bytes, missing_files }
+//           실제 R2 파일과 media 기록 대조(읽기만). 관리자는 전체, 회원은 자기 폴더만(레드팀 RT-601·D39)
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { R2_PREFIX, r2Ready, r2Url, r2Head, r2Delete, r2Put, r2DeletePrefix } from "../_shared/r2.ts";
+import { R2_PREFIX, r2Ready, r2Url, r2Head, r2Delete, r2Put, r2DeletePrefix, r2ListSized } from "../_shared/r2.ts";
 import { BUCKET, printKey, signRows } from "../_shared/sign.ts";
 
 const CORS = {
@@ -65,8 +67,14 @@ Deno.serve(async (req: Request) => {
       case "sign": {
         const ids = (Array.isArray(body.ids) ? body.ids : []).filter(isUuid).slice(0, 500);
         if (!ids.length) return json({ urls: {} });
-        const { data: rows, error } = await user.from("media").select("id,owner_id,storage_path,kind").in("id", ids);
+        // 볼 수 있는 기록인지는 부른 사람 권한(RLS)으로 고른다(id 만 읽음). 비로그인은 id·book_id·kind 열만 읽을 수 있으므로(마이그레이션 0015)
+        // 저장 경로·주인은 그렇게 고른 행만 서비스 키로 읽는다(레드팀 RT-602·D40)
+        const { data: vis, error } = await user.from("media").select("id").in("id", ids);
         if (error) return json({ error: "read_failed" });
+        const visIds = (vis ?? []).map((m) => m.id);
+        if (!visIds.length) return json({ urls: {} });
+        const { data: rows, error: rowErr } = await admin.from("media").select("id,owner_id,storage_path,kind").in("id", visIds);
+        if (rowErr) return json({ error: "read_failed" });
         const uid = await me();
         let mine = (rows ?? []).filter((m) => uid && m.owner_id === uid);
         if (body.variant === "print" && r2Ready()) { // 내 사진만 인쇄용 원본으로 바꿔 서명(예전 사진처럼 없으면 화면용 그대로)
@@ -151,6 +159,31 @@ Deno.serve(async (req: Request) => {
         }
         const n = r2Ready() ? await r2DeletePrefix(prefix) : 0;
         return json({ files: old.length + n });
+      }
+      case "audit": { // 실제 R2 파일과 media 기록 대조(읽기만). 인쇄용 사본(@print)은 화면용 기록이 있으면 기록 있는 것으로 센다
+        const uid = await me();
+        if (!uid) return json({ error: "unauthorized" });
+        if (!r2Ready()) return json({ error: "not_configured" });
+        const { data: isAdm } = await user.rpc("am_i_admin");
+        const all = isAdm === true && body.scope !== "mine";
+        const prefix = all ? "" : uid + "/";
+        const objs = await r2ListSized(prefix);
+        let q = admin.from("media").select("storage_path,size_bytes,owner_id");
+        if (!all) q = q.eq("owner_id", uid);
+        const { data: rows, error } = await q;
+        if (error) return json({ error: "read_failed" });
+        const r2rows = (rows ?? []).filter((m: any) => typeof m.storage_path === "string" && m.storage_path.startsWith(R2_PREFIX + prefix));
+        const keys = new Set(r2rows.map((m: any) => m.storage_path.slice(R2_PREFIX.length)));
+        const base = (k: string) => k.replace(/@print(\.[a-z0-9]{1,8})$/i, "$1");
+        const orphans = objs.filter((o) => !keys.has(base(o.key)));
+        const have = new Set(objs.map((o) => o.key));
+        return json({
+          scope: all ? "all" : "mine",
+          r2_files: objs.length, r2_bytes: objs.reduce((n, o) => n + o.size, 0),
+          rows: r2rows.length, row_bytes: r2rows.reduce((n: number, m: any) => n + Number(m.size_bytes || 0), 0),
+          orphan_files: orphans.length, orphan_bytes: orphans.reduce((n, o) => n + o.size, 0),
+          missing_files: [...keys].filter((k) => !have.has(k)).length,
+        });
       }
       case "migrate": {
         const uid = await me();

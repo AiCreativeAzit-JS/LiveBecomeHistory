@@ -7,8 +7,8 @@ export function createClient(url, key, opts={}){
   const uid = S.users[auth.replace(/^Bearer\s+/,'')] || null;
   const visible = (t,r) => service ? true : t==='books' ? (r.owner_id===uid || pub(r) || S.admins.includes(uid))
     : t==='media' ? (()=>{ const b=S.books.find(x=>x.id===r.book_id); return b&&(b.owner_id===uid||pub(b)||S.admins.includes(uid)); })() : true;
-  function q(t){ let f=[], op='select', patch, one=null, head=false, lim=null;
-    const api={ select(_c,o){ if(o?.head) head=true; return api; }, insert(v){ op='insert'; patch=v; return api; }, update(v){ op='update'; patch=v; return api; },
+  function q(t){ let f=[], op='select', patch, one=null, head=false, lim=null, cols='*';
+    const api={ select(c,o){ if(o?.head) head=true; if(typeof c==='string') cols=c; return api; }, insert(v){ op='insert'; patch=v; return api; }, update(v){ op='update'; patch=v; return api; },
       eq(k,v){ f.push(r=>r[k]===v); return api; }, in(k,v){ f.push(r=>v.includes(r[k])); return api; },
       not(k,o,v){ if(o==='is') f.push(r=>r[k]!==null&&r[k]!==undefined); if(o==='like'){ const p=v.replace('%',''); f.push(r=>!String(r[k]).startsWith(p)); } return api; },
       limit(n){ lim=n; return api; }, single(){ one='s'; return api; }, maybeSingle(){ one='m'; return api; },
@@ -17,6 +17,7 @@ export function createClient(url, key, opts={}){
       if(op==='insert'){ if(!service){ S.userInserts++; const b=S.books.find(x=>x.id===patch.book_id); if(!b||b.owner_id!==uid||patch.owner_id!==uid) return {data:null,error:{code:'42501'}}; } // 회원 권한 INSERT 는 0011 뒤엔 실제로 불가(권한 없음) — 횟수만 센다
         const used=S.media.filter(m=>m.book_id===patch.book_id).reduce((n,m)=>n+m.size_bytes,0); if(used+patch.size_bytes>200*1048576) return {data:null,error:{code:'54000'}};
         const r={id:crypto.randomUUID(),...patch}; S.media.push(r); return {data:r,error:null}; }
+      if(t==='media' && !service && !uid && op==='select' && /owner_id|storage_path|size_bytes|caption|\*/.test(cols)) return {data:null,error:{code:'42501',message:'permission denied for table media'}}; // 0015: 비로그인은 id·book_id·kind 만
       let rows=S[t].filter(r=>visible(t,r)&&f.every(g=>g(r)));
       if(op==='update'){ rows.forEach(r=>Object.assign(r,patch)); return {error:null}; }
       if(lim) rows=rows.slice(0,lim);
