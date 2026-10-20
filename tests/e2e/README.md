@@ -34,6 +34,7 @@ done
 - `flow-order-test`: 이어진 원고 사이에 쪽을 끼우고 앞쪽에 글을 더해 넘친 뒤 끼운 쪽을 지워도 읽는 순서가 그대로(워드 순서) + 열 때 healFlow(RT-401, D24)
 - `approval-test`: 가입 승인제 — 승인 전 회원은 내 서재에 「승인 대기」 안내와 「새 책 만들기」 잠금, 승인되면 풀림(RT-001, D1). 가입 창 닫힘 안내는 `test`(D12), 관리자 회원 탭의 승인·취소 버튼은 `admin-test`
 - 윈도우: `run-all.ps1`(`-Label`·`-Tests a,b`), 로그 `logs/<Label>.log`. 저장소·크로미움 경로는 `MOA_ROOT`·`PW_CHROME` 환경 변수로
+- 기준(2026-10-21 2차 점호, 판 10-21 08:29): 34개 710건 FAIL 0 (shelf 20, admin 38, save 25 — 나머지는 아래 1차 기준과 같음). save-test 점호 3건: 세 번째 탭 C → 점호해도 살아 있는 탭은 남음 → C 의 BroadcastChannel 을 닫아(닫힘 신호 없이 사라진 탭) 점호 → 3초 남짓 뒤 띠 사라짐
 - 기준(2026-10-21 2차, 판 10-21 07:58): 34개 707건 FAIL 0 (shelf 20, admin 38, save 22 — 나머지는 아래 1차 기준과 같음)
 - 2차 수정(2026-10-21): save-test +3(D41 불러온 뒤 띠 기본 문구·다른 탭 닫으면 띠 사라짐), shelf-test +1(D40 서가가 media 의 경로·주인 열을 읽지 않음 — 가짜 Supabase `window.__selects`), admin-test +2(D39 「실제 파일과 대조」). 가짜 media 함수에 `audit`(`window.__orphans`·`__orphanBytes`)
 - 기준(2026-10-21, 윈도우 PC·run-all.ps1): 위 34개 모두 FAIL 0, 총 701건 (test 67, online 34, studio 92, share 19, shelf 19, admin 36, me 3, newbook 13, real-book 7, demo 16, sample 9, mouse 12, prefetch 2, flow 57, dialog 14, pick 22, output 33, ux 27, photo2 15, r02 40, r03 12, r04 9, r05 22, r06 12, r07 7, r08 4, r09 6, r10 8, r11 13, alt 11, save 19, recover 25, flow-order 10, approval 6). r04·r07-test 는 윈도우에서 `/tmp`·`file://` 때문에 끊기던 것을 고침(OS 임시 폴더, http(s)만 가로채기). save-test 는 다른 탭 저장 알림 뒤 서버 반영을 최대 6초 기다림

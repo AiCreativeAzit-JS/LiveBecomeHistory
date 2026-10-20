@@ -91,5 +91,15 @@ ok('준비: A에 「다른 탭에도 열려 있어요」 띠', await A.locator('
 await B.goto(U+'/lib/demo-draft.js'); // B 를 다른 주소로 보내 편집기 탭을 닫음(pagehide → bye). about:blank 는 가짜 Supabase 초기화가 막혀 오류가 찍힘
 let barGone=false; for(let i=0;i<30&&!barGone;i++){ barGone=!(await A.locator('#multiBar').isVisible()); if(!barGone) await A.waitForTimeout(100); }
 ok('D41 다른 탭을 닫으면 띠가 사라짐', barGone, await A.locator('#multiBar').innerText());
+/* ── D41 점호: 닫힘 신호(bye) 없이 사라진 탭도 띠에서 빠지고, 살아 있는 탭은 남는다 ── */
+const C=await open();
+let cBar=false; for(let i=0;i<30&&!cBar;i++){ cBar=await A.locator('#multiBar').isVisible(); if(!cBar) await A.waitForTimeout(100); }
+ok('준비: 세 번째 탭 C를 열면 A에 다시 띠', cBar);
+await st(A,()=>document.dispatchEvent(new Event('visibilitychange'))); await A.waitForTimeout(3600);
+ok('D41 점호: 대답하는 탭(C)이 있으면 띠는 그대로', await A.locator('#multiBar').isVisible() && await st(A,()=>peers.size)===1, String(await st(A,()=>peers.size)));
+await st(C,()=>{ bc.close(); bc=null; });   // C 가 아무 신호 없이 사라진 것처럼(내장 브라우저 패널에서 닫을 때와 같음)
+await st(A,()=>document.dispatchEvent(new Event('visibilitychange')));
+let cGone=false; for(let i=0;i<60&&!cGone;i++){ cGone=!(await A.locator('#multiBar').isVisible()); if(!cGone) await A.waitForTimeout(100); }
+ok('D41 점호: 닫힘 신호 없이 사라진 탭은 3초 남짓 뒤 띠에서 빠짐', cGone, await A.locator('#multiBar').innerText());
 console.log(errs.length?errs.join('\n'):'JS 오류 없음');
 await b.close(); srv.close();
