@@ -4,7 +4,7 @@
 
 ```bash
 cd tests/e2e
-for t in test online-test studio-test share-test shelf-test admin-test me-test newbook-test real-book-test demo-test sample-test mouse-test prefetch-test flow-test dialog-test pick-test output-test ux-test photo2-test r02-test r03-test r04-test r05-test r06-test r07-test r08-test r09-test r10-test r11-test alt-test save-test recover-test flow-order-test approval-test; do
+for t in test online-test studio-test share-test shelf-test admin-test me-test newbook-test real-book-test demo-test sample-test mouse-test prefetch-test flow-test dialog-test pick-test output-test ux-test photo2-test r02-test r03-test r04-test r05-test r06-test r07-test r08-test r09-test r10-test r11-test alt-test save-test recover-test flow-order-test approval-test home-test; do
   r=$(node $t.mjs "$PWD/fake-supabase.js" 2>&1); echo "$t PASS=$(echo "$r"|grep -c '^PASS') FAIL=$(echo "$r"|grep -c '^FAIL')"; echo "$r"|grep '^FAIL'
 done
 ```
@@ -36,6 +36,7 @@ done
 - 윈도우: `run-all.ps1`(`-Label`·`-Tests a,b`), 로그 `logs/<Label>.log`. 저장소·크로미움 경로는 `MOA_ROOT`·`PW_CHROME` 환경 변수로
 - 기준(2026-10-21 2차 점호, 판 10-21 08:29): 34개 710건 FAIL 0 (shelf 20, admin 38, save 25 — 나머지는 아래 1차 기준과 같음). save-test 점호 3건: 세 번째 탭 C → 점호해도 살아 있는 탭은 남음 → C 의 BroadcastChannel 을 닫아(닫힘 신호 없이 사라진 탭) 점호 → 3초 남짓 뒤 띠 사라짐
 - 기준(2026-10-21 2차, 판 10-21 07:58): 34개 707건 FAIL 0 (shelf 20, admin 38, save 22 — 나머지는 아래 1차 기준과 같음)
+- `home-test`: 홈(랜딩) 상단 메뉴의 「로그인」(로그인 기록이 있으면 「내 서재」) — 컴퓨터·폰(375·320px) 모두 보이고 가로 넘침 없음, /editor/ 로 이동(대표 지적 D47)
 - 2차 수정(2026-10-21): save-test +3(D41 불러온 뒤 띠 기본 문구·다른 탭 닫으면 띠 사라짐), shelf-test +1(D40 서가가 media 의 경로·주인 열을 읽지 않음 — 가짜 Supabase `window.__selects`), admin-test +2(D39 「실제 파일과 대조」). 가짜 media 함수에 `audit`(`window.__orphans`·`__orphanBytes`)
 - 기준(2026-10-21, 윈도우 PC·run-all.ps1): 위 34개 모두 FAIL 0, 총 701건 (test 67, online 34, studio 92, share 19, shelf 19, admin 36, me 3, newbook 13, real-book 7, demo 16, sample 9, mouse 12, prefetch 2, flow 57, dialog 14, pick 22, output 33, ux 27, photo2 15, r02 40, r03 12, r04 9, r05 22, r06 12, r07 7, r08 4, r09 6, r10 8, r11 13, alt 11, save 19, recover 25, flow-order 10, approval 6). r04·r07-test 는 윈도우에서 `/tmp`·`file://` 때문에 끊기던 것을 고침(OS 임시 폴더, http(s)만 가로채기). save-test 는 다른 탭 저장 알림 뒤 서버 반영을 최대 6초 기다림
 - 기준(2026-10-19): 위 30개 모두 FAIL 0 (flow-test 57개, dialog-test 14개, pick-test 22개, output-test 33개, ux-test 27개, photo2-test 15개, r02-test 34개, r03-test 12개, r04-test 9개, r05-test 22개, r06-test 12개, r07-test 7개, r08-test 4개, r09-test 6개, r10-test 8개, r11-test 13개 · r02-test는 40개)
