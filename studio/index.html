@@ -196,7 +196,12 @@
   .linkbox{display:flex;gap:8px;margin:6px 0 12px}.linkbox input{flex:1;min-width:0;font:13px var(--sans);padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink)}
   .fatal{max-width:420px;margin:60px auto;background:#fff;border:1px solid var(--line);border-radius:14px;padding:28px 26px;text-align:center;box-shadow:var(--shadow)}
   .fatal h2{font-family:var(--serif);color:var(--brand-2);margin:0 0 8px;font-size:20px}.fatal p{color:var(--muted);margin:0 0 18px}
-  .save[data-state=err],.save[data-state=conflict]{color:var(--danger);font-weight:600}.save[data-state=saving]{color:var(--gold)}
+  .save[data-state=err],.save[data-state=conflict],.save[data-state=auth],.save[data-state=perm]{color:var(--danger);font-weight:600}.save[data-state=saving]{color:var(--gold)}
+  .save[data-state=auth]{cursor:pointer;text-decoration:underline dotted}
+  .relogin{position:fixed;right:16px;top:64px;z-index:95;background:#fff;border:1.5px solid var(--danger);border-radius:14px;padding:14px 16px;width:min(340px,92vw);box-shadow:var(--shadow)}
+  .relogin[hidden]{display:none} .relogin b{display:block;font-size:15.5px;margin-bottom:6px;color:var(--danger)} .relogin p{margin:0 0 10px;font-size:13.5px;color:var(--muted);line-height:1.55}
+  .relogin form{display:flex;flex-direction:column;gap:8px} .relogin input{font:14px var(--sans);padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink)}
+  .relogin #reOut{font-size:13px;color:var(--danger);margin-top:8px;min-height:1em} .relogin #reLater{margin-top:8px;width:100%;justify-content:center}
   @media(max-width:1000px){
     .app{grid-template-columns:96px minmax(0,1fr);grid-template-rows:60px minmax(0,1fr) auto 44px}
     .th .mini{width:64px}.th .nm,.th .no{display:none}.lh small{display:none}.addpage span{display:none}
@@ -318,6 +323,20 @@
   <button class="opt" data-cf="replace"><b>내 내용으로 덮어쓰기</b><span>이 화면의 내용을 저장해요. 다른 곳에서 저장한 수정은 사라져요.</span></button>
   <div style="text-align:right"><button class="btn" id="cfClose">나중에 정하기</button></div>
 </div></div>
+<div class="modal" id="rcDlg" hidden role="dialog" aria-modal="true" aria-labelledby="rcT"><div class="mbox">
+  <h3 id="rcT">저장되지 못한 수정이 있어요</h3>
+  <p style="color:var(--muted);font-size:14.5px;margin:0 0 12px;line-height:1.65">인터넷이 끊기거나 로그인이 풀려 서버에 저장되지 못한 수정이 <b id="rcWhen"></b>에 이 기기에 남아 있어요.</p>
+  <div class="exwarn" id="rcStale" hidden>그 뒤에 다른 곳(다른 탭·기기)에서 이 책이 저장됐어요. 되살리면 저장할 때 어느 쪽을 남길지 다시 물어요.</div>
+  <button class="opt" data-rc="restore"><b>되살리기</b><span>남아 있던 수정을 이 화면에 올리고 바로 저장을 시도해요.</span></button>
+  <button class="opt" data-rc="drop"><b>서버에 저장된 내용 그대로</b><span>이 기기에 남은 사본은 지워요.</span></button>
+</div></div>
+<div class="relogin" id="reDlg" hidden role="dialog" aria-labelledby="reT">
+  <b id="reT">로그인이 풀렸어요</b>
+  <p>쓰던 글은 이 화면에 그대로 있어요. 다시 로그인하면 이어서 저장돼요. 화면을 새로고침하거나 닫지 마세요.</p>
+  <form id="reForm"><input id="reEm" type="email" readonly aria-label="이메일"><input id="rePw" type="password" placeholder="비밀번호" autocomplete="current-password" aria-label="비밀번호" required><button class="btn primary" type="submit" id="reGo">다시 로그인</button></form>
+  <div id="reOut" role="alert"></div>
+  <button class="btn" id="reLater" type="button">나중에</button>
+</div>
 <div class="modal" id="exDlg" hidden role="dialog" aria-modal="true" aria-labelledby="exT"><div class="mbox">
   <h3 id="exT">어떻게 내려받을까요?</h3>
   <button class="opt" data-ex="screen"><b>📱 화면용 전자책 (HTML)</b><span>컴퓨터·휴대폰에서 열어 보는 책이에요. 사진·영상·노래가 파일 안에 담겨 바로 재생돼요.</span></button>
@@ -1294,7 +1313,7 @@ let sb=null, user=null, bookRow=null, mediaInfo={}, lastSaved=null, saveRun=null
 let savedRows=new Map();        // 마지막으로 서버에 저장된 쪽(id → 쪽 JSON): 바뀐 쪽·내가 지운 쪽만 보내기 위해
 let saveFails=0, nextSaveAt=0;  // 저장 실패 횟수 · 다음 자동 저장 시각(실패가 이어지면 3→6→12→24→30초로 간격을 늘린다)
 let conflict=null;              // 다른 곳(탭·기기)에서 먼저 저장해 멈춘 상태 — 사용자가 고르기 전까지 자동 저장을 멈춘다
-function setSave(k){ const m={fresh:'아직 저장 전 · 쓰기 시작하면 저장돼요',saving:'저장 중…',ok:'✓ 모든 변경사항 저장됨',err:'⚠ 저장 실패 · 인터넷 연결을 확인해 주세요',conflict:'⚠ 다른 곳에서 바뀌어 저장을 멈췄어요',demo:'',load:'불러오는 중…'}; $('save').textContent=m[k]; $('save').dataset.state=k; }
+function setSave(k){ const m={fresh:'아직 저장 전 · 쓰기 시작하면 저장돼요',saving:'저장 중…',ok:'✓ 모든 변경사항 저장됨',err:'⚠ 저장 실패 · 인터넷 연결을 확인해 주세요',conflict:'⚠ 다른 곳에서 바뀌어 저장을 멈췄어요',auth:'⚠ 로그인이 풀렸어요 · 다시 로그인하면 이어서 저장돼요',perm:'⚠ 저장할 권한이 없어요 · 계정 승인이 끝나면 저장돼요',demo:'',load:'불러오는 중…'}; $('save').textContent=m[k]; $('save').dataset.state=k; }
 function fatal(title,msg,link){ $('center').innerHTML=`<div class="fatal"><h2>${esc(title)}</h2><p>${esc(msg)}</p>${link?`<a class="btn primary" href="${link[1]}">${esc(link[0])}</a>`:''}</div>`; }
 const cleanEl = e => e.type==='slot' ? {id:e.id,type:'slot',kind:e.kind||'image',x:e.x,y:e.y,w:e.w,h:e.h}
   : e.type==='text'
@@ -1309,7 +1328,7 @@ function ensureBook(){
     const t=(state.title||'').trim().slice(0,120)||'제목 없는 책';
     const {data,error}=await sb.from('books').insert({owner_id:user.id,author_name:bookRow.author_name||'',format:'pages',title:t}).select('id,owner_id,title,author_name,format,is_public,published_at,deleted_at,rev').single();
     if(error){ console.error(error); creating=null; return false; }
-    BOOK=data.id; bookRow=data; history_replace(); tabs.open(); return true;
+    BOOK=data.id; bookRow={...data}; history_replace(); tabs.open(); if(window.DemoDraft&&user) DemoDraft.clear('new:'+user.id); localToken=null; return true;
   })();
   return creating;
 }
@@ -1344,9 +1363,61 @@ async function saveOnce(force, replace){ // 성공(또는 저장할 것 없음)�
     if(r.data&&r.data.rev!=null) bookRow.rev=r.data.rev;
     bookRow.title=t; savedRows=now; lastSaved=cur; saveFails=0; nextSaveAt=0; conflict=null;
     setSave(serialize()===cur?'ok':'saving'); updPublish(); tabs.saved();  // 저장하는 사이 더 고쳤으면 「저장됨」 대신 이어서 저장
+    if(serialize()===cur) clearLocal();
     return true;
-  }catch(err){ console.error(err); saveFails++; nextSaveAt=Date.now()+Math.min(30000,1500*2**saveFails); setSave('err'); return false; }  // 실패가 이어지면 3→6→12→24→30초 뒤에 다시
+  }catch(err){ console.error(err); saveFails++; nextSaveAt=Date.now()+Math.min(30000,1500*2**saveFails);   // 실패가 이어지면 3→6→12→24→30초 뒤에 다시
+    const kind=await classifySaveError(err); setSave(kind); if(kind==='auth') openRelogin(); return false; }
 }
+// 저장 실패의 종류: auth(로그인 풀림) · perm(권한 없음: 계정 승인 대기 등) · err(인터넷 등). 예전에는 전부 「인터넷 연결을 확인해 주세요」였다
+async function classifySaveError(err){
+  const code=String((err&&err.code)||''), status=err&&err.status, msg=String((err&&err.message)||'');
+  if(status===401||code==='PGRST301'||code==='PGRST302'||/jwt|token|expired|not authenticated|session/i.test(msg)) return 'auth';
+  if(code==='42501'||status===403){ try{ const {data}=await sb.auth.getSession(); if(!data||!data.session) return 'auth'; }catch{ return 'auth'; } return 'perm'; }
+  return 'err';
+}
+// ── 기기 사본(D14): 서버에 저장되지 못한 수정을 이 기기(IndexedDB, 체험 원고와 같은 보관함)에 남겨 두고, 다시 열 때 복구를 제안한다 ──
+const localKey = () => BOOK ? 'book:'+BOOK : (user ? 'new:'+user.id : null);
+let dirtySince=0, localToken=null;
+async function keepLocal(force){ // 저장되지 못한 수정이 3초 넘게 남아 있으면(또는 화면을 떠날 때) 사본을 남긴다. 평소처럼 1.5초 안에 저장되면 남기지 않는다
+  if(!ONLINE||!bookRow||!window.DemoDraft) return;
+  const cur=serialize();
+  if(cur===lastSaved){ if(localToken) clearLocal(); dirtySince=0; return; }
+  if(!dirtySince) dirtySince=Date.now();
+  if(!force && Date.now()-dirtySince<3000) return;
+  if(cur===localToken) return;
+  const k=localKey(); if(!k) return;
+  if(await DemoDraft.put({savedAt:Date.now(), book:BOOK, rev:bookRow.rev??null, title:state.title, cur:state.cur, pages:JSON.parse(cur).pages}, k)) localToken=cur;
+}
+function clearLocal(){ localToken=null; dirtySince=0; const k=localKey(); if(k&&window.DemoDraft) DemoDraft.clear(k); }
+// 책을 열 때: 서버 내용과 다른 사본이 이 기기에 남아 있으면 「되살리기 / 서버 내용 그대로」
+async function offerLocalRestore(){
+  if(!window.DemoDraft) return; const k=localKey(); const loc=k&&await DemoDraft.get(k); if(!loc) return;
+  if(JSON.stringify(loc.pages)===draftPagesJSON() && (loc.title||'')===(state.title||'')){ DemoDraft.clear(k); return; }
+  const stale = loc.rev!=null && bookRow.rev!=null && loc.rev!==bookRow.rev;   // 사본을 남긴 뒤 다른 곳에서 저장됨
+  $('rcWhen').textContent=new Date(loc.savedAt||Date.now()).toLocaleString('ko-KR',{month:'long',day:'numeric',hour:'numeric',minute:'2-digit'});
+  $('rcStale').hidden=!stale; $('rcDlg').hidden=false; $('rcDlg').querySelector('.opt').focus();
+  await new Promise(res=>{ $('rcDlg').onclick=async ev=>{ const o=ev.target.closest('[data-rc]'); if(!o) return; $('rcDlg').hidden=true;
+    if(o.dataset.rc==='restore'){ endEdit(); state.title=loc.title||state.title; state.pages=rowsToPages(loc.pages,mediaUrls); state.cur=Math.min(loc.cur||0,state.pages.length-1); state.sel=null; history=[]; future=[]; renderAll(); updPublish();
+      if(stale) bookRow.rev=loc.rev;                                                 // 사본이 본 판 번호로 저장을 시도 → 서버가 어긋남을 알려 어느 쪽을 남길지 묻게 된다
+      toast('저장되지 못했던 수정을 되살렸어요'+(stale?' · 저장할 때 어느 쪽을 남길지 물어요':'')); await saveNow(true); }
+    else await DemoDraft.clear(k);
+    res(); }; });
+}
+// ── 로그인이 풀렸을 때(D15): 편집 화면 위 작은 창에서 다시 로그인 → 바로 이어서 저장. 글은 화면과 기기 사본에 그대로 ──
+function openRelogin(){ if(!$('reDlg').hidden) return; $('reEm').value=(user&&user.email)||''; $('rePw').value=''; $('reOut').textContent=''; $('reDlg').hidden=false; $('rePw').focus(); }
+$('reLater').onclick=()=>{ $('reDlg').hidden=true; };
+$('save').addEventListener('click',()=>{ if($('save').dataset.state==='auth') openRelogin(); });
+$('reForm').onsubmit=async ev=>{ ev.preventDefault(); const em=$('reEm').value.trim(), pw=$('rePw').value; if(!pw) return; $('reGo').disabled=true; $('reOut').textContent='';
+  try{ const {data,error}=await sb.auth.signInWithPassword({email:em,password:pw}); if(error) throw error;
+    const u=data&&data.session&&data.session.user;
+    if(!u||(bookRow&&bookRow.owner_id&&u.id!==bookRow.owner_id)){ try{ await sb.auth.signOut(); }catch{} throw new Error('owner'); }   // 다른 계정으로 로그인하면 이 책을 저장할 수 없다
+    user=u; $('reDlg').hidden=true; saveFails=0; nextSaveAt=0; toast('다시 로그인했어요 · 이어서 저장해요'); await saveNow(true); if(serialize()===lastSaved && !conflict) setSave('ok'); }
+  catch(err){ console.error(err); $('reOut').textContent = err&&err.message==='owner' ? '이 책의 작가 계정으로 로그인해 주세요.' : '로그인하지 못했어요. 비밀번호를 확인해 주세요.'; }
+  finally{ $('reGo').disabled=false; } };
+function watchAuth(){ sb.auth.onAuthStateChange((ev,session)=>{ if(!ONLINE||!bookRow) return;
+  if(session&&session.user&&bookRow.owner_id&&session.user.id!==bookRow.owner_id) return;   // 다른 계정의 로그인은 이 책과 무관(재로그인 창이 작가 계정을 요구한다)
+  if(ev==='SIGNED_OUT'){ setSave('auth'); openRelogin(); }
+  else if((ev==='TOKEN_REFRESHED'||ev==='SIGNED_IN')&&session){ if(session.user) user=session.user; if($('save').dataset.state==='auth'){ $('reDlg').hidden=true; saveFails=0; nextSaveAt=0; saveNow().then(()=>{ if(serialize()===lastSaved && !conflict) setSave('ok'); }); } } }); }
 let mediaUrls={};                                   // 이 책 미디어의 임시 주소(media_id → url)
 const rowsToPages = (rows,urls) => rows.map(r=>({id:r.id,name:r.name,bg:r.bg,flowFrom:r.flow_from,els:(Array.isArray(r.els)?r.els:[]).map(e=>e.media_id?{...e,src:urls[e.media_id]||''}:e)}));
 // 서버에서 받은 쪽들을 화면에 올리고 「마지막 저장본」으로 삼는다
@@ -1562,7 +1633,7 @@ async function boot(){
   sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
   const {data:ss}=await sb.auth.getSession(); user=ss.session&&ss.session.user;
   if(!user){ fatal('로그인이 필요해요','내 책은 로그인한 뒤에 열 수 있어요.',['로그인하러 가기','../editor/']); return; }
-  $('btnSave').hidden=false;
+  $('btnSave').hidden=false; watchAuth();
   $('btnSave').onclick=async()=>{ endEdit(); await saveNow(true); if(BOOK && serialize()===lastSaved) toast('임시저장했어요 · 내 서재에 보관돼요'); else toast('저장하지 못했어요. 인터넷 연결을 확인해 주세요'); };
   if(NEW){ // 아직 DB에 없는 새 책: 견본만 보여 주고, 저장은 처음 고칠 때
     const {data:prof}=await sb.from('profiles').select('display_name').eq('id',user.id).maybeSingle();
@@ -1570,14 +1641,15 @@ async function boot(){
     state.title=bookRow.title; state.pages=templatePages(); state.cur=0; state.sel=null; history=[]; future=[];
     renderAll(); updPublish(); lastSaved=serialize(); setSave('fresh');
     if(QS.get('import')==='demo') await importDemo();   // 내 서재의 「내 서재로 옮기기」
-    setInterval(()=>{ if(Date.now()>=nextSaveAt) saveNow(); },1500); window.addEventListener('online',()=>{ nextSaveAt=0; saveNow(); }); // 인터넷이 돌아오면 곧바로
-    document.addEventListener('visibilitychange',()=>{ if(document.hidden) saveNow(); });
-    window.addEventListener('beforeunload',ev=>{ if(serialize()!==lastSaved){ saveNow(); ev.preventDefault(); ev.returnValue=''; } });
+    else await offerLocalRestore();
+    setInterval(()=>{ keepLocal(); if(Date.now()>=nextSaveAt) saveNow(); },1500); window.addEventListener('online',()=>{ nextSaveAt=0; saveNow(); }); // 인터넷이 돌아오면 곧바로
+    document.addEventListener('visibilitychange',()=>{ if(document.hidden){ keepLocal(true); saveNow(); } });
+    window.addEventListener('beforeunload',ev=>{ if(serialize()!==lastSaved){ keepLocal(true); saveNow(); ev.preventDefault(); ev.returnValue=''; } });
     return;
   }
   const b=await sb.from('books').select('id,owner_id,title,author_name,format,is_public,published_at,deleted_at,rev').eq('id',BOOK).maybeSingle();
   if(b.error||!b.data||b.data.owner_id!==user.id||b.data.deleted_at){ fatal('이 책을 열 수 없어요','없는 책이거나 내 책이 아니에요.',['내 서재로','../editor/']); return; }
-  bookRow=b.data; state.title=bookRow.title;
+  bookRow={...b.data}; state.title=bookRow.title;
   const [pg,md,sn,sh]=await Promise.all([sb.from('pages').select('*').eq('book_id',BOOK).order('position'), sb.from('media').select('id,kind,storage_path,size_bytes').eq('book_id',BOOK), sb.from('book_snapshots').select('pages,title').eq('book_id',BOOK).maybeSingle(), sb.from('book_shares').select('token').eq('book_id',BOOK).maybeSingle()]);
   if(sn && sn.data){ snapPagesJSON=JSON.stringify(sn.data.pages); snapTitle=sn.data.title??null; }
   if(sh && sh.data) shareToken=sh.data.token;
@@ -1590,12 +1662,12 @@ async function boot(){
     state.cur=0; state.sel=null; history=[]; future=[]; renderAll(); updPublish(); if(converted) reflowAll(); }
   await saveNow();
   if(pg.data.length && serialize()===lastSaved) setSave('ok');   // 불러온 뒤 「불러오는 중…」에 머물지 않게
-  tabs.open();
+  tabs.open(); await offerLocalRestore();
   if(bookRow.format!=='pages'){ const r=await sb.from('books').update({format:'pages'}).eq('id',BOOK); if(!r.error) bookRow.format='pages'; }
   if(converted) toast('새 편집기로 옮겼어요. 원래 글도 그대로 보관돼요');
-  setInterval(()=>{ if(Date.now()>=nextSaveAt) saveNow(); },1500); window.addEventListener('online',()=>{ nextSaveAt=0; saveNow(); }); // 인터넷이 돌아오면 곧바로
-  document.addEventListener('visibilitychange',()=>{ if(document.hidden) saveNow(); });
-  window.addEventListener('beforeunload',ev=>{ if(serialize()!==lastSaved){ saveNow(); ev.preventDefault(); ev.returnValue=''; } });
+  setInterval(()=>{ keepLocal(); if(Date.now()>=nextSaveAt) saveNow(); },1500); window.addEventListener('online',()=>{ nextSaveAt=0; saveNow(); }); // 인터넷이 돌아오면 곧바로
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden){ keepLocal(true); saveNow(); } });
+  window.addEventListener('beforeunload',ev=>{ if(serialize()!==lastSaved){ keepLocal(true); saveNow(); ev.preventDefault(); ev.returnValue=''; } });
 }
 boot();
 </script>

@@ -18,10 +18,11 @@ const seed={profiles:[{id:'u1',display_name:'김정선'}],
  pages:[{id:'8d100000-0000-4000-8000-000000000001',book_id:BK,position:0,name:'이야기',bg:'#FFFFFF',flow_from:null,els:[TX('e1','시작')]},
         {id:'8d100000-0000-4000-8000-000000000002',book_id:BK,position:1,name:'둘째',bg:'#FFFFFF',flow_from:null,els:[TX('e2','둘째 쪽')]}]};
 const ctx=await b.newContext({viewport:{width:1440,height:1000}});
-await ctx.addInitScript(s=>{ window.__seed=s; window.__multiTab=true; localStorage.setItem('fakeSession',JSON.stringify({user:{id:'u1',email:'a@b.c'}})); try{ indexedDB.deleteDatabase('moa-demo'); }catch{} },seed);
+await ctx.addInitScript(s=>{ window.__seed=s; window.__multiTab=true; localStorage.setItem('fakeSession',JSON.stringify({user:{id:'u1',email:'a@b.c'}})); },seed);
 await ctx.route('**/*supabase-js*',r=>r.fulfill({contentType:'application/javascript',body:FAKE}));
 await ctx.route(/fonts\.(googleapis|gstatic)\.com/,r=>r.abort());
 const errs=[];
+{ const p=await ctx.newPage(); await p.goto(U+'/lib/demo-draft.js'); await p.evaluate(()=>new Promise(r=>{ const q=indexedDB.deleteDatabase('moa-demo'); q.onsuccess=q.onerror=q.onblocked=()=>r(); })); await p.close(); } // 처음 한 번만 새 기기처럼(탭이 열린 뒤에 지우면 보관함이 멈춘다)
 const open=async()=>{ const pg=await ctx.newPage(); pg.on('pageerror',e=>errs.push('PAGEERR '+e.message)); pg.on('dialog',d=>d.accept().catch(()=>{}));
   await pg.goto(`${U}/studio/?book=${BK}`); await pg.waitForSelector('#canvas .pg'); await pg.waitForTimeout(600); return pg; };
 const st=(pg,f,a)=>pg.evaluate(f,a);

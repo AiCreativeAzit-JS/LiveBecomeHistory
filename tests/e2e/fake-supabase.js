@@ -43,19 +43,21 @@
         if(real==='shelf_books') m=m.filter(r=>r.is_public&&!r.admin_hidden&&!r.deleted_at);
         if(op==='update'){ m.forEach(r=>Object.assign(r,patch,{updated_at:new Date().toISOString()})); out=m; persist(); }
         else if(op==='delete'){ db[table]=db[table].filter(r=>!m.includes(r)); window.__db[table]=db[table]; out=m; persist(); }
-        else { if(ord) m=[...m].sort((a,b)=>(a[ord[0]]>b[ord[0]]?1:-1)*ord[1]); if(rng) m=m.slice(rng[0],rng[1]+1); out=m; }
+        else { if(ord) m=[...m].sort((a,b)=>(a[ord[0]]>b[ord[0]]?1:-1)*ord[1]); if(rng) m=m.slice(rng[0],rng[1]+1); out=m.map(r=>({...r})); } // 읽기는 복사본(화면이 받은 행을 고쳐도 서버가 바뀌지 않게)
       }
       if(one) return { data: out[0]??null, error: (one==='single'&&!out[0])?{message:'not found'}:null };
       return { data: out, error:null };
     }
     return api;
   }
+  window.__fireAuth=(ev,s)=>listeners.forEach(cb=>cb(ev,s===undefined?session:s)); // 시험용: 로그인 상태 변화(SIGNED_OUT 등) 알림
   window.supabase={ createClient(){ return {
     auth:{
-      async getSession(){ return {data:{session}} },
+      async getSession(){ return {data:{session:window.__authExpired?null:session}} },   // __authExpired: 로그인이 풀린 상태 흉내
       onAuthStateChange(cb){ listeners.push(cb); },
       async signInWithPassword({email,password}){ if(password!=='password123') return {error:{message:'Invalid login credentials'}};
-        session={user:{id:email.startsWith('admin')?'adm':'u1',email}}; localStorage.setItem('fakeSession',JSON.stringify(session.user?session:null)); return {data:{session},error:null}; },
+        session={user:{id:email.startsWith('admin')?'adm':'u1',email}}; localStorage.setItem('fakeSession',JSON.stringify(session.user?session:null)); window.__authExpired=false;
+        listeners.forEach(cb=>{ try{ cb('SIGNED_IN',session); }catch(e){ console.error(e); } }); return {data:{session},error:null}; },
       async signUp(a){ window.__lastSignUp=a; return {data:{session:null},error:null}; },
       async signOut(){ session=null; },
       async updateUser(a){ window.__pwChanged=a.password; return {data:{},error:null}; }
