@@ -1,11 +1,11 @@
 import { execSync } from 'child_process';
 const R=execSync('npm root -g').toString().trim();
-const { chromium } = await import(R+'/playwright/index.mjs');
+const { chromium } = await import((p=>/^[A-Za-z]:/.test(p)?'file:///'+p.replace(/\\/g,'/'):p)(R+'/playwright/index.mjs'));
 import http from 'http'; import fs from 'fs'; import path from 'path';
-const ROOT='/home/user/LiveBecomeHistory';
+const ROOT=process.env.MOA_ROOT||'/home/user/LiveBecomeHistory';
 const srv=http.createServer((req,res)=>{ const p=req.url.split('?')[0]; const f=path.join(ROOT,p.endsWith('/')?p+'index.html':p);
   fs.readFile(f,(e,d)=>{ if(e){res.writeHead(404);res.end();} else {res.writeHead(200,{'content-type':'text/html'});res.end(d);} }); }).listen(8768);
-const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',args:['--no-sandbox']});
+const b=await chromium.launch({executablePath:process.env.PW_CHROME||'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',args:['--no-sandbox']});
 const ctx=await b.newContext({viewport:{width:1000,height:1000}});
 const BID='a12c83aa-33e6-49ed-91be-bc883000bb9e', now=new Date().toISOString();
 const M={img:'6584bdba-a887-4a12-af11-399f84d88ef5',vid:'c7fc822d-e3fd-4b8a-9717-0278145fa41c',aud:'4b176f40-9077-4275-8e5a-4bf9a3c7122c'};

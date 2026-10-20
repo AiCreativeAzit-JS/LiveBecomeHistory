@@ -1,13 +1,13 @@
 // 정선C 결정(2026-10-19): ① 사진 설명(대체 텍스트) 쓰기 ② 미리보기를 지금 쪽부터
 import { execSync } from 'child_process';
 const R=execSync('npm root -g').toString().trim();
-const { chromium } = await import(R+'/playwright/index.mjs');
+const { chromium } = await import((p=>/^[A-Za-z]:/.test(p)?'file:///'+p.replace(/\\/g,'/'):p)(R+'/playwright/index.mjs'));
 import http from 'http'; import fs from 'fs'; import path from 'path';
-const ROOT='/home/user/LiveBecomeHistory';
+const ROOT=process.env.MOA_ROOT||'/home/user/LiveBecomeHistory';
 const types={'.html':'text/html','.js':'application/javascript'};
 const srv=http.createServer((req,res)=>{ const p=req.url.split('?')[0]; const f=path.join(ROOT,p.endsWith('/')?p+'index.html':p);
   fs.readFile(f,(e,d)=>{ if(e){res.writeHead(404);res.end();} else {res.writeHead(200,{'content-type':types[path.extname(f)]||'text/plain'});res.end(d);} }); }).listen(8794);
-const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',args:['--no-sandbox']});
+const b=await chromium.launch({executablePath:process.env.PW_CHROME||'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',args:['--no-sandbox']});
 const pg=await (await b.newContext({viewport:{width:1440,height:1000},acceptDownloads:true})).newPage();
 const errs=[]; pg.on('pageerror',e=>errs.push('PAGEERR '+e.message)); pg.on('dialog',d=>d.accept().catch(()=>{}));
 await pg.route(/fonts\.|supabase-js|jsdelivr|unpkg/,r=>r.abort());

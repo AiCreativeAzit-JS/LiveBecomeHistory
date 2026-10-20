@@ -2,12 +2,12 @@
 // 기준: 글자 유실 없음 · 편집이 이어지거나(커서·고른 범위 그대로) 바로 다시 들어갈 수 있음 · 한글 조립 중엔 다시 그리지 않음
 import { execSync } from 'child_process';
 const R=execSync('npm root -g').toString().trim();
-const { chromium } = await import(R+'/playwright/index.mjs');
+const { chromium } = await import((p=>/^[A-Za-z]:/.test(p)?'file:///'+p.replace(/\\/g,'/'):p)(R+'/playwright/index.mjs'));
 import http from 'http'; import fs from 'fs'; import path from 'path';
-const ROOT='/home/user/LiveBecomeHistory';
+const ROOT=process.env.MOA_ROOT||'/home/user/LiveBecomeHistory';
 const srv=http.createServer((req,res)=>{ const p=req.url.split('?')[0]; const f=path.join(ROOT,p.endsWith('/')?p+'index.html':p);
   fs.readFile(f,(e,d)=>{ if(e){res.writeHead(404);res.end();} else {res.writeHead(200,{'content-type':'text/html'});res.end(d);} }); }).listen(8786);
-const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',args:['--no-sandbox']});
+const b=await chromium.launch({executablePath:process.env.PW_CHROME||'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',args:['--no-sandbox']});
 const pg=await (await b.newContext({viewport:{width:1440,height:1000}})).newPage();
 const errs=[]; pg.on('pageerror',e=>errs.push('PAGEERR '+e.message)); pg.on('dialog',d=>d.accept().catch(()=>{}));
 await pg.route(/fonts\.|supabase-js|jsdelivr|unpkg/,r=>r.abort());

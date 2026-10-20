@@ -2,13 +2,13 @@
 // 로그인 책에 15MB 아래(노래 1MB)·위(영상 20MB) 미디어를 두고 화면용 전자책을 내려받는다
 import { execSync } from 'child_process';
 const R=execSync('npm root -g').toString().trim();
-const { chromium } = await import(R+'/playwright/index.mjs');
+const { chromium } = await import((p=>/^[A-Za-z]:/.test(p)?'file:///'+p.replace(/\\/g,'/'):p)(R+'/playwright/index.mjs'));
 import http from 'http'; import fs from 'fs'; import path from 'path';
-const ROOT='/home/user/LiveBecomeHistory';
+const ROOT=process.env.MOA_ROOT||'/home/user/LiveBecomeHistory';
 const types={'.html':'text/html','.js':'application/javascript'};
 const srv=http.createServer((req,res)=>{ const p=req.url.split('?')[0]; const f=path.join(ROOT,p.endsWith('/')?p+'index.html':p);
   fs.readFile(f,(e,d)=>{ if(e){res.writeHead(404);res.end();} else {res.writeHead(200,{'content-type':types[path.extname(f)]||'text/plain'});res.end(d);} }); }).listen(8784);
-const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',args:['--no-sandbox']});
+const b=await chromium.launch({executablePath:process.env.PW_CHROME||'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',args:['--no-sandbox']});
 const FAKE=fs.readFileSync(process.argv[2],'utf8'); const now=new Date().toISOString(); const U='http://localhost:8784';
 const ok=(n,c,info='')=>console.log((c?'PASS ':'FAIL ')+n+(info&&!c?'  ← '+info:''));
 const BK='8b000000-0000-4000-8000-000000000001', AUD='8c000000-0000-4000-8000-000000000001', VID='8c000000-0000-4000-8000-000000000002';

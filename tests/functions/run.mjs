@@ -12,7 +12,7 @@ globalThis.fetch=async (url,init={})=>{ const u=new URL(url); if(!u.host.endsWit
   if(m==='HEAD'){ const o=R2[key]; return o?new Response(null,{headers:{'content-length':String(o.size),'content-type':o.type}}):new Response(null,{status:404}); }
   if(m==='DELETE'){ delete R2[key]; return new Response(null,{status:204}); }
   return new Response('',{status:400}); };
-await import(process.argv[2]);
+await import((p=>/^[A-Za-z]:/.test(p)?'file:///'+p.replace(/\\/g,'/'):p)(process.argv[2]));
 const call=async(body,jwt)=>{ const r=await handler(new Request('https://f/media',{method:'POST',headers:{'content-type':'application/json',apikey:'sb_publishable_x',Authorization:'Bearer '+(jwt||'sb_publishable_x')},body:JSON.stringify(body)})); return r.json(); };
 const ok=(n,c)=>console.log((c?'PASS ':'FAIL ')+n);
 const B1='11111111-1111-4111-8111-111111111111', B2='22222222-2222-4222-8222-222222222222';

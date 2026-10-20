@@ -1,9 +1,11 @@
-import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { execSync } from 'child_process';
+const R=execSync('npm root -g').toString().trim();
+const { chromium } = await import((p=>/^[A-Za-z]:/.test(p)?'file:///'+p.replace(/\\/g,'/'):p)(R+'/playwright/index.mjs'));
 import http from 'http'; import fs from 'fs'; import path from 'path';
-const ROOT='/home/user/LiveBecomeHistory', FAKE=process.argv[2];
+const ROOT=process.env.MOA_ROOT||'/home/user/LiveBecomeHistory', FAKE=process.argv[2];
 const srv=http.createServer((req,res)=>{ const p=req.url.split('?')[0]; const f=path.join(ROOT,p.endsWith('/')?p+'index.html':p);
   fs.readFile(f,(e,d)=>{ if(e){res.writeHead(404);res.end();} else {res.writeHead(200,{'content-type':f.endsWith('.js')?'text/javascript':'text/html'});res.end(d);} }); }).listen(8798);
-const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',args:['--no-sandbox']});
+const b=await chromium.launch({executablePath:process.env.PW_CHROME||'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',args:['--no-sandbox']});
 const ok=(n,c)=>console.log((c?'PASS ':'FAIL ')+n);
 for(const [w,h,label] of [[1366,850,'PC'],[683,700,'200% 확대(좁은 화면)']]){
 const pg=await b.newPage({viewport:{width:w,height:h}}); const errs=[]; pg.on('pageerror',e=>errs.push(e.message));

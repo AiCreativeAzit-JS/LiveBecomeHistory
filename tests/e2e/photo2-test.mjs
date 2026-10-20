@@ -2,13 +2,13 @@
 // ① 편집기·서가·화면용 전자책은 화면용만 ② 인쇄용 전자책은 인쇄용 원본 ③ 예전 사진(인쇄용 없음)도 인쇄용에 보임 · 용량은 두 벌 합계
 import { execSync } from 'child_process';
 const R=execSync('npm root -g').toString().trim();
-const { chromium } = await import(R+'/playwright/index.mjs');
+const { chromium } = await import((p=>/^[A-Za-z]:/.test(p)?'file:///'+p.replace(/\\/g,'/'):p)(R+'/playwright/index.mjs'));
 import http from 'http'; import fs from 'fs'; import path from 'path';
-const ROOT='/home/user/LiveBecomeHistory';
+const ROOT=process.env.MOA_ROOT||'/home/user/LiveBecomeHistory';
 const types={'.html':'text/html','.js':'application/javascript'};
 const srv=http.createServer((req,res)=>{ const p=req.url.split('?')[0]; const f=path.join(ROOT,p.endsWith('/')?p+'index.html':p);
   fs.readFile(f,(e,d)=>{ if(e){res.writeHead(404);res.end();} else {res.writeHead(200,{'content-type':types[path.extname(f)]||'text/plain'});res.end(d);} }); }).listen(8778);
-const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',args:['--no-sandbox']});
+const b=await chromium.launch({executablePath:process.env.PW_CHROME||'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',args:['--no-sandbox']});
 const FAKE=fs.readFileSync(process.argv[2],'utf8'); const now=new Date().toISOString(); const U='http://localhost:8778';
 const ok=(n,c,info='')=>console.log((c?'PASS ':'FAIL ')+n+(info&&!c?'  ← '+info:''));
 const BK='86000000-0000-4000-8000-000000000001', OLDIMG='87000000-0000-4000-8000-000000000001';

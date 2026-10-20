@@ -2,12 +2,12 @@
 // 재현 원고 docs/qa/모아_재현용_16문단.txt 를 /studio/?blank=1 의 2쪽 본문에 붙여 넣고 시작한다(요청서 S01)
 import { execSync } from 'child_process';
 const R=execSync('npm root -g').toString().trim();
-const { chromium } = await import(R+'/playwright/index.mjs');
+const { chromium } = await import((p=>/^[A-Za-z]:/.test(p)?'file:///'+p.replace(/\\/g,'/'):p)(R+'/playwright/index.mjs'));
 import http from 'http'; import fs from 'fs'; import path from 'path';
-const ROOT='/home/user/LiveBecomeHistory';
+const ROOT=process.env.MOA_ROOT||'/home/user/LiveBecomeHistory';
 const srv=http.createServer((req,res)=>{ const p=req.url.split('?')[0]; const f=path.join(ROOT,p.endsWith('/')?p+'index.html':p);
   fs.readFile(f,(e,d)=>{ if(e){res.writeHead(404);res.end();} else {res.writeHead(200,{'content-type':'text/html'});res.end(d);} }); }).listen(8771);
-const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',args:['--no-sandbox']});
+const b=await chromium.launch({executablePath:process.env.PW_CHROME||'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',args:['--no-sandbox']});
 const ctx=await b.newContext({viewport:{width:1440,height:1000}});
 await ctx.addInitScript(()=>{ try{ indexedDB.deleteDatabase('moa-demo'); }catch{} }); // 매번 새 기기처럼(체험 원고 「이어 쓰기」 창이 끼지 않게)
 const TXT=fs.readFileSync(ROOT+'/docs/qa/모아_재현용_16문단.txt','utf8');
