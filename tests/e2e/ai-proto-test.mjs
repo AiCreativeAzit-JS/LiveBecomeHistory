@@ -1,4 +1,5 @@
 // AI 옆 창 시제품(studio/ai-proto.js, ?ai=proto): 글감 고르기 → 생각하기 → 초고 → 퇴고 → 담기 → 되돌리기를 끝까지 눌러 본다
+// 2026-10-26 대표 의견 반영분: 견본 책이면 빈 책으로 · 「내 글」 목록 · 지난 단계 보기·되돌아가기·이전 판 · Ctrl+Enter · 사진 넣기 뺌 · AI 부른 횟수
 // 가짜 답이라 AI·서버로 나가는 요청이 없어야 한다. AI_SHOTS=<폴더> 를 주면 단계별 화면을 PNG로 남긴다
 import { execSync } from 'child_process';
 const R=execSync('npm root -g').toString().trim();
@@ -9,7 +10,7 @@ const srv=http.createServer((req,res)=>{ const p=req.url.split('?')[0]; const f=
   fs.readFile(f,(e,d)=>{ if(e){res.writeHead(404);res.end();} else {res.writeHead(200,{'content-type':f.endsWith('.js')?'text/javascript':'text/html'});res.end(d);} }); }).listen(8799);
 const b=await chromium.launch({executablePath:process.env.PW_CHROME||'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',args:['--no-sandbox']});
 const ctx=await b.newContext({viewport:{width:1366,height:768}}); const pg=await ctx.newPage();
-const errs=[]; pg.on('pageerror',e=>errs.push(e.message)); const reqs=[]; pg.on('request',r=>reqs.push(r.url()));
+const errs=[]; pg.on('pageerror',e=>errs.push(e.message)); pg.on('dialog',d=>d.accept().catch(()=>{})); const reqs=[]; pg.on('request',r=>reqs.push(r.url()));
 await pg.route('**/*supabase-js*',r=>r.fulfill({contentType:'application/javascript',body:fs.readFileSync(FAKE,'utf8')}));
 await pg.route(/fonts\./,r=>r.abort());
 const ok=(n,c)=>console.log((c?'PASS ':'FAIL ')+n);
@@ -24,12 +25,16 @@ await pg.goto(U+'/studio/'); await pg.waitForSelector('#canvas .pg');
 ok('평소 체험 편집기: 「AI와 쓰기」 칸·AI 창 없음, 시제품 파일도 불러오지 않음', await pg.locator('#aiTile').count()===0 && await pg.locator('#aiPanel').count()===0 && !reqs.some(u=>u.includes('ai-proto.js')));
 
 await pg.goto(U+'/studio/?ai=proto'); await pg.waitForSelector('#canvas .pg'); await pg.waitForSelector('#aiTile');
-await st(()=>{ window.__aiFast=true; });
 ok('콘텐츠 추가 다섯째 칸 「AI와 쓰기」', await st(()=>{ const t=[...document.querySelectorAll('.right .tiles .tile')]; return t.length===5 && t[4].id==='aiTile' && t[4].innerText.includes('AI와 쓰기'); }));
+// 견본 책(다른 분의 책)이 펼쳐져 있으면 빈 책으로 열고 AI 창을 바로 띄운다. 시험용 가짜 서버에는 견본 책이 없어 펼쳐진 것처럼 표시
+await st(()=>{ sampleTitle='견본 책'; });
+await Promise.all([pg.waitForURL(/blank=1/), pg.click('#aiTile')]); await pg.waitForSelector('#canvas .pg');
+await pg.waitForFunction(()=>document.getElementById('aiConsent')&&!document.getElementById('aiConsent').hidden);
+await st(()=>{ window.__aiFast=true; });
+ok('견본 책이 펼쳐져 있으면 「AI와 쓰기」 → 빈 책으로 열고 바로 AI 창(처음이면 동의 화면)', new URL(pg.url()).search==='?blank=1&ai=proto' && await st(()=>!sampleTitle));
 const before=await st(()=>JSON.stringify(state.pages)); const nBefore=await st(()=>state.pages.length);
 
 // 첫 사용 동의
-await pg.click('#aiTile');
 ok('처음 누르면 동의 화면(쉬운 말 세 줄 + 동의하고 시작), AI 창은 아직 닫힘', await pg.locator('#aiConsent').isVisible() && await pg.locator('#aiConsent li').count()===3 && await pg.locator('#aiConsent [data-con=ok]').innerText()==='동의하고 시작' && !(await pg.locator('#aiPanel').isVisible()));
 await shot('동의');
 await pg.click('#aiConsent [data-con=later]');
@@ -60,16 +65,20 @@ const g=await st(()=>__aiProto.cur.msgs[0].text);
 ok('첫인사(프롬프트 v3 4장, 호칭 선생님): 고른 글감 이름 + 첫 질문', g.startsWith('안녕하세요, 선생님.') && g.includes("'내 생애 최고의 순간'을 찾아보겠습니다") && g.endsWith('가장 먼저 떠오르는 장면은 무엇인가요?'));
 ok('질문 수 「1 / 5」', (await pg.locator('#aiSub').innerText()).includes('질문 1 / 5'));
 ok('글감 상태 「쓰는 중」', await st(()=>{ return __aiProto.sessions.w1 && __aiProto.sessions.w1.step==='think'; }));
-await act('topics'); ok('대화 중 「글감 목록」 → 글감 화면(이 글감은 「쓰는 중」)', (await pg.locator('#aiBody .tcard.big .chip').innerText())==='쓰는 중');
+await act('topics'); ok('대화 중 「글감 목록」 → 글감 화면(시작한 글감은 맨 위 「내 글」에 「쓰는 중」으로)', await pg.locator('#aiBody .tcard.big').count()===0 && await pg.locator('#aiBody .mrow').count()===1 && (await pg.locator('#aiBody .mrow').innerText()).includes('쓰는 중'));
 await act('topic','[data-id=w1]'); ok('카드를 다시 누르면 대화 그대로 이어서', await st(()=>__aiProto.cur.msgs.length)===1 && (await pg.locator('#aiSub').innerText()).includes('질문 1 / 5'));
 ok('답이 없으면 「여기까지 정리해 주세요」 잠김', await pg.locator('#aiPanel [data-act=sum]').isDisabled());
 await pg.click('#aiIn'); await pg.keyboard.type('가나'); await pg.keyboard.press('Enter'); await pg.keyboard.type('다라');
 ok('엔터는 줄바꿈(보내지 않음)', await pg.inputValue('#aiIn')==='가나\n다라' && await st(()=>__aiProto.cur.msgs.length)===1);
 await pg.fill('#aiIn','');
 const replies=[];
+let ctrlOK=false;
 for(let k=0;k<5;k++){ await act('sample'); if(k===0) await shot('생각하기_예시답');
-  await act('send'); replies.push(await st(()=>__aiProto.cur.msgs.at(-1).text));
+  if(k===2){ const n0=await st(()=>__aiProto.cur.msgs.length); await pg.focus('#aiIn'); await pg.keyboard.press('Control+Enter'); await idle(); ctrlOK=await st(()=>__aiProto.cur.msgs.length)===n0+2; }
+  else await act('send');
+  replies.push(await st(()=>__aiProto.cur.msgs.at(-1).text));
   if(k===1) await shot('생각하기_대화'); }
+ok('Ctrl+Enter로 보내기(엔터는 줄바꿈 그대로)', ctrlOK);
 const qn=await pg.locator('#aiSub').innerText();
 const ruleOK=replies.slice(0,4).every(t=>(t.match(/\?/g)||[]).length===1 && (t.match(/[^.!?]+[.!?]/g)||[]).length<=3);
 ok('AI 답(1~4번째): 질문 하나 · 3문장 이내', ruleOK); if(!ruleOK) console.log(replies);
@@ -83,7 +92,8 @@ ok('「…을 중심으로 초고를 쓰겠습니다」 + 「초고 쓰기」 �
 await act('draft');
 ok('초고: 고정 안내 첫 줄', (await pg.locator('#aiBody .fixed').innerText())==='이 글은 선생님이 말씀하신 것만으로 썼습니다. 다른 기억이 나면 말씀해 주세요.');
 ok('원고 카드: 책 글씨체 · 제목 · 글자 수 · 판 번호', /Noto Serif KR|Batang/.test(await pg.locator('#aiBody .ms').evaluate(n=>getComputedStyle(n).fontFamily)) && (await pg.locator('#aiBody .ms h4').innerText())==='됐습니다' && /초고 1판/.test(await pg.locator('#aiBody .ms-meta').innerText()) && /\d+자/.test(await pg.locator('#aiBody .ms-meta').innerText()));
-ok('초고 단계 버튼: 퇴고로 넘어가기 · 질문 없이 바로 퇴고 · 빠른 고침 3개 · 내가 한 줄 더하기', await pg.locator('#aiPanel [data-act=revise]').count()===1 && await pg.locator('#aiPanel [data-act=revise-skip]').count()===1 && await pg.locator('#aiPanel [data-act=qfix]').count()===3 && await pg.locator('#aiPanel [data-act=mine-open]').count()===1);
+ok('초고 단계 버튼: 퇴고로 넘어가기 · 질문 없이 바로 퇴고 · 더 담백하게·더 짧게·이 장면 더 이야기하기 · 내가 한 줄 더하기', await pg.locator('#aiPanel [data-act=revise]').count()===1 && await pg.locator('#aiPanel [data-act=revise-skip]').count()===1 && await pg.locator('#aiPanel [data-act=qfix]').count()===2 && (await pg.locator('#aiPanel [data-act=more]').innerText())==='이 장면 더 이야기하기' && await pg.locator('#aiPanel [data-act=mine-open]').count()===1);
+ok('AI 부른 횟수 표시(시제품): 창 아래 「AI 부름 n번」', (await pg.locator('#aiCalls').innerText())===`AI 부름 ${await st(()=>__aiProto.cur.calls)}번` && await st(()=>__aiProto.cur.calls)>=8);
 await pg.click('#aiBody .s[data-sid=s3]');
 ok('문장을 누르면 「다시 써 주세요 / 빼 주세요 / 제가 한 말이 아니에요」', (await pg.locator('#aiBody .smenu [data-act=mark]').allInnerTexts()).join('|')==='다시 써 주세요|빼 주세요|제가 한 말이 아니에요');
 await shot('초고_문장메뉴');
@@ -95,7 +105,18 @@ await act('apply');
 const d2=await st(()=>({ver:__aiProto.cur.draft.ver, ids:__aiProto.cur.draft.sents.map(x=>x.id), s1:__aiProto.cur.draft.sents[0].t, nm:__aiProto.cur.notMine}));
 ok('고쳐 받기: 지어낸 문장 빠짐 · 다시 쓴 문장 바뀜 · 2판 · 지어냄 지적 1건', d2.ver===2 && !d2.ids.includes('s3') && d2.s1==='공장 준공식 날, 칠십구년 겨울이었다.' && d2.nm===1);
 await act('qfix','[data-k=plain]'); ok('빠른 고침 「더 담백하게」 → 3판', await st(()=>__aiProto.cur.draft.ver)===3);
-await act('qfix','[data-k=long]'); ok('「이 장면을 길게」: 지어내지 않고 「내가 한 줄 더하기」를 권함', (await pg.locator('#aiBody .msg.ai').last().innerText()).includes('내가 한 줄 더하기'));
+await act('more');
+const mq=await st(()=>__aiProto.cur.msgs.at(-1).text);
+ok('「이 장면 더 이야기하기」 → 생각하기로 돌아가 고른 장면만 더 물음', await st(()=>__aiProto.cur.step)==='think' && mq.includes('조금 더 따라가 보겠습니다') && mq.includes('귀에 들리던 소리') && (mq.match(/\?/g)||[]).length===1);
+ok('더 이야기하기 중에는 「더 묻기 1 / 2」', (await pg.locator('#aiSub').innerText()).includes('더 묻기 1 / 2'));
+await act('sample-more'); await shot('더이야기하기'); await act('send');
+ok('더 이야기하기: 두 번째 질문까지', (await st(()=>__aiProto.cur.msgs.at(-1).text)).endsWith('?') && await pg.locator('#aiPanel [data-act=redraft]').count()===1);
+await act('redraft');
+const md=await st(()=>({ver:__aiProto.cur.draft.ver, t:__aiProto.cur.draft.sents.map(x=>x.t).join(' '), step:__aiProto.cur.step}));
+ok('초고 다시 쓰기: 더 들은 말이 그 장면 바로 뒤에 · 앞서 고친 것은 그대로 · 4판', md.step==='draft' && md.ver===4 && md.t.indexOf('잡았던 것 같다.')<md.t.indexOf('기계는 쿵쿵 하다가 윙 하고 고르게 돌았다.') && md.t.indexOf('쿵쿵')<md.t.indexOf('아버지') && !md.t.includes('유난히') && md.t.startsWith('공장 준공식 날, 칠십구년 겨울이었다.'));
+const c0=await st(()=>__aiProto.calls);
+await act('prev');
+ok('이전 판으로 → 3판(더 들은 말 빠짐 · AI를 부르지 않음)', await st(()=>__aiProto.cur.draft.ver)===3 && !(await st(()=>__aiProto.cur.draft.sents.some(x=>x.t.includes('쿵쿵')))) && await st(()=>__aiProto.calls)===c0);
 await act('mine-open'); await pg.fill('#aiMine','그날 일은 지금도 손에 남아 있다.'); await act('mine-add');
 ok('내가 한 줄 더하기: 쓴 그대로 글 끝에', await st(()=>__aiProto.cur.draft.sents.at(-1).t)==='그날 일은 지금도 손에 남아 있다.' && await st(()=>__aiProto.cur.draft.ver)===4);
 await shot('초고');
@@ -114,6 +135,12 @@ ok('퇴고 단계 버튼: 모아에 담기 · 다시 고쳐 주세요', await pg
 await shot('퇴고본');
 await pg.click('#aiBody .s[data-sid=rs2]'); await act('mark','[data-m=drop]'); await act('refix');
 ok('퇴고본에서도 문장 표시 → 「다시 고쳐 주세요」로 한 번에(2판)', await st(()=>__aiProto.cur.rev.doc.ver)===2 && !(await st(()=>__aiProto.cur.rev.doc.sents.some(x=>x.id==='rs2'))));
+ok('퇴고본에도 「이전 판으로」', (await pg.locator('#aiPanel [data-act=prev][data-k=rev]').innerText()).includes('1판'));
+await pg.click('#aiSteps [data-v=draft]');
+ok('단계 표시 「초고」를 누르면 지난 초고를 다시 봄(읽기 전용 · 돌아가서 고치기)', await pg.locator('#aiBody .vbar').isVisible() && await pg.locator('#aiBody .ms[data-doc=draft] .s.ro').count()>0 && await pg.locator('#aiBody .ms .s[data-sid]').count()===0 && await pg.locator('#aiPanel [data-act=goto-draft]').count()===1);
+await shot('지난단계_초고보기');
+await pg.click('#aiPanel [data-act=view][data-v=""]');
+ok('지금 단계로 돌아가기 → 퇴고', await pg.locator('#aiBody .vbar').count()===0 && await st(()=>__aiProto.cur.step)==='revise' && await pg.locator('#aiBody .ms[data-doc=rev]').count()===1);
 ok('2차 기능(노래 만들기·가사)은 보이지 않음', !/노래|가사/.test(await pg.locator('#aiPanel').innerText()));
 
 // 담기
@@ -136,7 +163,7 @@ const kept=await st(nb=>{ const ids=new Set(__aiProto.cur.inserted.ids); return 
 ok('이 자리에 담기 → 3쪽부터 새 글 쪽으로 들어감(글감 이름 · 제목 상자 · 본문)', ins.n===nBefore+ins.ids.length && ins.p.name==='내 생애 최고의 순간' && ins.p.els[0].html==='됐습니다' && ins.p.els[1].html.includes('둘이 그냥 웃었다.') && ins.cur===2);
 ok('있던 쪽은 하나도 바뀌지 않음(덮어쓰지 않음)', kept===before);
 ok('예상 쪽 수와 실제로 들어간 쪽 수가 같음', est===ins.ids.length); console.log('  새 글',ins.ids.length,'쪽:',ins.names.slice(2,2+ins.ids.length).join(' / '));
-ok('쪽 목록에 새 글 표시 · 다음 걸음(사진 넣기·다음 글감)·되돌리기', await pg.locator('#thumbs .th.ai-new').count()===ins.ids.length && await pg.locator('#aiPanel [data-act=photo]').count()===1 && await pg.locator('#aiPanel [data-act=next]').count()===1 && await pg.locator('#aiPanel [data-act=undo]').count()===1);
+ok('쪽 목록에 새 글 표시 · 다음 글감·이 글 다시 다듬기·되돌리기(「사진 넣기」는 뺌)', await pg.locator('#thumbs .th.ai-new').count()===ins.ids.length && await pg.locator('#aiPanel [data-act=photo]').count()===0 && await pg.locator('#aiPanel [data-act=next]').count()===1 && await pg.locator('#aiPanel [data-act=repolish]').count()===1 && await pg.locator('#aiPanel [data-act=undo]').count()===1);
 ok('지면(가운데)에 새 쪽이 보임', (await pg.locator('#canvas').innerText()).includes('됐습니다'));
 await shot('담은뒤');
 await act('undo');
@@ -149,8 +176,24 @@ ok('책 맨 뒤에 담기', await st(nb=>__aiProto.cur.inserted.at===nb && state
 await pg.click('.bottom'); await pg.keyboard.press('Control+z');
 ok('편집기에서 Ctrl+Z 한 번으로도 원래대로', await st(()=>JSON.stringify(state.pages))===before && await st(()=>__aiProto.cur.step)==='place');
 await act('insert'); await act('next');
-ok('다음 글감 → 첫 화면 · 글감 상태 「담음」 · 남겨 둔 장면 2장(모두 3장)', (await pg.locator('#aiBody .tcard.big .chip').innerText())==='담음' && await pg.locator('#aiBody .tcard').count()===3 && !(await st(()=>document.getElementById('app').classList.contains('ai-wide'))));
+ok('다음 글감 → 첫 화면: 맨 위 「내 글」에 「담음」 · 새 글감은 남겨 둔 장면 2장', await pg.locator('#aiBody .tcard.big').count()===0 && await pg.locator('#aiBody .tcard').count()===2 && (await pg.locator('#aiBody .mrow').innerText()).includes('담음') && await st(()=>{ const m=document.querySelector('#aiBody .mrow'), t=document.querySelector('#aiBody .tcard'); return !!m&&!!t&&(m.compareDocumentPosition(t)&Node.DOCUMENT_POSITION_FOLLOWING)>0; }) && !(await st(()=>document.getElementById('app').classList.contains('ai-wide'))));
+ok('첫 화면 「내 글」 목록: 담은 글과 담긴 쪽', await pg.locator('#aiBody .mrow').count()===1 && /담음/.test(await pg.locator('#aiBody .mrow').innerText()) && /\d+쪽에 담음/.test(await pg.locator('#aiBody .mrow').innerText()));
 await shot('다음글감');
+await act('topic','.mrow');
+ok('「내 글」을 누르면 그 글로(담은 뒤 화면)', await st(()=>__aiProto.cur.step)==='done' && await pg.locator('#aiBody .aidone').count()===1);
+await pg.click('#aiSteps [data-v=think]');
+ok('담은 뒤에도 생각하기 대화를 다시 볼 수 있음', await pg.locator('#aiBody .vbar').isVisible() && await pg.locator('#aiBody .msg').count()>=10 && await pg.locator('#aiPanel [data-act=more]').count()===1);
+await shot('지난단계_생각하기보기');
+await pg.click('#aiPanel [data-act=view][data-v=""]');
+const pagesOnce=await st(()=>JSON.stringify(state.pages)), firstIds=await st(()=>__aiProto.cur.placed[0].ids);
+await act('repolish');
+ok('이 글 다시 다듬기 → 퇴고로(담은 쪽은 그대로)', await st(()=>__aiProto.cur.step)==='revise' && await st(()=>JSON.stringify(state.pages))===pagesOnce);
+await act('place'); await act('insert');
+const twice=await st(fi=>({placed:__aiProto.cur.placed.length, firstKept:fi.every(id=>state.pages.some(p=>p.id===id))}), firstIds);
+ok('다시 다듬어 담기: 예전 쪽은 그대로 두고 새 쪽으로 하나 더', twice.placed===2 && twice.firstKept);
+await act('undo');
+ok('되돌리기 한 번 → 두 번째 담기만 빠짐', await st(()=>JSON.stringify(state.pages))===pagesOnce && await st(()=>__aiProto.cur.placed.length)===1);
+await act('back-rev'); await act('topics');
 
 // 직접 쓴 답(정해진 틀) · 질문 없이 바로 퇴고
 await act('own'); await pg.fill('#aiOwn','우리 집 첫 텔레비전'); await act('ownstart');
@@ -184,6 +227,18 @@ await pg.click('#aiClose');
 ok('닫기 → 도구 칸이 돌아오고 쪽 목록 펼침', await pg.locator('.right').isVisible() && !(await pg.locator('#aiPanel').isVisible()) && await st(()=>document.querySelector('.left').getBoundingClientRect().width)>200);
 await pg.click('#aiTile'); ok('다시 열면 동의 없이 대화가 그대로', await pg.locator('#aiPanel').isVisible() && !(await pg.locator('#aiConsent').isVisible()) && await st(()=>__aiProto.cur&&__aiProto.cur.topic.title)==='우리 집 첫 텔레비전');
 
+await act('topics');
+ok('「내 글」에 두 편(담음 1편 · 쓰는 중 1편)', await pg.locator('#aiBody .mrow').count()===2 && (await pg.locator('#aiBody h5', {hasText:'내 글'}).innerText()).includes('2편 (담음 1편)'));
+await shot('내글목록');
+await Promise.all([pg.waitForURL(u=>!/blank=1/.test(String(u))), pg.click('#demoBar a')]); await pg.waitForSelector('#aiTile');
+ok('안내 띠 「견본 책 보기」 링크도 시제품 주소 유지', new URL(pg.url()).searchParams.get('ai')==='proto');
+// 이 기기에 체험 원고가 남아 있으면 「이어 쓰기 / 지우고 새로 시작」을 먼저 고르고, 그 뒤에 AI 창
+if(await pg.locator('#draftDlg').isVisible()) await pg.click('#draftDlg [data-draft=resume]');
+await st(()=>DemoDraft.put({savedAt:Date.now(),title:'시험 원고',cur:0,pages:state.pages})); await st(()=>{ sampleTitle='견본 책'; });
+await Promise.all([pg.waitForURL(/aiopen=1/), pg.click('#aiTile')]); await pg.waitForSelector('#draftDlg:not([hidden])'); await pg.waitForTimeout(500);
+ok('체험 원고가 남아 있으면 그 질문이 먼저(AI 창은 아직)', !(await pg.locator('#aiPanel').isVisible()));
+await pg.click('#draftDlg [data-draft=fresh]'); await pg.waitForSelector('#aiPanel:not([hidden])');
+ok('고르고 나면 AI 창이 열림', new URL(pg.url()).search==='?blank=1&ai=proto');
 const outside=reqs.filter(u=>!u.startsWith(U)&&!/fonts\./.test(u)&&!u.startsWith('data:'));
 ok('AI·서버로 나간 요청 없음(가짜 답)', outside.length===0); if(outside.length) console.log('  밖으로 나간 요청:',outside.slice(0,5));
 ok('화면 오류 없음', errs.length===0); if(errs.length) console.log(errs);
