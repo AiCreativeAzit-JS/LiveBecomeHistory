@@ -1,5 +1,5 @@
 -- AI와 쓰기(실사용자 시험, 2026-10-27 대표 결정): 켤 회원 · 동의 기록 · 대화 보관 · 사용량 기록
--- 운영 적용 이력: (아직 적용 안 함 — 적용 전 대표 승인)
+-- 운영 적용 이력: 2026-10-27 Supabase MCP apply_migration(이름 ai_writing)으로 qsucbnvicaviatdpnfxx 에 적용함(대표 승인)
 -- · profiles.ai_enabled: 관리자가 시험 참여자만 켠다(public.admin_set_ai). 회원 본인은 바꿀 수 없다(profiles 쓰기는 0009에서 막혀 있음)
 -- · ai_consents: 첫 사용 동의(본인만 쓰기·읽기, 관리자 읽기)
 -- · ai_threads: 글감 하나 = 대화 하나. 본인 읽기·쓰기, 시험 기간에는 관리자도 읽기(대표 결정: 「테스트 기간은 대화 보기」 — 처리방침·동의 화면에 적음)
