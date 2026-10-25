@@ -1700,6 +1700,8 @@ async function boot(){
   window.addEventListener('beforeunload',ev=>{ if(serialize()!==lastSaved){ keepLocal(true); saveNow(); ev.preventDefault(); ev.returnValue=''; } });
 }
 boot();
+// AI 옆 창 시제품(PRD 5-1): 체험 편집기 주소에 ?ai=proto 가 있을 때만 불러온다. 로그인한 내 책 편집·평소 주소에는 나오지 않음
+if(!ONLINE && QS.get('ai')==='proto'){ const s=document.createElement('script'); s.src='ai-proto.js'; document.body.appendChild(s); }
 </script>
 </body>
 </html>
