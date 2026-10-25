@@ -16,6 +16,7 @@
 const CALL='선생님';                         // 호칭(프롬프트 v3는 「고문님」 고정 → 과정별 설정은 1차 기능)
 const QMAX=8, RQMAX=3;                       // 생각하기 질문 상한(시작 인사의 첫 질문 포함) · 퇴고에서 AI가 먼저 묻는 질문 상한
 const PIECES=['장면','사람','사건','마음','의미'];   // 생각하기에서 채울 다섯 관점(프롬프트 v1)
+const REAL=!!window.MOA_AI_REAL;              // 로그인 편집기의 시험 참여자: 진짜 AI(아래 「진짜 AI」). 아니면 가짜 답 시제품
 const fast=()=>!!window.__aiFast;            // 자동 시험에서는 기다리지 않는다
 const wait=ms=>new Promise(r=>setTimeout(r,fast()?0:ms));
 const reduce=()=>fast()||matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -109,7 +110,7 @@ const reach=(s,k)=>{ s.step=k; s.updated=Date.now(); };
 const topicOf=id=>id===WEEK.id?WEEK:PACK.find(p=>p.id===id)||kept.find(k=>k.id===id)||(sessions[id]&&sessions[id].topic);
 const scriptOf=s=>SCRIPT[s.topic.id]||null;
 const status=id=>{ const s=sessions[id]; return !s?'아직':s.placed.length?'담음':'쓰는 중'; };
-const consented=()=>{ try{ return localStorage.getItem('moa-ai-proto-consent')==='1'; }catch(e){ return !!ui.agreed; } };
+const consented=()=>{ if(REAL) return !!ui.agreed; try{ return localStorage.getItem('moa-ai-proto-consent')==='1'; }catch(e){ return !!ui.agreed; } };
 
 /* 원고 = {kind:'draft'|'rev', title, ver, sents:[{id,p(문단),t,…}]} · 이번 판에서 고친 문장은 chg:true(카드에서 색으로) */
 const paras=doc=>{ const g=[]; doc.sents.forEach(x=>{ (g[x.p]=g[x.p]||[]).push(x); }); return g.filter(Boolean); };
@@ -254,7 +255,7 @@ if(QS.get('aiopen')==='1') (async()=>{ const until=async f=>{ while(!f()) await 
   window.history.replaceState(null,'',location.pathname+'?blank=1&ai=proto'); openPanel(); toast('견본 책 대신 빈 책에서 시작해요'); })();   // history 는 편집기의 되돌리기 기록 이름이라 window.history
 $('aiConsent').addEventListener('click',ev=>{ const b=ev.target.closest('[data-con]'); if(ev.target.id!=='aiConsent'&&!b) return;
   $('aiConsent').hidden=true;
-  if(b&&b.dataset.con==='ok'){ ui.agreed=true; try{ localStorage.setItem('moa-ai-proto-consent','1'); }catch(e){} openPanel(); } else $('aiTile').focus(); });
+  if(b&&b.dataset.con==='ok'){ ui.agreed=true; if(REAL) sb.from('ai_consents').insert({user_id:user.id,version:'2026-10-27'}).then(r=>{ if(r.error) console.error(r.error); }); try{ localStorage.setItem('moa-ai-proto-consent','1'); }catch(e){} openPanel(); } else $('aiTile').focus(); });
 $('aiConsent').addEventListener('keydown',ev=>{ if(ev.key==='Escape'){ $('aiConsent').hidden=true; $('aiTile').focus(); } });
 
 /* ═══════════════ 그리기 ═══════════════ */
@@ -541,5 +542,81 @@ panel.addEventListener('keydown',ev=>{
     const act={aiIn:'send',aiOwn:'ownstart'}[ev.target.id]; if(act){ ev.preventDefault(); panel.querySelector(`[data-act="${act}"]`)?.click(); } }
   if((ev.ctrlKey||ev.metaKey)&&!ev.altKey&&/^Key[ZY]$/.test(ev.code)&&!/^(INPUT|TEXTAREA)$/.test(ev.target.tagName)) return;
   ev.stopPropagation(); });
+/* ═══════════════ 진짜 AI(로그인 편집기 · 관리자가 켠 시험 참여자) ═══════════════
+   가짜 답 자리를 서버 함수 ai-write 호출로 바꾼다(화면 흐름은 같음). 동의는 ai_consents, 대화는 ai_threads 에 남긴다(1.5초 묶어 저장) */
+if(REAL){
+  PACK.forEach(p=>{ p.label=p.label.replace(' (시제품: 짧게 답하는 예시)',''); });
+  document.querySelector('.aip-pro').textContent='시험 중'; document.querySelector('.aip-pro').title='모아 AI와 쓰기 시험판이에요';
+  document.querySelector('#aiTile .pro').textContent='시험'; $('aiCalls').hidden=true;
+  { const li=document.querySelectorAll('#aiConsent li');   // 처리방침 2·3·5번과 같은 말로
+    li[0].innerHTML='여기에 쓰신 이야기는 글 정리를 돕도록 <b>Anthropic(미국 회사)의 AI</b>로 보내져요. 이메일과 이름은 보내지 않아요.';
+    li[2].innerHTML=`대화는 <b>${CALL}과 모아 운영자만</b> 볼 수 있어요. 지우고 싶으시면 운영자에게 말씀해 주세요. 책을 지우거나 탈퇴하면 함께 지워져요.`; }
+  document.querySelector('#aiConsent .pnote').textContent='시험 기간에는 더 나은 서비스를 위해 모아 운영자가 대화를 볼 수 있어요. 대화는 시험이 끝나고 1년 동안 보관한 뒤 지워요.';
+  let today=0, saveT=null;
+  sampleText=()=>'';
+  const docOf=d=>`${d.title}\n\n${docText(d)}`;
+  async function ai(mode,s,extra={}){ const {data:ss}=await sb.auth.getSession(), tok=ss.session&&ss.session.access_token;
+    const hist=s.msgs.filter(m=>!m.wait&&!m.sys&&m.text).map(m=>({who:m.who,text:m.text}));
+    const r=await fetch(SUPABASE_URL+'/functions/v1/ai-write',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok,apikey:SUPABASE_KEY},
+      body:JSON.stringify({mode,book_id:BOOK||null,topic:s.topic.title,history:hist,...extra})});
+    const j=await r.json().catch(()=>({})); if(!r.ok||!j.ok) throw Object.assign(new Error(j.error||'ai_failed'),{code:j.error||'ai_failed'});
+    today=j.today||today; return j.out; }
+  // 실패해도 쓰신 말은 입력칸에 그대로(PRD 「AI 장애 대비」)
+  async function guard(s,text,fn,onFail){ try{ await fn(); }catch(e){ const w=s.msgs[s.msgs.length-1]; if(w&&w.wait) s.msgs.pop(); s.busy=false;
+      const me=s.msgs[s.msgs.length-1]; if(text&&me&&me.who==='me'&&me.text===text){ s.msgs.pop(); const a=s.answers[s.answers.length-1]; if(a&&a.text===text) s.answers.pop(); s.input=text; }
+      if(onFail) onFail();
+      s.msgs.push({who:'ai',sys:true,text:{daily_limit:'오늘 쓸 수 있는 양을 다 썼어요. 내일 이어서 쓸 수 있어요. 쓰신 글은 그대로 있어요.',not_enabled:'AI와 쓰기가 아직 켜져 있지 않아요. 운영자에게 알려 주세요.',no_consent:'먼저 동의가 필요해요. 창을 닫았다가 다시 열어 주세요.'}[e.code]||'연결이 잠시 끊겼어요. 쓰신 말은 그대로 있어요. 같은 단추를 한 번 더 눌러 주세요.'});
+      render(); } }
+  const toDoc=(kind,title,bodyText,prev,ver)=>{ const old=new Set(prev?prev.sents.map(x=>x.t):[]), sents=[];
+    String(bodyText||'').split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean).forEach((p,pi)=>split(p).forEach(t=>sents.push({id:'x'+(++sid),t,orig:t,p:pi,chg:!!prev&&!old.has(t)})));
+    return {kind,title:String(title||'').trim()||(prev&&prev.title)||'제목',sents,ver}; };
+  send=async function(kind){ const s=cur; if(s.busy) return;
+    const text=kind==='idk'?'잘 모르겠어요.':kind==='forgot'?'기억 안 나요.':s.input.trim(); if(!text){ toast('적은 뒤 보내 주세요'); return; }
+    s.input=''; s.updated=Date.now();
+    if(s.step==='draft') return fixByTalk(s,'draft',text);
+    if(s.step==='revise') return s.asking?revAnswer(s,text,kind==='forgot'):fixByTalk(s,'rev',text);
+    s.msgs.push({who:'me',text}); if(kind!=='idk') s.answers.push({text,si:-1});
+    await guard(s,text,async()=>{ const o=await think(s,0,()=>ai('think',s)); s.covered=(o.covered||[]).filter(p=>PIECES.includes(p));
+      if(o.ready||s.q>=QMAX||!missing(s).length){ s.msgs.pop(); s.busy=false; return summarize(s); }
+      s.q++; await aiSay(s,o.reply); }); };
+  summarize=async function(s){ await guard(s,'',async()=>{ const o=await think(s,0,()=>ai('summarize',s)), sc=(o.scenes||[]).filter(Boolean).slice(0,3);
+    if(!sc.length){ await aiSay(s,`${CALL}, 아직 글로 옮길 장면을 듣지 못했습니다. 떠오르는 것이 있으면 한 줄이라도 적어 주세요.`); return; }
+    s.scenes=sc.map((t,k)=>({text:t,si:-1,rank:k,k}));
+    await aiSay(s,`${CALL}, 지금까지 이야기에서 제가 들은 가장 선명한 장면은 다음과 같습니다.`,{scenes:true});
+    if(sc.length===1) return choose(s,0,true);
+    await aiSay(s,`${CALL}, 이 가운데 이번 글의 중심이 될 장면을 하나 골라 주세요.`); }); };
+  writeDraft=async function(s){ if(s.busy) return; reach(s,'draft');
+    await guard(s,'',async()=>{ const o=await think(s,0,()=>ai('draft',s,{note:`[고른 장면] ${s.scenes[s.chosen].text}`}));
+      s.draft=toDoc('draft',o.title,o.body,null,1);
+      await aiSay(s,'초고가 나왔습니다. 고치고 싶은 곳이 있으면 말씀해 주세요. 다 되면 「퇴고로 넘어가기」를 눌러 주세요.',{pre:FIRST_LINE,card:copy(s.draft)}); },()=>{ if(!s.draft) reach(s,'think'); }); };
+  fixByTalk=async function(s,which,text){ s.msgs.push({who:'me',text}); const doc=which==='draft'?s.draft:s.rev, again=which==='rev'&&s.placed.length>0;
+    await guard(s,text,async()=>{ const o=await think(s,0,()=>ai('fix',s,{doc:docOf(doc)}));
+      if(!o.changed){ await aiSay(s,o.reply||'말씀하신 곳을 찾지 못했어요. 어느 문장인지 조금 더 알려 주세요.'); return; }
+      const d=toDoc(doc.kind,o.title,o.body,doc,doc.ver+1); if(/한 말이 아니/.test(text)) s.notMine++;
+      if(which==='draft') s.draft=d; else s.rev=d;
+      await aiSay(s,`${(o.why||[]).join('\n')}\n${which==='draft'?'더 고칠 곳이 있으면 말씀해 주세요. 다 되면 「퇴고로 넘어가기」를 눌러 주세요.':again?'마음에 들면 「바꿔 담기」를 눌러 주세요.':'다 되면 「모아에 담기」를 눌러 주세요.'}`,{card:copy(d)}); }); };
+  async function writeRev(s){ const o=await think(s,0,()=>ai('revise',s,{doc:docOf(s.draft)})); s.rev=toDoc('rev',o.title,o.body,s.draft,1);
+    await aiSay(s,`퇴고본을 썼습니다. 이렇게 고쳤어요.\n${(o.why||[]).map((w,i)=>`${'①②③④⑤⑥⑦⑧'[i]||'·'} ${w}`).join('\n')}\n마음에 안 드는 곳은 "○○은 원래대로 해 주세요"처럼 말씀해 주세요. 다 되면 「모아에 담기」를 눌러 주세요.`,{card:copy(s.rev)}); }
+  toRevise=async function(s){ if(s.busy) return; reach(s,'revise'); s.rev=null; s.revAt=0; s.revQs=[]; s.revAns=[]; s.asking=true;
+    await guard(s,'',async()=>{ const o=await think(s,0,()=>ai('revise_q',s,{doc:docOf(s.draft),note:'[이미 물은 퇴고 질문 수] 0'})), diag=(o.fixes||[]).length?o.fixes.join('\n'):'크게 고칠 곳은 없습니다.';
+      if(!o.question){ s.asking=false; await aiSay(s,`퇴고를 시작합니다. 다섯 가지로 살펴봤습니다.\n${diag}`); return writeRev(s); }
+      s.revQs.push({q:o.question}); await aiSay(s,`퇴고를 시작합니다. 다섯 가지로 살펴봤습니다.\n${diag}\n\n${o.question}`); },()=>{ reach(s,'draft'); s.asking=false; }); };
+  revAnswer=async function(s,text,forgot){ s.msgs.push({who:'me',text}); s.revAt++;
+    await guard(s,text,async()=>{
+      if(s.revAt<RQMAX){ const o=await think(s,0,()=>ai('revise_q',s,{doc:docOf(s.draft),note:`[이미 물은 퇴고 질문 수] ${s.revAt}`}));
+        if(o.question){ s.revQs.push({q:o.question}); await aiSay(s,`${forgot?'그 자리는 비워 두겠습니다. ':''}${o.question}`); return; } s.msgs.pop(); s.busy=false; }
+      s.asking=false; await writeRev(s); },()=>{ s.revAt--; s.asking=!s.rev; }); };
+  // 대화 저장: 그릴 때마다 표시해 두었다가 1.5초 묶어서. 새 책이면 그때 책을 만든다
+  async function saveAI(){ if(!BOOK&&!(await ensureBook())) return; const now=new Date().toISOString();
+    const rows=Object.values(sessions).filter(s=>s.dirty).map(s=>{ s.dirty=false; const {busy,dirty,...st}=s; return {user_id:user.id,book_id:BOOK,topic_key:s.topic.id,topic:s.topic,state:{...st,busy:false},updated_at:now}; });
+    if(!rows.length) return; rows.push({user_id:user.id,book_id:BOOK,topic_key:'_kept',topic:{title:'남겨 둔 장면'},state:{kept,seq,sid},updated_at:now});
+    const {error}=await sb.from('ai_threads').upsert(rows,{onConflict:'book_id,topic_key'}); if(error) console.error(error); }
+  const draw=render;
+  render=function(top){ draw(top); if(!ui.open) return; $('aiLeft').textContent=`오늘 남은 양 ${Math.max(0,Math.round(100-today/30))}%`; if(cur){ cur.dirty=true; clearTimeout(saveT); saveT=setTimeout(saveAI,1500); } };
+  (async()=>{ const [{data:c},{data:th}]=await Promise.all([sb.from('ai_consents').select('user_id').eq('user_id',user.id).maybeSingle(),
+      BOOK?sb.from('ai_threads').select('topic_key,state').eq('book_id',BOOK):Promise.resolve({data:[]})]);
+    ui.agreed=!!c;
+    (th||[]).forEach(r=>{ if(r.topic_key==='_kept'){ kept.push(...(r.state.kept||[])); seq=Math.max(seq,r.state.seq||0); sid=Math.max(sid,r.state.sid||0); } else sessions[r.topic_key]={...r.state,busy:false,dirty:false}; }); })();
+}
 window.__aiProto={sessions,kept,get cur(){ return cur; },get calls(){ return aiCalls; },get won(){ return wonAll; },ui,docText,PIECES};   // 자동 시험용
 })();

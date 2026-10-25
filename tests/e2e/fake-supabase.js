@@ -1,6 +1,6 @@
 // 메모리 기반 가짜 supabase-js (화면 로직 검증용)
 (function(){
-  const db={books:[],chapters:[],pages:[],book_snapshots:[],book_shares:[],media:[],reports:[],book_admin_notes:[],profiles:[{id:'u1',display_name:'김정선',approved:true}]};
+  const db={books:[],chapters:[],pages:[],book_snapshots:[],book_shares:[],media:[],reports:[],book_admin_notes:[],ai_consents:[],ai_threads:[],ai_usage:[],profiles:[{id:'u1',display_name:'김정선',approved:true}]};
   const files={}; let session=null; try{ session=JSON.parse(localStorage.getItem('fakeSession')||'null'); }catch{}
   let __saved=null; try{ __saved=JSON.parse(localStorage.getItem('fakeDB')||'null'); }catch{}
   if(__saved) Object.assign(db,__saved);
@@ -10,15 +10,16 @@
   const sync=()=>{ if(!window.__multiTab) return; try{ const s=JSON.parse(localStorage.getItem('fakeDB')||'null'); if(s) Object.keys(s).forEach(k=>{ db[k]=s[k]; }); }catch{} }; // 같은 브라우저의 다른 탭이 저장한 것을 본다
   function q(table){
     const real=table; if(table==='shelf_books') table='books';
-    let rng=null; let op='select', rows=null, filters=[], one=null, patch=null, ord=null;
+    let rng=null, conflict=null; let op='select', rows=null, filters=[], one=null, patch=null, ord=null;
     const api={
       select(c){ if(op==='insert'||op==='update') return api; op='select'; (window.__selects=window.__selects||[]).push({t:real,c:String(c==null?'*':c)}); return api; }, // 어떤 열을 읽는지 기록(서가가 경로·주인을 안 읽는지 시험)
       insert(v){ op='insert'; patch=v; return api; },
-      upsert(v){ op='upsert'; patch=v; return api; },
+      upsert(v,o){ op='upsert'; patch=v; conflict=o&&o.onConflict; return api; },   // onConflict: 'book_id,topic_key' 처럼 여러 열
       not(k,o,v){ const list=String(v).replace(/[()]/g,'').split(','); filters.push(r=>!list.includes(String(r[k]))); return api; },
       update(v){ op='update'; patch=v; return api; },
       delete(){ op='delete'; return api; },
       eq(k,v){ filters.push(r=>r[k]===v); return api; },
+      neq(k,v){ filters.push(r=>r[k]!==v); return api; },
       is(k,v){ filters.push(r=>(r[k]??null)===v); return api; },
       order(k,o){ ord=[k,o&&o.ascending===false?-1:1]; return api; },
       single(){ one='single'; return api; },
@@ -31,7 +32,7 @@
     };
     function run(){
       sync(); let out;
-      if(op==='upsert'){ const arr=Array.isArray(patch)?patch:[patch]; const key=(table==='book_snapshots'||table==='book_shares')?'book_id':'id'; out=arr.map(v=>{ const ex=db[table].find(r=>r[key]===v[key]); if(ex){ Object.assign(ex,v); return ex; } const d={...v}; db[table].push(d); return d; }); persist(); }
+      if(op==='upsert'){ const arr=Array.isArray(patch)?patch:[patch]; const keys=conflict?conflict.split(','):[(table==='book_snapshots'||table==='book_shares')?'book_id':'id']; out=arr.map(v=>{ const ex=db[table].find(r=>keys.every(k=>r[k]===v[k])); if(ex){ Object.assign(ex,v); return ex; } const d={...v}; db[table].push(d); return d; }); persist(); }
       else if(op==='insert'){
         const arr=Array.isArray(patch)?patch:[patch];
         if(table==='reports'&&arr.some(v=>db.reports.some(r=>r.book_id===v.book_id&&r.reporter_id===v.reporter_id))) return {data:null,error:{code:'23505',message:'dup'}};

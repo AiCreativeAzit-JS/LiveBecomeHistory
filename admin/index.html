@@ -388,9 +388,18 @@ function paneBooks(){
 }
 
 // 가입 승인제(레드팀 D1): 승인한 회원만 책을 만들고 저장·올리기·발행할 수 있다(DB 규칙). 승인·취소는 admin_set_approved 함수(관리자만)
+// AI와 쓰기 시험(2026-10-27): 관리자가 켠 회원만 편집기에 「AI와 쓰기」가 보인다(admin_set_ai). 시험 기간에는 사용량과 대화를 볼 수 있다(대표 결정, 처리방침에 적음)
+// DB 이전(0016) 전에는 열이 없어 읽기가 실패하므로 그때는 AI 줄을 그리지 않는다
+let aiOn=null;
+async function loadAiFlags(){ const r=await sb.from('profiles').select('id,ai_enabled'); aiOn=r.error?null:new Map(r.data.map(x=>[x.id,!!x.ai_enabled])); }
+async function aiDetail(u){ const since=new Date(Date.now()+9*3600e3); since.setUTCHours(0,0,0,0); const day=new Date(since.getTime()-9*3600e3).toISOString();
+  const [us,th]=await Promise.all([sb.from('ai_usage').select('cost_krw,created_at').eq('user_id',u), sb.from('ai_threads').select('topic,state,updated_at').eq('user_id',u).neq('topic_key','_kept').order('updated_at',{ascending:false})]);
+  if(us.error||th.error) return '<div class="meta">읽지 못했어요</div>';
+  const sum=a=>Math.round(a.reduce((t,r)=>t+Number(r.cost_krw),0)).toLocaleString();
+  return `<div class="meta" style="margin-top:8px">AI 사용: 오늘 약 ${sum(us.data.filter(r=>r.created_at>=day))}원 · 모두 약 ${sum(us.data)}원 · ${us.data.length}번</div>`+(th.data.length?th.data.map(t=>`<details style="margin-top:6px"><summary>${esc((t.topic&&t.topic.title)||'글감')} · ${esc(({think:'생각하기',draft:'초고',revise:'퇴고',place:'담기',done:'담음'})[t.state.step]||'')} · ${fmt(t.updated_at)}</summary><div style="white-space:pre-wrap;font-size:14px;line-height:1.6;margin:6px 0 0">${(t.state.msgs||[]).filter(m=>m.text).map(m=>`<b>${m.who==='ai'?'AI':'회원'}</b> ${esc(m.text)}`).join('\n\n')}</div></details>`).join(''):'<div class="meta">아직 대화가 없어요</div>'); }
 async function rpcApprove(userId,ok){ const { error } = await sb.rpc('admin_set_approved',{ u:userId, ok }); if(error) throw error; }
-function paneMembers(){
-  const pane=document.getElementById('pane');
+async function paneMembers(){
+  const pane=document.getElementById('pane'); if(aiOn===undefined||aiOn===null) await loadAiFlags();
   const n = id => data.books.filter(b=>b.owner_id===id&&!b.deleted_at).length;
   const pendingN=data.profiles.filter(p=>p.approved===false).length;
   pane.innerHTML = `<p class="meta" style="margin:0 0 14px">승인한 회원만 책을 만들고 저장할 수 있어요. 승인 전 회원은 내 서재에서 「승인 대기」 안내를 봐요.${pendingN?` · <b>승인 대기 ${pendingN}명</b>`:''}</p>` +
@@ -398,12 +407,14 @@ function paneMembers(){
       <div>${p.approved===false?'<span class="badge warn">승인 대기</span>':'<span class="badge ok">승인됨</span>'}</div>
       <h3>${esc(p.display_name||'(이름 없음)')}</h3>
       <div class="meta">가입 ${fmt(p.created_at)} · 책 ${n(p.id)}권 · 회원 번호 ${esc(p.id.slice(0,8))}</div>
-      <div class="row" style="margin-top:10px">${p.approved===false?`<button class="small" data-act="approve">승인하기</button>`:`<button class="ghost small" data-act="revoke">승인 취소</button>`}</div></div>`).join('')
+      <div class="row" style="margin-top:10px">${p.approved===false?`<button class="small" data-act="approve">승인하기</button>`:`<button class="ghost small" data-act="revoke">승인 취소</button>`}${aiOn?(aiOn.get(p.id)?` <span class="badge ok">AI 시험 켜짐</span> <button class="ghost small" data-act="aioff">AI 끄기</button> <button class="ghost small" data-act="aiview">AI 사용량·대화 보기</button>`:` <button class="ghost small" data-act="aion">AI 시험 켜기</button>`):''}</div><div data-aibox></div></div>`).join('')
     : '<div class="empty">아직 회원이 없어요.</div>');
   pane.onclick=async e=>{
     const btn=e.target.closest('[data-act]'); if(!btn) return;
     const id=btn.closest('[data-u]').dataset.u, p=data.profiles.find(x=>x.id===id); btn.disabled=true;
     try{
+      if(btn.dataset.act==='aiview'){ btn.closest('[data-u]').querySelector('[data-aibox]').innerHTML=await aiDetail(id); btn.disabled=false; return; }
+      if(btn.dataset.act==='aion'||btn.dataset.act==='aioff'){ const {error}=await sb.rpc('admin_set_ai',{u:id,ok:btn.dataset.act==='aion'}); if(error) throw error; await loadAiFlags(); await paneMembers(); toast(btn.dataset.act==='aion'?'AI 시험을 켰어요':'AI 시험을 껐어요'); return; }
       if(btn.dataset.act==='approve'){ await rpcApprove(id,true); }
       else { if(!confirm(`“${p.display_name||'(이름 없음)'}” 회원의 승인을 취소할까요?\n새 책 만들기·저장·올리기·발행이 막혀요(이미 쓴 책은 남아요).`)){ btn.disabled=false; return; } await rpcApprove(id,false); }
       await loadAll(); render(); toast(btn.dataset.act==='approve'?'승인했어요':'승인을 취소했어요');

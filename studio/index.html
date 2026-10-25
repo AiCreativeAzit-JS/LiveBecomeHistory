@@ -1699,9 +1699,12 @@ async function boot(){
   document.addEventListener('visibilitychange',()=>{ if(document.hidden){ keepLocal(true); saveNow(); } });
   window.addEventListener('beforeunload',ev=>{ if(serialize()!==lastSaved){ keepLocal(true); saveNow(); ev.preventDefault(); ev.returnValue=''; } });
 }
-boot();
-// AI 옆 창 시제품(PRD 5-1): 체험 편집기 주소에 ?ai=proto 가 있을 때만 불러온다. 로그인한 내 책 편집·평소 주소에는 나오지 않음
-if(!ONLINE && QS.get('ai')==='proto'){ const s=document.createElement('script'); s.src='ai-proto.js'; document.body.appendChild(s); }
+// AI와 쓰기(PRD 5-1): 체험 편집기 ?ai=proto 는 가짜 답 시제품. 로그인 편집기는 관리자가 켠 시험 참여자(profiles.ai_enabled)에게만 진짜 AI
+async function loadAI(){
+  if(!ONLINE){ if(QS.get('ai')!=='proto') return; }
+  else { if(!sb||!user) return; const {data}=await sb.from('profiles').select('ai_enabled').eq('id',user.id).maybeSingle(); if(!data||!data.ai_enabled) return; window.MOA_AI_REAL=true; }
+  const s=document.createElement('script'); s.src='ai-proto.js'; document.body.appendChild(s); }
+if(ONLINE) boot().then(loadAI); else { boot(); loadAI(); }   // 체험 편집기는 바로(「지난번 체험하던 책」 질문과 함께), 로그인 편집기는 회원 정보를 읽은 뒤
 </script>
 </body>
 </html>
