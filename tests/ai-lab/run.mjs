@@ -10,7 +10,6 @@ import * as V4 from "./v4.mjs";
 import * as V41 from "./v41.mjs";
 import * as V42 from "./v42.mjs";
 import * as V43 from "./v43.mjs";
-import * as V44 from "./v44.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const arg = (k, d) => { const i = process.argv.indexOf("--" + k); return i < 0 ? d : (process.argv[i + 1]?.startsWith("--") || process.argv[i + 1] === undefined ? true : process.argv[i + 1]); };
@@ -23,7 +22,10 @@ const stamp = new Date().toISOString().replace(/[-:]/g, "").slice(0, 13);
 const OUT = String(arg("out", path.join(here, "runs", `${DRY ? "dry-" : ""}${stamp}`)));
 if (!DRY && !KEY) { console.error("ANTHROPIC_API_KEY 환경 변수가 없습니다. 키 없이 흐름만 보려면 --dry"); process.exit(1); }
 fs.mkdirSync(OUT, { recursive: true });
-const VERSIONS = { v3: V3, v4: V4, v41: V41, v42: V42, v43: V43, v44: V44 };
+// 최종(비공개) 지침서는 저장소에 올리지 않는다: tests/ai-lab/private/vNN.mjs (.gitignore). 있으면 같이 불러온다
+const PRIVATE = {}, privDir = path.join(here, "private");
+if (fs.existsSync(privDir)) for (const f of fs.readdirSync(privDir).filter((x) => /^v\d+\.mjs$/.test(x))) PRIVATE[f.replace(".mjs", "")] = await import("./private/" + f);
+const VERSIONS = { v3: V3, v4: V4, v41: V41, v42: V42, v43: V43, ...PRIVATE };
 const CALL = "선생님", QMAX = 8, RQMAX = 3;
 let totalKrw = 0;
 

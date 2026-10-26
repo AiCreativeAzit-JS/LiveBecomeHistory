@@ -103,3 +103,11 @@
 - 알려진 한계: 검사는 정규식·정해 둔 목록이라 놓치거나 잘못 잡을 수 있음(예: 「줄」이 든 요청은 줄어듦 방지를 느슨하게 함). v4.4 지침서는 진짜 AI로 시험해 보지 않고 배포했으니 쓰면서 이상한 대답을 모아 주세요.
 - (9차 추가) **공개 사이트 노출 막기**: 배포 브랜치에 `_config.yml`(Jekyll `exclude`: supabase · docs · tests · CLAUDE.md)을 넣어 archive4everyone.com 주소로는 서버 코드·지침서·문서·시험 자료가 열리지 않게 함. 시험: 반영 뒤 `https://archive4everyone.com/supabase/functions/ai-write/prompt.ts` 가 404여야 함. **저장소 자체는 공개(public)**라 GitHub 에서는 지침서 글(과 이전 판 기록)이 그대로 보임 — 숨기려면 저장소를 비공개로 바꾸거나(Pages 비공개 저장소는 GitHub 유료 요금제 필요) 지침서를 저장소 밖(Supabase 비밀 값·DB)에 두어야 하고, 이미 올라간 옛 기록은 기록 다시 쓰기 없이는 남음 — 대표 결정 대기.
 - (9차 추가) **AI 창 너비 끌어 바꾸기**: 기본 400px(전에는 340px), 창 왼쪽 가장자리 손잡이를 끌면 300px~(가운데 지면 360px 남는 만큼) 사이에서 바뀜. 방향키(←넓게 →좁게, Shift는 72px)·두 번 누르면 처음 너비·`localStorage moa.aiw`에 기억. 1,001px 이상 화면에서만. 시험 ai-proto-test 85/0.
+
+## 10차 (2026-10-26) — 지침서를 저장소 밖(DB)으로 (대표 결정 B: 최종 지침서만 보호)
+- 사실: 저장소(AiCreativeAzit-JS/LiveBecomeHistory)가 **공개**라 지침서 글이 GitHub 에서 읽힘. 사이트 주소는 `_config.yml` 로 막았지만 저장소 자체는 그대로.
+- **마이그레이션 0017 적용**: 표 `public.ai_prompts`(version·system_prompt·asks·active, RLS 켬·정책 없음·anon/authenticated 권한 회수 → 서비스 키만 읽음, 켜진 줄은 하나만). 보안 점검: 「RLS 켜짐·정책 없음」 INFO 한 건(의도).
+- 현재 켜진 줄: `v4.4-moa1`(길이 6,206자·md5가 로컬 원본과 일치, 단계 지시 6개 md5 모두 일치).
+- **ai-write 버전 4 배포**: 지침서를 코드가 아니라 DB 에서 읽음(1분 기억, 읽기 실패해도 직전 것 사용). 지침서 파일(`prompt.ts`) 없음 → `index.ts`·`check.ts` 두 파일. 지침서가 DB 에 없으면 503 `not_ready`.
+- 저장소: `prompt.ts` 삭제, `tests/ai-lab/v44.mjs` → `tests/ai-lab/private/`(`.gitignore`), `prompt-sql.mjs` 추가. **옛 기록(git 이력)에는 v4.4 까지의 지침서가 남아 있음** — 지워지지 않음(기록 다시 쓰기는 하지 않았음). 이제부터 새로 고치는 최종 지침서(v4.5~)는 DB 에만 둠.
+- 바꾸는 법: `tests/ai-lab/README.md` 「최종(비공개) 지침서」.

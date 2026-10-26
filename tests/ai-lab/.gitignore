@@ -1,1 +1,4 @@
 runs/dry-*
+
+# 최종(비공개) AI 지침서와 그 SQL: 저장소에 올리지 않는다(지침서는 DB 표 ai_prompts 에 있다)
+private/
