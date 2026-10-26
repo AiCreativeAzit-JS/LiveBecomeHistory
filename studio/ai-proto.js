@@ -26,6 +26,13 @@ const copy=o=>JSON.parse(JSON.stringify(o));
 
 /* ═══════════════ 가짜 자료(하드코딩) ═══════════════ */
 const WEEK={id:'w1',label:'1주차 · 이번 주 글감',title:'내 생애 최고의 순간',first:'가장 먼저 떠오르는 장면은 무엇인가요?'};
+// 글감마다 AI에게 함께 보내는 「취재 초점」과 「마무리 결」(지침서 v4.3 6장). 글감 이름으로 찾고, 없으면(내가 정한 글감 등) 기본값
+const FOCUS=[
+  [/최고의 순간/,'가장 빛나는 한 장면 하나를 찾는다. 의미 질문은 「왜 그 순간이 최고였나요」.','여운과 자부심'],
+  [/첫 출근|첫 일/,'그날의 장면과 사람 중심. 짧게 답하시면 짧게 쓴다.','담백한 회상'],
+  [/떠나보|그리운|돌아가신|세상을 떠/,'사건보다 마음과 관계. 서두르지 않고, 의미는 묻지 않아도 된다. 「왜 최고인가」 같은 질문은 쓰지 않는다.','조용한 여운, 위로를 강요하지 않기'],
+  [/부모님|손주|가족/,'사람 중심. 그분의 모습과 오간 말, 함께한 장면을 먼저 묻는다.','따뜻한 여운']];
+const focusOf=title=>{ const f=FOCUS.find(x=>x[0].test(title||'')); return f?{focus:f[1],tone:f[2]}:{focus:'그날의 장면과 사람 중심으로, 선생님이 편한 만큼만 묻는다.',tone:'담백한 여운'}; };
 // 기본 글감 꾸러미: 대표님이 쓰실 자리(PRD 5-1). 지금 문구는 시제품용 예시
 const PACK=[
   {id:'p1',label:'기본 글감 · 어린 시절',title:'어린 시절 살던 집',first:'그 집을 떠올리면 가장 먼저 보이는 자리는 어디인가요?'},
@@ -558,7 +565,7 @@ if(REAL){
   async function ai(mode,s,extra={}){ const {data:ss}=await sb.auth.getSession(), tok=ss.session&&ss.session.access_token;
     const hist=s.msgs.filter(m=>!m.wait&&!m.sys&&m.text).map(m=>({who:m.who,text:m.text}));
     const r=await fetch(SUPABASE_URL+'/functions/v1/ai-write',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok,apikey:SUPABASE_KEY},
-      body:JSON.stringify({mode,book_id:BOOK||null,topic:s.topic.title,history:hist,...extra})});
+      body:JSON.stringify({mode,book_id:BOOK||null,topic:s.topic.title,...focusOf(s.topic.title),history:hist,...extra})});
     const j=await r.json().catch(()=>({})); if(!r.ok||!j.ok) throw Object.assign(new Error(j.error||'ai_failed'),{code:j.error||'ai_failed'});
     today=j.today||today; return j.out; }
   // 실패해도 쓰신 말은 입력칸에 그대로(PRD 「AI 장애 대비」)
