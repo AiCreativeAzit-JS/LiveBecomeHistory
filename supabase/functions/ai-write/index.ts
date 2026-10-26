@@ -4,9 +4,9 @@
 // - 모델: Claude Sonnet 5.5(대표 결정). 지침서는 1시간 캐시. 거절(refusal)이면 서버 쪽 대체 모델로 이어 가게 fallbacks 를 켠다
 // - 답은 단계(mode)마다 정해진 JSON 모양으로 받는다(output_config.format). 화면은 그 모양만 믿고 그린다
 // - 비밀 값: ANTHROPIC_API_KEY (대표가 Supabase 대시보드 → Edge Functions → Secrets 에 직접 넣는다)
+// - 지침서(시스템 프롬프트와 단계 지시)는 이 저장소에 두지 않는다: DB 표 ai_prompts 의 켜진 한 줄(active)을 서비스 키로 읽는다(0017). 바꿀 때는 새 줄을 넣고 켠다
 import Anthropic from "npm:@anthropic-ai/sdk";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { SYSTEM_PROMPT, PROMPT_VERSION, ASKS } from "./prompt.ts";
 import { checkEdit, splitDoc } from "./check.ts";
 
 const CORS = {
@@ -23,13 +23,23 @@ const DAILY_KRW = 3000, FX = 1500;
 const PRICE = { in: 2, out: 10, read: 0.2, write: 4 };
 const PIECES = ["장면", "사람", "사건", "마음", "의미"];
 
-// 단계마다 AI에게 주는 지시(prompt.ts 의 ASKS)와 답의 모양. 모든 단계가 같은 모양으로 답한다(지침서 저장을 한 번만 하려고 — v4 시험). 쓰지 않는 칸은 빈 값이고, 화면은 단계마다 필요한 칸만 읽는다
+// 모든 단계가 같은 모양으로 답한다(지침서 저장을 한 번만 하려고 — v4 시험). 쓰지 않는 칸은 빈 값이고, 화면은 단계마다 필요한 칸만 읽는다
 const str = { type: "string" }, strs = { type: "array", items: { type: "string" } };
 const obj = (p: Record<string, unknown>) => ({ type: "object", properties: p, required: Object.keys(p), additionalProperties: false });
 const UNIFIED = obj({ reply: str, covered: { type: "array", items: { type: "string", enum: PIECES } }, ready: { type: "boolean" }, scenes: strs,
   title: str, body: str, why: strs, changed: { type: "boolean" }, fixes: strs, question: str, proposal: str });
-const MODES: Record<string, { ask: string; schema: unknown; effort: string }> = Object.fromEntries(
-  Object.entries(ASKS).map(([k, v]) => [k, { ask: v.ask, effort: v.effort, schema: UNIFIED }]));
+const MODE_NAMES = ["think", "summarize", "draft", "fix", "revise_q", "revise"];
+
+// 지침서 읽기: DB 의 켜진 한 줄. 1분 기억해 두고, 읽기에 실패해도 직전에 읽어 둔 것이 있으면 그것을 쓴다
+type PromptRow = { version: string; system: string; asks: Record<string, { ask: string; effort: string }> };
+let promptCache: (PromptRow & { at: number }) | null = null;
+// deno-lint-ignore no-explicit-any
+async function loadPrompt(admin: any): Promise<PromptRow | null> {
+  if (promptCache && Date.now() - promptCache.at < 60_000) return promptCache;
+  const { data } = await admin.from("ai_prompts").select("version,system_prompt,asks").eq("active", true).maybeSingle();
+  if (data?.system_prompt && data?.asks) promptCache = { version: data.version, system: data.system_prompt, asks: data.asks, at: Date.now() };
+  return promptCache;
+}
 
 const client = new Anthropic();   // ANTHROPIC_API_KEY
 
@@ -38,7 +48,7 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "method" }, 405);
   let body: { mode?: string; book_id?: string; topic?: string; focus?: string; tone?: string; history?: { who: string; text: string }[]; doc?: string; note?: string } = {};
   try { body = await req.json(); } catch { return json({ error: "bad_json" }, 400); }
-  const M = MODES[body.mode ?? ""]; if (!M) return json({ error: "bad_mode" }, 400);
+  if (!MODE_NAMES.includes(body.mode ?? "")) return json({ error: "bad_mode" }, 400);
   const history = Array.isArray(body.history) ? body.history.slice(-80) : [];
   if (JSON.stringify(history).length > 60000 || String(body.doc ?? "").length > 20000) return json({ error: "too_long" }, 413);
 
@@ -51,6 +61,11 @@ Deno.serve(async (req: Request) => {
     admin.from("ai_consents").select("user_id").eq("user_id", uid).maybeSingle()]);
   if (!prof?.ai_enabled) return json({ error: "not_enabled" }, 403);
   if (!con) return json({ error: "no_consent" }, 403);
+
+  const P = await loadPrompt(admin);
+  const A = P?.asks[body.mode ?? ""];
+  if (!P || !A) return json({ error: "not_ready" }, 503);   // 지침서가 아직 DB 에 없다
+  const M = { ask: A.ask, effort: A.effort, schema: UNIFIED };
 
   // 하루 상한: 한국 시각 오늘 0시부터
   const kst = new Date(Date.now() + 9 * 3600e3); kst.setUTCHours(0, 0, 0, 0);
@@ -72,7 +87,7 @@ Deno.serve(async (req: Request) => {
     res = await client.beta.messages.create({
       model: MODEL, max_tokens: 8000,
       betas: ["server-side-fallback-2026-07-01"], fallbacks: "default",
-      system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral", ttl: "1h" } }],
+      system: [{ type: "text", text: P.system, cache_control: { type: "ephemeral", ttl: "1h" } }],
       output_config: { effort: M.effort, format: { type: "json_schema", schema: M.schema } },
       messages: msgs,
     } as never) as unknown as Anthropic.Message;
@@ -82,7 +97,7 @@ Deno.serve(async (req: Request) => {
   }
   const u = res.usage as { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number };
   const usd = (u.input_tokens * PRICE.in + u.output_tokens * PRICE.out + (u.cache_read_input_tokens ?? 0) * PRICE.read + (u.cache_creation_input_tokens ?? 0) * PRICE.write) / 1e6;
-  await admin.from("ai_usage").insert({ user_id: uid, book_id: body.book_id ?? null, mode: body.mode, model: `${res.model}/${PROMPT_VERSION}`,
+  await admin.from("ai_usage").insert({ user_id: uid, book_id: body.book_id ?? null, mode: body.mode, model: `${res.model}/${P.version}`,
     input_tokens: u.input_tokens, output_tokens: u.output_tokens, cache_read_tokens: u.cache_read_input_tokens ?? 0, cache_write_tokens: u.cache_creation_input_tokens ?? 0,
     cost_krw: Math.round(usd * FX * 100) / 100 });
   if (res.stop_reason === "refusal") return json({ error: "refusal" }, 422);
