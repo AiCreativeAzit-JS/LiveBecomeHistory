@@ -305,9 +305,14 @@ function mineList(){ const list=Object.values(sessions).sort((a,b)=>b.updated-a.
 function card(doc,old){ const n=docText(doc).length;
   return `<div class="ms${old?' old':''}" data-doc="${doc.kind}"><div class="ms-meta"><span>${doc.kind==='draft'?'초고':'퇴고본'} ${doc.ver}판${old?' · 지난 판':''}</span><span>${n.toLocaleString()}자</span></div><h4>${esc(doc.title)}</h4>`
     +paras(doc).map(p=>`<p>${p.map(x=>`<span class="s${x.chg&&!old?' chg':''}">${esc(x.t)}</span>`).join(' ')}</p>`).join('')+`</div>`; }
+// 말에 달리는 단추: 순서 제안(「이렇게 바꿔요 / 그대로 두기」)과 서버가 찾은 빠진 것 되돌리기
+function actBtns(m,k){ const a=m.act;
+  return a.type==='propose'?`<div class="arow actrow"><button class="ab pri" type="button" data-act="prop-yes" data-k="${k}">이렇게 바꿔요</button><button class="ab" type="button" data-act="prop-no" data-k="${k}">그대로 두기</button></div>`
+    :`<div class="arow actrow"><button class="ab pri" type="button" data-act="restore" data-k="${k}">방금 고친 것 되돌리기</button><button class="ab" type="button" data-act="restore-no" data-k="${k}">그대로 두기</button></div>`; }
 function thread(s){ const last=s.msgs.map(m=>!!m.card).lastIndexOf(true);
   return s.msgs.map((m,k)=>`<div class="msg ${m.who}${m.wait?' wait':''}" data-k="${k}"><span class="who">${m.who==='ai'?'AI':'나'}</span>${m.wait?'생각하고 있어요 <i>●</i><i>●</i><i>●</i>':
       `${m.pre?`<p class="fixed">${esc(m.pre)}</p>`:''}${m.card?card(m.card,k!==last):''}<span class="tx">${esc(m.text)}</span>`}</div>`
+    +(m.act&&!m.act.done&&!s.busy&&cur===s?actBtns(m,k):'')
     +(m.scenes&&s.scenes?s.scenes.map((c,i)=>`<button type="button" class="scene${s.chosen===i?' on':''}" data-act="scene" data-i="${i}"${s.chosen!=null||s.busy?' disabled':''}><span class="n">${'①②③'[i]}</span><span>${esc(c.text)}</span></button>`).join(''):'')).join('')
     +(sampleText(s)&&!s.busy?`<button class="ab sample" type="button" data-act="sample" title="시제품 전용: 미리 써 둔 예시를 입력칸에 넣어요">${s.step==='think'?`시제품 · 예시 답 넣기 (${s.sampleAt+1}/${scriptOf(s).ans.length})`:s.asking?'시제품 · 예시 답 넣기':'시제품 · 예시 요청 넣기'}</button>`:''); }
 // 시제품 전용 「예시 넣기」에 넣을 말(단계마다 다름)
@@ -433,8 +438,8 @@ async function aiSay(s,text,extra){
   m.text=text; s.busy=false; if(cur===s){ render(); $('aiLive').textContent=text; } }
 async function think(s,ms,fn){ s.busy=true; s.msgs.push({who:'ai',wait:true}); render(); await wait(ms); return fn(); }   // 다음 aiSay 가 이 「생각하고 있어요」 자리에 답을 쓴다
 function greet(t){ const tt=`'${t.title}'${josa(t.title,'을','를')}`;
-  return t.id===WEEK.id ? `안녕하세요, ${CALL}. 오늘은 ${CALL}의 삶에서 ${tt} 찾아보겠습니다. 처음부터 정답을 정할 필요는 없습니다. 이야기를 하다 보면 생각하지 못했던 장면이 떠오를 수도 있습니다. ${t.first}`   // 프롬프트 v3 4장
-    : `안녕하세요, ${CALL}. 오늘은 '${t.title}' 이야기를 나눠 보겠습니다. 처음부터 정답을 정할 필요는 없습니다. ${t.first}`; }
+  return t.id===WEEK.id ? `안녕하세요, ${CALL}. 오늘은 ${CALL}의 삶에서 ${tt} 찾아볼게요. 처음부터 정답을 정할 필요는 없어요. 이야기를 하다 보면 생각하지 못했던 장면이 떠오를 수도 있어요. ${t.first}`   // 프롬프트 v3 4장
+    : `안녕하세요, ${CALL}. 오늘은 '${t.title}' 이야기를 나눠 볼게요. 처음부터 정답을 정할 필요는 없어요. ${t.first}`; }
 function mirror(t){ const f=(split(t)[0]||t).replace(/[.!?…]+$/,''); const sn=f.length>28?f.slice(0,28).trim()+'…':f; return `"${sn}" — 이 장면이 선명하게 남아 있네요.`; }
 const missing=s=>PIECES.filter(p=>!s.covered.includes(p));
 function askPiece(s,easy){ const p=missing(s)[0]||'의미'; s.target=p; const k=(s.asked[p]=(s.asked[p]||0)+1)-1; return PQ[p][(k+(easy?1:0))%2]; }   // 비어 있는 관점을 장면부터 차례로
@@ -456,29 +461,29 @@ async function send(kind){ const s=cur; if(s.busy) return;
     else cover(s,text.length<12?[]:text.length>=80?[s.target,...missing(s).filter(p=>p!==s.target).slice(0,1)]:[s.target]); }   // 직접 쓴 답: 아주 짧으면 그 관점은 아직 비어 있는 것으로
   // 다섯 관점이 채워지면, 또는 질문 상한(8개)에 닿으면 정리로(프롬프트 v1 규칙 6)
   if(!missing(s).length||s.q>=QMAX) return summarize(s);
-  let reply; if(kind==='idk') reply=`그럼 조금 다른 쪽에서 여쭤 보겠습니다. ${askPiece(s,true)}`;
+  let reply; if(kind==='idk') reply=`그럼 조금 다른 쪽에서 여쭤 볼게요. ${askPiece(s,true)}`;
   else if(si>=0&&S.ans[si].r){ reply=S.ans[si].r; s.target=missing(s)[0]; } else reply=`${mirror(text)} ${askPiece(s)}`;
   s.q++; await aiSay(s,reply); $('aiIn')?.focus(); }
 function sceneCands(s){ const S=scriptOf(s);
   return s.answers.map((a,k)=>a.si>=0?(S.ans[a.si].scene?{text:S.ans[a.si].scene,si:a.si,rank:S.ans[a.si].rank,k}:null):{text:(split(a.text)[0]||a.text).replace(/[.!?…]+$/,'').slice(0,60),si:-1,rank:10-Math.min(a.text.length/100,5),k})
     .filter(Boolean).sort((a,b)=>a.rank-b.rank).slice(0,3); }
 async function summarize(s){
-  const c=sceneCands(s); if(!c.length){ await aiSay(s,`${CALL}, 아직 글로 옮길 장면을 듣지 못했습니다. 떠오르는 것이 있으면 한 줄이라도 적어 주세요.`); return; }
-  s.scenes=c; await aiSay(s,`${CALL}, 지금까지 이야기에서 제가 들은 가장 선명한 장면은 다음과 같습니다.`,{scenes:true});
+  const c=sceneCands(s); if(!c.length){ await aiSay(s,`${CALL}, 아직 글로 옮길 장면을 듣지 못했어요. 떠오르는 것이 있으면 한 줄이라도 적어 주세요.`); return; }
+  s.scenes=c; await aiSay(s,`${CALL}, 지금까지 이야기에서 제가 들은 가장 선명한 장면은 다음과 같아요.`,{scenes:true});
   if(c.length===1){ await aiSay(s,`${CALL}이 이야기하신 ${s.topic.id===WEEK.id?'최고의 순간':'장면'}은 ${c[0].text}입니다.`); return choose(s,0,true); }   // 후보가 하나면 고르게 하지 않는다(프롬프트 v3 12장)
   await aiSay(s,s.topic.id===WEEK.id?`${CALL}, 이 가운데 이번 회고글의 중심이 될 '${WEEK.title}'${josa(WEEK.title,'을','를')} 하나 골라 주세요.`:`${CALL}, 이 가운데 이번 글의 중심이 될 장면을 하나 골라 주세요.`); }
 async function choose(s,i,auto){ if(s.chosen!=null) return; if(!auto) call(s); s.chosen=i; const c=s.scenes[i];
   const left=s.scenes.filter((x,k)=>k!==i&&!kept.some(y=>y.title===x.text));   // 고르지 않은 장면은 묻지 않고 「남겨 둔 장면」으로(PRD 제안)
   left.forEach(x=>kept.push({id:'k'+(++seq),label:'남겨 둔 장면',title:x.text,first:'이 장면에서 가장 먼저 떠오르는 것은 무엇인가요?',from:s.topic.title}));
   if(left.length) toast(`고르지 않은 장면 ${left.length}개는 「남겨 둔 장면」에 두었어요`);
-  await aiSay(s,`${c.text}${josa(c.text,'을','를')} 중심으로 초고를 쓰겠습니다. 준비되시면 「초고 쓰기」를 눌러 주세요.`); }
+  const ct=c.text.replace(/[.。\s]+$/,''); await aiSay(s,`「${ct}」${josa(ct,'을','를')} 중심으로 초고를 쓸게요. 준비되시면 「초고 쓰기」를 눌러 주세요.`); }
 function buildDraft(s){ const S=scriptOf(s), sents=[];
   s.answers.forEach((a,k)=>{ const A=a.si>=0?S.ans[a.si]:null, p=A&&A.pg!=null?A.pg:k;
     (A?A.sents.map(x=>({...x,src:x.id})):split(a.text).map(t=>({id:'g'+(++sid),t}))).forEach(x=>sents.push({...x,orig:x.t,p,chg:false})); });
   const c=s.scenes[s.chosen]; return {kind:'draft',title:c.si>=0&&S.ans[c.si].title?S.ans[c.si].title:s.topic.title,sents,ver:1}; }
 async function writeDraft(s){ if(s.busy) return; reach(s,'draft'); call(s,'write');
   await think(s,1100,()=>{ s.draft=buildDraft(s); });
-  await aiSay(s,'초고가 나왔습니다. 고치고 싶은 곳이 있으면 말씀해 주세요. 다 되면 「퇴고로 넘어가기」를 눌러 주세요.',{pre:FIRST_LINE,card:copy(s.draft)}); }
+  await aiSay(s,'초고가 나왔어요. 고치고 싶은 곳이 있으면 말씀해 주세요. 다 되면 「퇴고로 넘어가기」를 눌러 주세요.',{pre:FIRST_LINE,card:copy(s.draft)}); }
 // 말로 고치기(초고·퇴고 공통): 시제품은 몇 가지 말만 알아듣는다. 실제 AI는 어떤 말이든 원고에 반영한다(프롬프트 v3 20장 · 28장 뒤 수정 요청)
 function fixRules(doc,text){ const d=fresh(doc), why=[]; let nm=0;
   const drop=f=>{ const n=d.sents.length; d.sents=d.sents.filter(x=>!f(x)); return n-d.sents.length; };
@@ -501,13 +506,13 @@ async function fixByTalk(s,which,text){ s.msgs.push({who:'me',text});
 async function toRevise(s){ if(s.busy) return; reach(s,'revise'); s.rev=null; const S=scriptOf(s), scripted=!!S&&s.draft.sents.some(x=>x.src&&S.revQ.some(q=>q.after===x.src));
   s.revQs=(scripted?S.revQ.filter(q=>s.draft.sents.some(x=>x.src===q.after)):[{q:'그 장면에서 누가 어떤 말을 했는지, 기억나는 말 한마디가 있나요?'}]).slice(0,RQMAX); s.revAt=0; s.revAns=[]; s.asking=true;
   call(s,'fix');
-  await aiSay(s,`퇴고를 시작합니다. 다섯 가지로 살펴봤습니다.\n${scripted?S.diag:'① 경험이 구체적인가 — 그날 오간 말 한 줄이 있으면 장면이 더 잘 보여요.'}\n나머지 네 가지는 통과했습니다.\n\n${s.revQs[0].q}`); }
+  await aiSay(s,`퇴고를 시작해요. 다섯 가지로 살펴봤어요.\n${scripted?S.diag:'① 경험이 구체적인가 — 그날 오간 말 한 줄이 있으면 장면이 더 잘 보여요.'}\n나머지 네 가지는 통과했어요.\n\n${s.revQs[0].q}`); }
 async function revAnswer(s,text,forgot){ s.msgs.push({who:'me',text}); if(!forgot) s.revAns.push({i:s.revAt,text}); s.revAt++;
-  if(s.revAt<s.revQs.length){ call(s,'talk',text.length); await aiSay(s,`${forgot?'그 자리는 비워 두겠습니다. ':''}${s.revQs[s.revAt].q}`); return; }
+  if(s.revAt<s.revQs.length){ call(s,'talk',text.length); await aiSay(s,`${forgot?'그 자리는 비워 둘게요. ':''}${s.revQs[s.revAt].q}`); return; }
   s.asking=false; call(s,'write');
   const r=await think(s,1300,()=>makeRevision(s));
   s.rev=r.d;
-  await aiSay(s,`퇴고본을 썼습니다. 이렇게 고쳤어요.\n${r.why.map((w,i)=>`${'①②③④⑤⑥⑦⑧'[i]} ${w}`).join('\n')||'고칠 곳이 거의 없어 그대로 두었어요.'}\n마음에 안 드는 곳은 "○○은 원래대로 해 주세요"처럼 말씀해 주세요. 다 되면 「모아에 담기」를 눌러 주세요.`,{card:copy(s.rev)}); }
+  await aiSay(s,`퇴고본을 썼어요. 이렇게 고쳤어요.\n${r.why.map((w,i)=>`${'①②③④⑤⑥⑦⑧'[i]} ${w}`).join('\n')||'고칠 곳이 거의 없어 그대로 두었어요.'}\n마음에 안 드는 곳은 "○○은 원래대로 해 주세요"처럼 말씀해 주세요. 다 되면 「모아에 담기」를 눌러 주세요.`,{card:copy(s.rev)}); }
 // 퇴고본 = 초고 + 퇴고에서 다듬은 문장(rev) + 답하신 말(질문 자리 뒤에). 무엇을 왜 고쳤는지 한 줄씩(대표 의견 H — 프롬프트 v3 28장 손질 필요)
 function makeRevision(s){ const d=fresh(s.draft), why=[];
   d.kind='rev'; d.ver=1;
@@ -540,6 +545,12 @@ panel.addEventListener('click',ev=>{
     pmode:()=>{ s.place.mode=b.dataset.m; render(); }, insert:()=>doPlace(s), 'back-rev':()=>{ reach(s,'revise'); render(); },
     replace:()=>replaceWriting(s), keepas:()=>{ reach(s,'done'); render(); toast('담은 글은 그대로 두었어요'); }, again:()=>againTalk(s),
     undo:()=>{ const p=s.inserted, last=p&&p.before&&p.before.at===history.length; undo(); if(last&&placedOK(s)){ Object.assign(p,{ids:p.before.ids,rep:p.before.rep}); delete p.before; render(); toast('되돌렸어요 · 바꿔 담기 전 글로 돌아갔어요'); } },   // 새로 담은 것을 되돌리면 쪽 목록 감시(syncPlaced)가 알린다
+    'prop-yes':()=>{ const m=s.msgs[+b.dataset.k]; if(!m||!m.act||m.act.done||s.busy) return; const x=m.act; x.done=true; render();
+      fixByTalk(s,x.which,'네, 그렇게 바꿔 주세요.',{note:'[어르신이 방금 제안을 승인하셨습니다] '+x.text}); },
+    'prop-no':()=>{ const m=s.msgs[+b.dataset.k]; if(!m||!m.act||m.act.done) return; m.act.done=true; s.msgs.push({who:'ai',text:'알겠어요, 지금 그대로 둘게요.'}); render(); },
+    restore:()=>{ const m=s.msgs[+b.dataset.k]; if(!m||!m.act||m.act.done||s.busy) return; const x=m.act; x.done=true; const now=x.which==='draft'?s.draft:s.rev, back=copy(x.prev); back.ver=now.ver+1;
+      if(x.which==='draft') s.draft=back; else s.rev=back; s.msgs.push({who:'ai',text:'방금 고치기 전 글로 되돌렸어요. 다시 고치고 싶은 곳을 말씀해 주세요.',card:copy(back)}); render(); },
+    'restore-no':()=>{ const m=s.msgs[+b.dataset.k]; if(m&&m.act) m.act.done=true; render(); },
     next:()=>{ cur=null; ui.view='topics'; render(true); }, topics:()=>{ cur=null; ui.view='topics'; render(true); }
   })[a]?.();
 });
@@ -587,31 +598,38 @@ if(REAL){
       if(o.ready||s.q>=QMAX||!missing(s).length){ s.msgs.pop(); s.busy=false; return summarize(s); }
       s.q++; await aiSay(s,o.reply); }); };
   summarize=async function(s){ await guard(s,'',async()=>{ const o=await think(s,0,()=>ai('summarize',s)), sc=(o.scenes||[]).filter(Boolean).slice(0,3);
-    if(!sc.length){ await aiSay(s,`${CALL}, 아직 글로 옮길 장면을 듣지 못했습니다. 떠오르는 것이 있으면 한 줄이라도 적어 주세요.`); return; }
+    if(!sc.length){ await aiSay(s,`${CALL}, 아직 글로 옮길 장면을 듣지 못했어요. 떠오르는 것이 있으면 한 줄이라도 적어 주세요.`); return; }
     s.scenes=sc.map((t,k)=>({text:t,si:-1,rank:k,k}));
-    await aiSay(s,`${CALL}, 지금까지 이야기에서 제가 들은 가장 선명한 장면은 다음과 같습니다.`,{scenes:true});
+    await aiSay(s,`${CALL}, 지금까지 이야기에서 제가 들은 가장 선명한 장면은 다음과 같아요.`,{scenes:true});
     if(sc.length===1) return choose(s,0,true);
     await aiSay(s,`${CALL}, 이 가운데 이번 글의 중심이 될 장면을 하나 골라 주세요.`); }); };
   writeDraft=async function(s){ if(s.busy) return; reach(s,'draft');
     await guard(s,'',async()=>{ const o=await think(s,0,()=>ai('draft',s,{note:`[고른 장면] ${s.scenes[s.chosen].text}`}));
       s.draft=toDoc('draft',o.title,o.body,null,1);
-      await aiSay(s,'초고가 나왔습니다. 고치고 싶은 곳이 있으면 말씀해 주세요. 다 되면 「퇴고로 넘어가기」를 눌러 주세요.',{pre:FIRST_LINE,card:copy(s.draft)}); },()=>{ if(!s.draft) reach(s,'think'); }); };
-  fixByTalk=async function(s,which,text){ s.msgs.push({who:'me',text}); const doc=which==='draft'?s.draft:s.rev, again=which==='rev'&&s.placed.length>0;
-    await guard(s,text,async()=>{ const o=await think(s,0,()=>ai('fix',s,{doc:docOf(doc)}));
-      if(!o.changed){ await aiSay(s,o.reply||'말씀하신 곳을 찾지 못했어요. 어느 문장인지 조금 더 알려 주세요.'); return; }
+      await aiSay(s,'초고가 나왔어요. 고치고 싶은 곳이 있으면 말씀해 주세요. 다 되면 「퇴고로 넘어가기」를 눌러 주세요.',{pre:FIRST_LINE,card:copy(s.draft)}); },()=>{ if(!s.draft) reach(s,'think'); }); };
+  // 서버(check.ts)가 고치기 전후 원고를 비교한 결과(out.check)를 사람 말로 옮긴다. AI가 쓴 「한 일 목록」은 믿지 않는다
+  const checkNote=c=>{ if(!c) return ''; const L=[];
+    if((c.missing||[]).length) L.push(`⚠ 고치기 전 글에 있던 말이 새 글에서 안 보여요: ${c.missing.map(x=>/^「/.test(x)?x:`「${x}」`).join(' ')}`);
+    if((c.added||[]).length) L.push(`ℹ 말씀하신 적 없는 이음말이 들어갔어요: ${c.added.map(x=>`「${x}」`).join(' ')}`);
+    return L.join('\n'); };
+  fixByTalk=async function(s,which,text,opts){ s.msgs.forEach(m=>{ if(m.act) m.act.done=true; }); s.msgs.push({who:'me',text}); const doc=which==='draft'?s.draft:s.rev, again=which==='rev'&&s.placed.length>0;
+    await guard(s,text,async()=>{ const o=await think(s,0,()=>ai('fix',s,{doc:docOf(doc),...(opts&&opts.note?{note:opts.note}:{})}));
+      if(!o.changed){ if(o.proposal){ await aiSay(s,`${o.reply||'이렇게 바꾸면 어떨까요?'}\n\n제안: ${o.proposal}`,{act:{type:'propose',which,text:o.proposal,done:false}}); return; }
+        await aiSay(s,o.reply||'말씀하신 곳을 찾지 못했어요. 어느 문장인지 조금 더 알려 주세요.'); return; }
       const d=toDoc(doc.kind,o.title,o.body,doc,doc.ver+1); if(/한 말이 아니/.test(text)) s.notMine++;
+      const keep=copy(doc), c=o.check||{}, note=checkNote(c), act=((c.missing||[]).length||(c.added||[]).length)?{type:'restore',which,prev:keep,done:false}:null;
       if(which==='draft') s.draft=d; else s.rev=d;
-      await aiSay(s,`${(o.why||[]).join('\n')}\n${which==='draft'?'더 고칠 곳이 있으면 말씀해 주세요. 다 되면 「퇴고로 넘어가기」를 눌러 주세요.':again?'마음에 들면 「바꿔 담기」를 눌러 주세요.':'다 되면 「모아에 담기」를 눌러 주세요.'}`,{card:copy(d)}); }); };
+      await aiSay(s,`${(o.why||[]).join('\n')}\n${note?note+'\n':''}${which==='draft'?'더 고칠 곳이 있으면 말씀해 주세요. 다 되면 「퇴고로 넘어가기」를 눌러 주세요.':again?'마음에 들면 「바꿔 담기」를 눌러 주세요.':'다 되면 「모아에 담기」를 눌러 주세요.'}`,{card:copy(d),...(act?{act}:{})}); }); };
   async function writeRev(s){ const o=await think(s,0,()=>ai('revise',s,{doc:docOf(s.draft)})); s.rev=toDoc('rev',o.title,o.body,s.draft,1);
-    await aiSay(s,`퇴고본을 썼습니다. 이렇게 고쳤어요.\n${(o.why||[]).map((w,i)=>`${'①②③④⑤⑥⑦⑧'[i]||'·'} ${w}`).join('\n')}\n마음에 안 드는 곳은 "○○은 원래대로 해 주세요"처럼 말씀해 주세요. 다 되면 「모아에 담기」를 눌러 주세요.`,{card:copy(s.rev)}); }
+    await aiSay(s,`퇴고본을 썼어요. 이렇게 고쳤어요.\n${(o.why||[]).map((w,i)=>`${'①②③④⑤⑥⑦⑧'[i]||'·'} ${w}`).join('\n')}\n${checkNote(o.check)?checkNote(o.check)+'\n(초고와 달라진 곳이에요. 필요하면 말씀해 주세요.)\n':''}마음에 안 드는 곳은 "○○은 원래대로 해 주세요"처럼 말씀해 주세요. 다 되면 「모아에 담기」를 눌러 주세요.`,{card:copy(s.rev)}); }
   toRevise=async function(s){ if(s.busy) return; reach(s,'revise'); s.rev=null; s.revAt=0; s.revQs=[]; s.revAns=[]; s.asking=true;
-    await guard(s,'',async()=>{ const o=await think(s,0,()=>ai('revise_q',s,{doc:docOf(s.draft),note:'[이미 물은 퇴고 질문 수] 0'})), diag=(o.fixes||[]).length?o.fixes.join('\n'):'크게 고칠 곳은 없습니다.';
-      if(!o.question){ s.asking=false; await aiSay(s,`퇴고를 시작합니다. 다섯 가지로 살펴봤습니다.\n${diag}`); return writeRev(s); }
-      s.revQs.push({q:o.question}); await aiSay(s,`퇴고를 시작합니다. 다섯 가지로 살펴봤습니다.\n${diag}\n\n${o.question}`); },()=>{ reach(s,'draft'); s.asking=false; }); };
+    await guard(s,'',async()=>{ const o=await think(s,0,()=>ai('revise_q',s,{doc:docOf(s.draft),note:'[이미 물은 퇴고 질문 수] 0'})), diag=(o.fixes||[]).length?o.fixes.join('\n'):'크게 고칠 곳은 없어요.';
+      if(!o.question){ s.asking=false; await aiSay(s,`퇴고를 시작해요. 다섯 가지로 살펴봤어요.\n${diag}`); return writeRev(s); }
+      s.revQs.push({q:o.question}); await aiSay(s,`퇴고를 시작해요. 다섯 가지로 살펴봤어요.\n${diag}\n\n${o.question}`); },()=>{ reach(s,'draft'); s.asking=false; }); };
   revAnswer=async function(s,text,forgot){ s.msgs.push({who:'me',text}); s.revAt++;
     await guard(s,text,async()=>{
       if(s.revAt<RQMAX){ const o=await think(s,0,()=>ai('revise_q',s,{doc:docOf(s.draft),note:`[이미 물은 퇴고 질문 수] ${s.revAt}`}));
-        if(o.question){ s.revQs.push({q:o.question}); await aiSay(s,`${forgot?'그 자리는 비워 두겠습니다. ':''}${o.question}`); return; } s.msgs.pop(); s.busy=false; }
+        if(o.question){ s.revQs.push({q:o.question}); await aiSay(s,`${forgot?'그 자리는 비워 둘게요. ':''}${o.question}`); return; } s.msgs.pop(); s.busy=false; }
       s.asking=false; await writeRev(s); },()=>{ s.revAt--; s.asking=!s.rev; }); };
   // 대화 저장: 그릴 때마다 표시해 두었다가 1.5초 묶어서. 새 책이면 그때 책을 만든다
   async function saveAI(){ if(!BOOK&&!(await ensureBook())) return; const now=new Date().toISOString();
