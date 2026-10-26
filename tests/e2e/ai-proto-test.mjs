@@ -50,7 +50,27 @@ await pg.click('#aiTile'); await pg.click('#aiConsent [data-con=ok]');
 ok('동의하고 시작 → AI 창 열림 · 동의 기록', await pg.locator('#aiPanel').isVisible() && await st(()=>localStorage.getItem('moa-ai-proto-consent'))==='1');
 const lay=await st(()=>({ ai:document.getElementById('aiPanel').getBoundingClientRect().width, left:document.querySelector('.left').getBoundingClientRect().width,
   right:getComputedStyle(document.querySelector('.right')).display, canvas:document.getElementById('canvas').getBoundingClientRect().width, center:document.getElementById('center').getBoundingClientRect().width }));
-ok('B안: 오른쪽 AI 창 약 340px · 도구 칸 숨김 · 쪽 목록 접힘 · 지면은 가운데 칸 안에', Math.abs(lay.ai-340)<2 && lay.right==='none' && lay.left<90 && lay.canvas<=lay.center);
+ok('B안: 오른쪽 AI 창 기본 400px · 도구 칸 숨김 · 쪽 목록 접힘 · 지면은 가운데 칸 안에', Math.abs(lay.ai-400)<2 && lay.right==='none' && lay.left<90 && lay.canvas<=lay.center);
+// 창 너비 끌어 바꾸기: 손잡이를 마우스로 끌기 · 방향키 · 처음 너비로 · 기억 · 범위
+const W=()=>st(()=>Math.round(document.getElementById('aiPanel').getBoundingClientRect().width));
+const rsb=await pg.locator('#aiRs').boundingBox();
+ok('너비 손잡이: 창 왼쪽 가장자리에 보임 · 방향키로 쓸 수 있음(separator)', !!rsb && Math.abs(rsb.x+rsb.width/2-(1366-400))<12 && await pg.locator('#aiRs').getAttribute('role')==='separator' && await pg.locator('#aiRs').getAttribute('tabindex')==='0');
+await pg.mouse.move(rsb.x+rsb.width/2,rsb.y+rsb.height/2); await pg.mouse.down(); await pg.mouse.move(rsb.x+rsb.width/2-120,rsb.y+rsb.height/2,{steps:6}); await pg.mouse.up();
+ok('왼쪽으로 끌면 창이 넓어짐(400 → 약 520px) · 가운데 지면이 맞춰 줄어듦', Math.abs(await W()-520)<=4 && await st(()=>document.getElementById('canvas').getBoundingClientRect().width<=document.getElementById('center').getBoundingClientRect().width));
+ok('끈 너비를 이 브라우저에 기억함', await st(()=>+localStorage.getItem('moa.aiw'))===await W());
+const rs2=await pg.locator('#aiRs').boundingBox();
+await pg.mouse.move(rs2.x+rs2.width/2,rs2.y+rs2.height/2); await pg.mouse.down(); await pg.mouse.move(rs2.x+rs2.width/2+400,rs2.y+rs2.height/2,{steps:6}); await pg.mouse.up();
+ok('너무 좁게 끌어도 최소 300px에서 멈춤', await W()===300);
+await pg.locator('#aiRs').focus(); await pg.keyboard.press('ArrowLeft'); await pg.keyboard.press('ArrowLeft');
+ok('방향키 왼쪽 두 번: 24px씩 넓어짐(300 → 348px) · 지면 선택·이동에 영향 없음', await W()===348);
+await pg.keyboard.press('Shift+ArrowRight');
+ok('Shift+오른쪽: 72px 좁아짐(최소 300에서 멈춤)', await W()===300);
+await pg.locator('#aiRs').dblclick();
+ok('두 번 누르면 처음 너비(400px)로', await W()===400);
+await pg.mouse.move(rs2.x+rs2.width/2,rs2.y+rs2.height/2);
+const rs3=await pg.locator('#aiRs').boundingBox(); await pg.mouse.move(rs3.x+rs3.width/2,rs3.y+rs3.height/2); await pg.mouse.down(); await pg.mouse.move(40,rs3.y+rs3.height/2,{steps:8}); await pg.mouse.up();
+ok('너무 넓게 끌어도 가운데 지면이 360px 아래로 줄지 않음', await W()<=1366-232-360 && await st(()=>document.getElementById('center').getBoundingClientRect().width)>=360);
+await pg.locator('#aiRs').dblclick(); await pg.evaluate(()=>localStorage.removeItem('moa.aiw'));
 let sv=await senior(); ok('시니어 기본값: AI 창 글자 18px · 버튼 44px 이상(글감 화면)', sv.fs===18 && sv.small.length===0); if(sv.small.length) console.log('  작은 버튼:',sv.small);
 
 // 글감 고르기
