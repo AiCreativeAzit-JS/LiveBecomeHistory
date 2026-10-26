@@ -7,6 +7,7 @@
 import Anthropic from "npm:@anthropic-ai/sdk";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { SYSTEM_PROMPT, PROMPT_VERSION, ASKS } from "./prompt.ts";
+import { checkEdit, splitDoc } from "./check.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -26,7 +27,7 @@ const PIECES = ["장면", "사람", "사건", "마음", "의미"];
 const str = { type: "string" }, strs = { type: "array", items: { type: "string" } };
 const obj = (p: Record<string, unknown>) => ({ type: "object", properties: p, required: Object.keys(p), additionalProperties: false });
 const UNIFIED = obj({ reply: str, covered: { type: "array", items: { type: "string", enum: PIECES } }, ready: { type: "boolean" }, scenes: strs,
-  title: str, body: str, why: strs, changed: { type: "boolean" }, fixes: strs, question: str });
+  title: str, body: str, why: strs, changed: { type: "boolean" }, fixes: strs, question: str, proposal: str });
 const MODES: Record<string, { ask: string; schema: unknown; effort: string }> = Object.fromEntries(
   Object.entries(ASKS).map(([k, v]) => [k, { ask: v.ask, effort: v.effort, schema: UNIFIED }]));
 
@@ -92,6 +93,17 @@ Deno.serve(async (req: Request) => {
   if (o && typeof o.body === "string" && typeof o.title === "string") {
     const lines = o.body.split("\n");
     if (lines[0].trim() === o.title.trim()) o.body = lines.slice(1).join("\n").replace(/^\s*\n/, "");
+  }
+  // 고치기·퇴고 답은 AI가 쓴 「한 일 목록」을 믿지 않고 고치기 전 원고와 직접 비교한다(check.ts). 결과는 out.check 로 화면에 실어 보낸다
+  if (o && (body.mode === "fix" || body.mode === "revise") && body.doc && typeof o.body === "string" && o.body.trim() && (body.mode === "revise" || (out as { changed?: boolean }).changed)) {
+    const lastMe = [...history].reverse().find((h) => h.who !== "ai")?.text ?? "";
+    const chk = checkEdit(String(body.doc), `${o.title ?? ""}\n\n${o.body}`, String(lastMe));
+    if (chk.blocked === "shrunk") {   // 글이 지나치게 줄었으면 반영하지 않는다
+      const prev = splitDoc(String(body.doc));
+      if (body.mode === "fix") Object.assign(out as object, { changed: false, reply: "원고가 너무 많이 줄어들어서 바꾸지 않았어요. 어디를 어떻게 줄일지 한 번 더 말씀해 주세요.", why: [] });
+      else Object.assign(out as object, { title: prev.title, body: prev.body, why: ["새로 쓴 글이 너무 짧아져서 초고를 그대로 두었어요. 고치고 싶은 곳을 말씀해 주세요."] });
+    }
+    (out as { check?: unknown }).check = chk;
   }
   return json({ ok: true, out, today: today + usd * FX, limit: DAILY_KRW });
 });

@@ -16,7 +16,7 @@ await ctx.addInitScript(s=>{ window.__seed=s; if(!localStorage.getItem('fakeSess
 await ctx.route('**/*supabase-js*',r=>r.fulfill({contentType:'application/javascript',body:FAKE}));
 await ctx.route(/fonts\./,r=>r.abort());
 // 가짜 ai-write: 받은 내용을 적어 두고 mode 마다 정해 둔 답. fail 에 코드를 넣으면 그 오류로 답한다
-const sent=[]; let fail=null, thinkN=0;
+const sent=[]; let fail=null, thinkN=0, fixMode=null;
 const CORS={'access-control-allow-origin':'*','access-control-allow-headers':'authorization, apikey, content-type','access-control-allow-methods':'POST, OPTIONS'};
 await ctx.route('**/functions/v1/ai-write',r=>{ const q=r.request(); if(q.method()==='OPTIONS') return r.fulfill({status:204,headers:CORS});
   const j=JSON.parse(q.postData()||'{}'); sent.push({...j,auth:q.headers()['authorization']});
@@ -24,7 +24,9 @@ await ctx.route('**/functions/v1/ai-write',r=>{ const q=r.request(); if(q.method
   const out={ think:()=>(++thinkN<2?{reply:'선생님, 그날 누가 곁에 있었나요?',covered:['장면','사건'],ready:false}:{reply:'',covered:['장면','사람','사건','마음','의미'],ready:true}),
     summarize:()=>({scenes:['눈 오는 새벽 첫 출근길','아버지가 싸 준 도시락']}),
     draft:()=>({title:'첫 출근',body:'눈이 왔다. 나는 일찍 나섰다.\n\n아버지가 도시락을 싸 주셨다.'}),
-    fix:()=>({changed:true,reply:'',title:'첫 출근',body:'눈이 소복이 왔다. 나는 일찍 나섰다.\n\n아버지가 도시락을 싸 주셨다.',why:['① 눈 온 모습을 말씀대로 살렸어요.']}),
+    fix:()=>fixMode==='lost'?{changed:true,reply:'',title:'첫 출근',body:'눈이 소복이 왔다. 나는 일찍 나섰다.',why:['① 문장을 이었어요.'],check:{missing:['도시락'],added:['그래서']},proposal:''}
+      :fixMode==='propose'?{changed:false,reply:'아버지 이야기를 앞으로 옮기면 더 따뜻하게 시작해요.',proposal:'아버지 도시락 문단을 맨 앞으로 옮기기',title:'',body:'',why:[]}
+      :{changed:true,reply:'',title:'첫 출근',body:'눈이 소복이 왔다. 나는 일찍 나섰다.\n\n아버지가 도시락을 싸 주셨다.',why:['① 눈 온 모습을 말씀대로 살렸어요.']},
     revise_q:()=>({fixes:['① 장면: 됐습니다'],question:''}),
     revise:()=>({title:'첫 출근',body:'눈이 소복이 왔다. 나는 일찍 나섰다.\n\n아버지가 싸 주신 도시락이 따뜻했다.',why:['도시락의 온기를 더했어요.']}) }[j.mode];
   return r.fulfill({headers:CORS,contentType:'application/json',body:JSON.stringify({ok:true,out:out(),today:600,limit:3000})}); });
@@ -67,6 +69,22 @@ try{
   ok('초고 카드: 제목·문장', (await pg.locator('#aiBody .ms h4').last().innerText())==='첫 출근' && (await pg.locator('#aiBody .ms').last().innerText()).includes('아버지가 도시락을'));
   await say('눈이 소복이 왔다고 해 주세요.');
   ok('말로 고치기 → ai-write(fix) · 지금 초고를 함께 보냄 · 2판', sent[sent.length-1].mode==='fix' && sent[sent.length-1].doc.includes('눈이 왔다') && await st(()=>__aiProto.cur.draft.ver)===2);
+  // v4.4: 서버가 찾은 빠진 것 → 경고 + 「방금 고친 것 되돌리기」
+  fixMode='lost'; await say('흐름을 매끄럽게 다듬어 주세요.');
+  ok('서버가 빠진 말(도시락)을 알리면 경고가 말에 붙음 · 새 이음말도 알림', (await lastAI()).includes('새 글에서 안 보여요') && (await lastAI()).includes('「도시락」') && (await lastAI()).includes('「그래서」'));
+  ok('되돌리기 단추가 보임', await pg.locator('#aiBody [data-act=restore]').count()===1 && await pg.locator('#aiBody [data-act=restore-no]').count()===1);
+  const verBefore=await st(()=>__aiProto.cur.draft.ver);
+  await act('restore');
+  ok('되돌리면 고치기 전 글이 돌아옴(도시락 문장) · 새 판 번호 · 단추 사라짐', await st(()=>__aiProto.cur.draft.sents.some(x=>x.t.includes('도시락')))&&await st(()=>__aiProto.cur.draft.ver)===verBefore+1&&await pg.locator('#aiBody [data-act=restore]').count()===0);
+  // 순서 제안: 바로 바꾸지 않고 「이렇게 바꿔요 / 그대로 두기」
+  fixMode='propose'; const n0=sent.length; await say('앞뒤 흐름이 어색해요.');
+  ok('순서 제안: 원고는 안 바뀌고 제안 문장 + 단추 두 개', (await lastAI()).includes('제안: 아버지 도시락 문단을 맨 앞으로') && await pg.locator('#aiBody [data-act=prop-yes]').count()===1 && await pg.locator('#aiBody [data-act=prop-no]').count()===1 && await st(()=>__aiProto.cur.draft.ver)===verBefore+1);
+  await act('prop-no');
+  ok('「그대로 두기」: AI를 다시 부르지 않고 알겠다고만 답함', sent.length===n0+1 && (await lastAI()).includes('그대로 둘게요') && await pg.locator('#aiBody [data-act=prop-yes]').count()===0);
+  await say('앞뒤 흐름이 또 어색해요.');
+  fixMode=null; await act('prop-yes');
+  const sy=sent[sent.length-1];
+  ok('「이렇게 바꿔요」: 승인 표시와 제안 내용을 함께 보내 적용', sy.mode==='fix' && sy.note.includes('[어르신이 방금 제안을 승인하셨습니다]') && sy.note.includes('맨 앞으로 옮기기') && await st(()=>__aiProto.cur.msgs.some(m=>m.who==='me'&&m.text==='네, 그렇게 바꿔 주세요.')));
   await act('revise');
   ok('퇴고: 물을 것이 없으면 바로 퇴고본(revise_q → revise)', sent.slice(-2).map(x=>x.mode).join()==='revise_q,revise' && await st(()=>__aiProto.cur.rev&&__aiProto.cur.rev.ver)===1 && (await lastAI()).includes('도시락의 온기'));
   await act('place'); await act('insert');

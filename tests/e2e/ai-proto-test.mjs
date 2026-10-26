@@ -63,7 +63,7 @@ ok('다른 글감 더 보기: 다른 3장', (await pg.locator('#aiBody .tcard b'
 // 생각하기 — 길게 답하는 분: 다섯 관점이 채워지면 끝(다섯 번째 답에서)
 await act('topic','[data-id=w1]');
 const g=await st(()=>__aiProto.cur.msgs[0].text);
-ok('첫인사(프롬프트 v3 4장, 호칭 선생님): 고른 글감 이름 + 첫 질문', g.startsWith('안녕하세요, 선생님.') && g.includes("'내 생애 최고의 순간'을 찾아보겠습니다") && g.endsWith('가장 먼저 떠오르는 장면은 무엇인가요?'));
+ok('첫인사(프롬프트 v3 4장, 호칭 선생님): 고른 글감 이름 + 첫 질문', g.startsWith('안녕하세요, 선생님.') && g.includes("'내 생애 최고의 순간'을 찾아볼게요") && g.endsWith('가장 먼저 떠오르는 장면은 무엇인가요?'));
 ok('질문 수 대신 「이야기 조각」 다섯 관점(장면·사람·사건·마음·의미)', (await pg.locator('#aiPieces').innerText()).replace(/\s+/g,' ').includes('장면 사람 사건 마음 의미') && await pieces()===0);
 await act('topics'); ok('대화 중 「글감 목록」 → 시작한 글감은 맨 위 「내 글」에 「쓰는 중」', await pg.locator('#aiBody .tcard.big').count()===0 && (await pg.locator('#aiBody .mrow').innerText()).includes('쓰는 중'));
 await act('topic','[data-id=w1]'); ok('다시 누르면 대화 그대로', await st(()=>__aiProto.cur.msgs.length)===1);
@@ -109,7 +109,7 @@ sv=await senior(); ok('초고 화면 버튼도 44px 이상', sv.small.length===0
 // 퇴고 — 대화로 보충: 진단 → 꼭 필요한 질문(최대 3개) → 답을 다 들은 뒤 퇴고본 한 번 → 말로 고치기
 await act('revise');
 const rq1=await lastAI();
-ok('퇴고: 다섯 진단을 짧게(고칠 곳만 · 나머지는 통과) + 첫 질문', rq1.includes('다섯 가지로 살펴봤습니다') && rq1.includes('나머지 네 가지는 통과') && rq1.includes('됐습니다') && rq1.trim().endsWith('?'));
+ok('퇴고: 다섯 진단을 짧게(고칠 곳만 · 나머지는 통과) + 첫 질문', rq1.includes('다섯 가지로 살펴봤어요') && rq1.includes('나머지 네 가지는 통과') && rq1.includes('됐습니다') && rq1.trim().endsWith('?'));
 ok('퇴고 질문에는 「기억 안 나요」·「답하기」', await pg.locator('#aiPanel [data-act=forgot]').count()===1 && (await pg.locator('#aiPanel [data-act=send]').innerText())==='답하기');
 await shot('퇴고_질문');
 await sample();
