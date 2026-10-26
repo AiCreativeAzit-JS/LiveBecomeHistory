@@ -6,7 +6,7 @@
 // - 비밀 값: ANTHROPIC_API_KEY (대표가 Supabase 대시보드 → Edge Functions → Secrets 에 직접 넣는다)
 import Anthropic from "npm:@anthropic-ai/sdk";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { SYSTEM_PROMPT, PROMPT_VERSION } from "./prompt.ts";
+import { SYSTEM_PROMPT, PROMPT_VERSION, ASKS } from "./prompt.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -22,36 +22,20 @@ const DAILY_KRW = 3000, FX = 1500;
 const PRICE = { in: 2, out: 10, read: 0.2, write: 4 };
 const PIECES = ["장면", "사람", "사건", "마음", "의미"];
 
-// 단계마다 AI에게 주는 지시(마지막 사람 말 뒤에 붙인다)와 답의 모양
+// 단계마다 AI에게 주는 지시(prompt.ts 의 ASKS)와 답의 모양. 모든 단계가 같은 모양으로 답한다(지침서 저장을 한 번만 하려고 — v4 시험). 쓰지 않는 칸은 빈 값이고, 화면은 단계마다 필요한 칸만 읽는다
 const str = { type: "string" }, strs = { type: "array", items: { type: "string" } };
 const obj = (p: Record<string, unknown>) => ({ type: "object", properties: p, required: Object.keys(p), additionalProperties: false });
-const MODES: Record<string, { ask: string; schema: unknown; effort: string }> = {
-  think: { effort: "low",
-    ask: "생각하기 단계입니다. 선생님의 마지막 답을 받아 되비추기 1~2문장과 질문 하나로 답하세요(합쳐 3문장 이내). covered 에는 지금까지 대화로 채워진 관점(장면·사람·사건·마음·의미 가운데)을 모두 넣고, 다섯이 웬만큼 채워졌거나 질문이 8개에 이르렀으면 ready 를 true 로 하고 reply 는 빈 문자열로 두세요.",
-    schema: obj({ reply: str, covered: { type: "array", items: { type: "string", enum: PIECES } }, ready: { type: "boolean" } }) },
-  summarize: { effort: "medium",
-    ask: "생각하기를 마칩니다(12장). 선생님 표현을 살린 가장 선명한 장면을 최대 3개 scenes 에 넣으세요. 초고는 쓰지 않습니다.",
-    schema: obj({ scenes: strs }) },
-  draft: { effort: "medium",
-    ask: "고른 장면을 중심으로 초고를 쓰세요(13~19장). 첫 줄 고정 문장과 마지막 안내 문장은 화면이 넣으니 쓰지 말고, 제목과 본문만 주세요. 본문의 문단은 빈 줄로 나눕니다.",
-    schema: obj({ title: str, body: str }) },
-  fix: { effort: "medium",
-    ask: "선생님이 원고를 고쳐 달라고 하셨습니다. 그 말만큼만 고친 원고 전체와, 무엇을 왜 고쳤는지 한 줄씩을 주세요. 고칠 수 없는 말이면 changed 를 false 로 하고 reply 에 한두 문장으로 답하세요.",
-    schema: obj({ changed: { type: "boolean" }, reply: str, title: str, body: str, why: strs }) },
-  revise_q: { effort: "medium",
-    ask: "퇴고 단계입니다(25~26장, 39장). 지금 원고를 다섯 가지로 진단하고, 고칠 곳만 fixes 에 '번호 이름 — 한 줄' 모양으로 넣으세요. 구체적인 장면이나 실제 대사가 꼭 더 필요하면 question 에 질문 하나를, 아니면 빈 문자열을 넣으세요. 이미 물은 질문 수가 3이면 빈 문자열입니다.",
-    schema: obj({ fixes: strs, question: str }) },
-  revise: { effort: "medium",
-    ask: "퇴고본을 쓰세요(21~28장). 답하신 말은 알맞은 자리에 넣고, '기억 안 나요'인 자리는 비워 둡니다. 제목과 본문, 무엇을 왜 고쳤는지 한 줄씩을 주세요.",
-    schema: obj({ title: str, body: str, why: strs }) },
-};
+const UNIFIED = obj({ reply: str, covered: { type: "array", items: { type: "string", enum: PIECES } }, ready: { type: "boolean" }, scenes: strs,
+  title: str, body: str, why: strs, changed: { type: "boolean" }, fixes: strs, question: str });
+const MODES: Record<string, { ask: string; schema: unknown; effort: string }> = Object.fromEntries(
+  Object.entries(ASKS).map(([k, v]) => [k, { ask: v.ask, effort: v.effort, schema: UNIFIED }]));
 
 const client = new Anthropic();   // ANTHROPIC_API_KEY
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method" }, 405);
-  let body: { mode?: string; book_id?: string; topic?: string; history?: { who: string; text: string }[]; doc?: string; note?: string } = {};
+  let body: { mode?: string; book_id?: string; topic?: string; focus?: string; tone?: string; history?: { who: string; text: string }[]; doc?: string; note?: string } = {};
   try { body = await req.json(); } catch { return json({ error: "bad_json" }, 400); }
   const M = MODES[body.mode ?? ""]; if (!M) return json({ error: "bad_mode" }, 400);
   const history = Array.isArray(body.history) ? body.history.slice(-80) : [];
@@ -78,7 +62,7 @@ Deno.serve(async (req: Request) => {
   const msgs: { role: "user" | "assistant"; content: string }[] = [];
   const push = (role: "user" | "assistant", t: string) => { const last = msgs[msgs.length - 1];
     if (last && last.role === role) last.content += "\n\n" + t; else msgs.push({ role, content: t }); };
-  push("user", `[글감] ${String(body.topic ?? "").slice(0, 80)}`);
+  push("user", `[글감] ${String(body.topic ?? "").slice(0, 80)}${body.focus ? `\n[취재 초점] ${String(body.focus).slice(0, 200)}` : ""}${body.tone ? `\n[마무리 결] ${String(body.tone).slice(0, 80)}` : ""}`);
   for (const h of history) push(h.who === "ai" ? "assistant" : "user", String(h.text ?? "").slice(0, 6000));
   push("user", `[모아 화면 지시] ${M.ask}${body.doc ? `\n\n[지금 원고]\n${body.doc}` : ""}${body.note ? `\n\n${body.note}` : ""}`);
 
@@ -103,5 +87,11 @@ Deno.serve(async (req: Request) => {
   if (res.stop_reason === "refusal") return json({ error: "refusal" }, 422);
   const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("");
   let out: unknown; try { out = JSON.parse(text); } catch { return json({ error: "bad_output" }, 502); }
+  // 모델이 본문 첫 줄에 제목을 또 쓰면 걷어 낸다(파일럿 s4). 지침에서는 말하지 않고 여기서 처리한다
+  const o = out as { title?: string; body?: string };
+  if (o && typeof o.body === "string" && typeof o.title === "string") {
+    const lines = o.body.split("\n");
+    if (lines[0].trim() === o.title.trim()) o.body = lines.slice(1).join("\n").replace(/^\s*\n/, "");
+  }
   return json({ ok: true, out, today: today + usd * FX, limit: DAILY_KRW });
 });
