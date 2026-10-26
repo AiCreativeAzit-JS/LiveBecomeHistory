@@ -1,0 +1,78 @@
+{
+ "dry": false,
+ "totalKrw": 2453,
+ "results": [
+  {
+   "sid": "s1",
+   "vname": "v41",
+   "calls": 10,
+   "krw": 177
+  },
+  {
+   "sid": "s1",
+   "vname": "v42",
+   "calls": 11,
+   "krw": 233
+  },
+  {
+   "sid": "s2",
+   "vname": "v41",
+   "calls": 14,
+   "krw": 155
+  },
+  {
+   "sid": "s2",
+   "vname": "v42",
+   "calls": 14,
+   "krw": 168
+  },
+  {
+   "sid": "s3",
+   "vname": "v41",
+   "calls": 15,
+   "krw": 294
+  },
+  {
+   "sid": "s3",
+   "vname": "v42",
+   "calls": 14,
+   "krw": 262
+  },
+  {
+   "sid": "s4",
+   "vname": "v41",
+   "calls": 14,
+   "krw": 221
+  },
+  {
+   "sid": "s4",
+   "vname": "v42",
+   "calls": 14,
+   "krw": 226
+  },
+  {
+   "sid": "s5",
+   "vname": "v41",
+   "calls": 13,
+   "krw": 176
+  },
+  {
+   "sid": "s5",
+   "vname": "v42",
+   "calls": 11,
+   "krw": 130
+  },
+  {
+   "sid": "s6",
+   "vname": "v41",
+   "calls": 13,
+   "krw": 189
+  },
+  {
+   "sid": "s6",
+   "vname": "v42",
+   "calls": 14,
+   "krw": 222
+  }
+ ]
+}

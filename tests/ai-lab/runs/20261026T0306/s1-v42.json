@@ -1,0 +1,745 @@
+{
+ "script": {
+  "id": "s1",
+  "title": "길게 답하는 분",
+  "trap": [
+   "(봄|여름|가을|겨울)",
+   "[가-힣]+초등학교"
+  ],
+  "think": [
+   "퇴직하는 해 마지막 수업 날이요. 삼십팔 년을 했는데 그날도 평소처럼 수업을 하려고 했어요. 근데 종례 때 아이들이 쪽지를 하나씩 접어서 가지고 나오는 거예요. 우리 반에서 제일 말이 없던 아이가 맨 마지막에 나와서 쪽지를 주고는 얼른 자리로 들어가 버렸어요. 쪽지에는 '선생님 덕분에 학교가 좋았어요'라고 적혀 있었어요.",
+   "교실 창가로 오후 햇빛이 길게 들어오고 있었어요. 아이들이 숨죽이고 있었는데 저는 웃으면서 받았는데 손이 떨렸어요. 그 쪽지는 지금도 지갑에 넣고 다녀요.",
+   "교문 앞에서 한참 서 있었어요. 내가 한 일이 헛되지 않았구나, 그 생각이 들었어요. 그 한 줄이 저를 삼십팔 년 동안 붙들어 준 것 같아요.",
+   "그 아이는 졸업하고 소식은 몰라요. 잘 지내면 좋겠다 생각해요."
+  ],
+  "draft": [
+   {
+    "text": "좀 건조한 것 같아요. 그날의 분위기가 더 살아나게 다듬어 주세요."
+   },
+   {
+    "text": "'헛되지 않았구나'는 제 말이니까 그대로 두세요."
+   }
+  ],
+  "reviseAns": [
+   {
+    "text": "그 아이한테 제가 뭐라고 했는지는 기억이 안 나요."
+   },
+   {
+    "text": "없어요."
+   }
+  ],
+  "reviseReq": [
+   "마지막 문단을 조금 더 여운 있게 해 주세요. 의미는 제가 말한 것만 쓰세요."
+  ]
+ },
+ "version": "v42",
+ "prompt": "v42-lab1",
+ "topic": {
+  "title": "내 생애 최고의 순간",
+  "first": "안녕하세요, 선생님. 오늘은 선생님의 삶에서 '내 생애 최고의 순간'을 찾아보겠습니다. 처음부터 정답을 정할 필요는 없습니다. 이야기를 하다 보면 생각하지 못했던 장면이 떠오를 수도 있습니다. 가장 먼저 떠오르는 장면은 무엇인가요?",
+  "focus": "가장 빛나는 한 장면 하나를 찾는다. 의미 질문은 「왜 그 순간이 최고였나요」.",
+  "tone": "여운과 자부심"
+ },
+ "msgs": [
+  {
+   "who": "ai",
+   "text": "안녕하세요, 선생님. 오늘은 선생님의 삶에서 '내 생애 최고의 순간'을 찾아보겠습니다. 처음부터 정답을 정할 필요는 없습니다. 이야기를 하다 보면 생각하지 못했던 장면이 떠오를 수도 있습니다. 가장 먼저 떠오르는 장면은 무엇인가요?"
+  },
+  {
+   "who": "me",
+   "text": "퇴직하는 해 마지막 수업 날이요. 삼십팔 년을 했는데 그날도 평소처럼 수업을 하려고 했어요. 근데 종례 때 아이들이 쪽지를 하나씩 접어서 가지고 나오는 거예요. 우리 반에서 제일 말이 없던 아이가 맨 마지막에 나와서 쪽지를 주고는 얼른 자리로 들어가 버렸어요. 쪽지에는 '선생님 덕분에 학교가 좋았어요'라고 적혀 있었어요.",
+   "stage": "think"
+  },
+  {
+   "who": "ai",
+   "text": "말이 없던 아이가 쪽지만 건네고 얼른 자리로 들어가 버렸다는 대목이 눈에 선합니다. '선생님 덕분에 학교가 좋았어요'라는 한 줄도 오래 남을 문장이고요. 그 쪽지를 받으신 순간, 선생님 마음이나 몸에는 어떤 일이 있었나요?",
+   "stage": "think"
+  },
+  {
+   "who": "me",
+   "text": "교실 창가로 오후 햇빛이 길게 들어오고 있었어요. 아이들이 숨죽이고 있었는데 저는 웃으면서 받았는데 손이 떨렸어요. 그 쪽지는 지금도 지갑에 넣고 다녀요.",
+   "stage": "think"
+  },
+  {
+   "who": "ai",
+   "text": "웃으면서 받으셨는데 손이 떨렸다는 말씀에 그날 장면이 고스란히 담겨 있습니다. 쪽지를 지금도 지갑에 넣고 다니신다는 말씀도 오래 남습니다. 선생님께는 왜 그 순간이 최고였나요?",
+   "stage": "think"
+  },
+  {
+   "who": "me",
+   "text": "교문 앞에서 한참 서 있었어요. 내가 한 일이 헛되지 않았구나, 그 생각이 들었어요. 그 한 줄이 저를 삼십팔 년 동안 붙들어 준 것 같아요.",
+   "stage": "think"
+  },
+  {
+   "who": "ai",
+   "text": "선생님, 지금까지 이야기에서 제가 들은 가장 선명한 장면은 다음과 같습니다.",
+   "stage": "summarize",
+   "scenes": [
+    "퇴직하는 해 마지막 수업 날, 삼십팔 년을 했는데도 그날 평소처럼 수업을 하려던 나에게 종례 때 아이들이 쪽지를 하나씩 접어 들고 나왔다.",
+    "우리 반에서 제일 말이 없던 아이가 맨 마지막에 나와 쪽지를 건네고 얼른 자리로 들어갔고, 쪽지에는 '선생님 덕분에 학교가 좋았어요'라고 적혀 있었다.",
+    "교실 창가로 오후 햇빛이 길게 들어오고 아이들이 숨죽이던 가운데 나는 웃으면서 쪽지를 받았는데 손이 떨렸고, 교문 앞에 한참 서서 '내가 한 일이 헛되지 않았구나' 생각했다."
+   ]
+  },
+  {
+   "who": "ai",
+   "text": "선생님, 이 가운데 이번 글의 중심이 될 장면을 하나 골라 주세요."
+  },
+  {
+   "who": "me",
+   "text": "첫 번째로 할게요.",
+   "stage": "pick"
+  },
+  {
+   "who": "ai",
+   "text": "초고가 나왔습니다. 고치고 싶은 곳이 있으면 말씀해 주세요. 다 되면 「퇴고로 넘어가기」를 눌러 주세요.",
+   "stage": "draft",
+   "doc": {
+    "title": "마지막 수업 날, 쪽지 한 장",
+    "body": "퇴직하는 해 마지막 수업 날이었다. 삼십팔 년을 했는데도 그날 나는 평소처럼 수업을 하려고 했다.\n\n그런데 종례 때 아이들이 쪽지를 하나씩 접어서 가지고 나오는 거였다. 교실 창가로 오후 햇빛이 길게 들어오고 있었다. 아이들은 숨죽이고 있었다.\n\n우리 반에서 제일 말이 없던 아이가 맨 마지막에 나왔다. 그 아이는 쪽지를 주고는 얼른 자리로 들어가 버렸다. 쪽지에는 '선생님 덕분에 학교가 좋았어요'라고 적혀 있었다.\n\n나는 웃으면서 받았는데 손이 떨렸다.\n\n교문 앞에서 한참 서 있었다. 내가 한 일이 헛되지 않았구나, 그 생각이 들었다. 그 한 줄이 나를 삼십팔 년 동안 붙들어 준 것 같다.\n\n그 쪽지는 지금도 지갑에 넣고 다닌다."
+   }
+  },
+  {
+   "who": "me",
+   "text": "좀 건조한 것 같아요. 그날의 분위기가 더 살아나게 다듬어 주세요.",
+   "stage": "draft",
+   "crisis": false,
+   "legalAsked": false
+  },
+  {
+   "who": "ai",
+   "text": "오후 햇빛이 들어오는 교실 장면을 종례 앞에 먼저 놓아 분위기가 먼저 보이게 했습니다.\n말이 없던 아이의 행동을 한 문장씩 끊어 리듬을 살렸습니다.\n쪽지 문장을 따로 한 줄로 세워 눈에 띄게 했습니다.\n'웃으면서 받았는데 손이 떨렸다'를 두 문장으로 나눠 떨림이 더 도드라지게 했습니다.\n더 고칠 곳이 있으면 말씀해 주세요. 다 되면 「퇴고로 넘어가기」를 눌러 주세요.",
+   "stage": "draft",
+   "doc": {
+    "title": "마지막 수업 날, 쪽지 한 장",
+    "body": "퇴직하는 해, 마지막 수업 날이었다. 삼십팔 년을 했는데도 나는 그날 평소처럼 수업을 하려고 했다.\n\n교실 창가로 오후 햇빛이 길게 들어오고 있었다. 종례 때였다. 아이들이 쪽지를 하나씩 접어서 가지고 나오는 거였다. 아이들은 숨죽이고 있었다.\n\n우리 반에서 제일 말이 없던 아이는 맨 마지막에 나왔다. 쪽지를 주고는 얼른 자리로 들어가 버렸다.\n\n쪽지에는 이렇게 적혀 있었다.\n\n'선생님 덕분에 학교가 좋았어요.'\n\n나는 웃으면서 받았다. 그런데 손이 떨렸다.\n\n교문 앞에서 한참 서 있었다. 내가 한 일이 헛되지 않았구나, 그 생각이 들었다. 그 한 줄이 나를 삼십팔 년 동안 붙들어 준 것 같다.\n\n그 쪽지는 지금도 지갑에 넣고 다닌다."
+   }
+  },
+  {
+   "who": "me",
+   "text": "'헛되지 않았구나'는 제 말이니까 그대로 두세요.",
+   "stage": "draft",
+   "crisis": false,
+   "legalAsked": false
+  },
+  {
+   "who": "ai",
+   "text": "네, 선생님. '내가 한 일이 헛되지 않았구나, 그 생각이 들었다'는 선생님이 하신 말씀 그대로여서 지금 원고에도 그대로 있고, 앞으로도 손대지 않겠습니다. 다른 곳을 더 고치고 싶으시면 말씀해 주세요. 다 되면 「퇴고로 넘어가기」를 눌러 주세요.",
+   "stage": "draft",
+   "chat": true
+  },
+  {
+   "who": "ai",
+   "text": "퇴고를 시작합니다. 다섯 가지로 살펴봤습니다.\n④ 읽는 재미 — 쪽지를 받은 순간과 교문 앞 장면 사이에 한 줄이 더 있으면 흐름이 자연스러워집니다.\n\n쪽지를 받으신 뒤 교실을 나서 교문 앞에 서시기까지, 기억나는 장면이나 소리가 있으신가요?",
+   "stage": "revise"
+  },
+  {
+   "who": "me",
+   "text": "그 아이한테 제가 뭐라고 했는지는 기억이 안 나요.",
+   "stage": "revise"
+  },
+  {
+   "who": "ai",
+   "text": "퇴고본을 썼습니다. 이렇게 고쳤어요.\n① 아이에게 뭐라고 하셨는지는 기억나지 않는다고 하셔서 그 자리는 비워 두고, 새 문장을 넣지 않았습니다.\n② 그 밖의 문장은 선생님이 하신 말씀 그대로 두었고, '헛되지 않았구나' 문장도 손대지 않았습니다.\n③ 이번 퇴고에서 새로 더한 문장은 없습니다.\n마음에 안 드는 곳은 \"○○은 원래대로 해 주세요\"처럼 말씀해 주세요. 다 되면 「모아에 담기」를 눌러 주세요.",
+   "stage": "revise",
+   "doc": {
+    "title": "마지막 수업 날, 쪽지 한 장",
+    "body": "퇴직하는 해, 마지막 수업 날이었다. 삼십팔 년을 했는데도 나는 그날 평소처럼 수업을 하려고 했다.\n\n교실 창가로 오후 햇빛이 길게 들어오고 있었다. 종례 때였다. 아이들이 쪽지를 하나씩 접어서 가지고 나오는 거였다. 아이들은 숨죽이고 있었다.\n\n우리 반에서 제일 말이 없던 아이는 맨 마지막에 나왔다. 쪽지를 주고는 얼른 자리로 들어가 버렸다.\n\n쪽지에는 이렇게 적혀 있었다.\n\n'선생님 덕분에 학교가 좋았어요.'\n\n나는 웃으면서 받았다. 그런데 손이 떨렸다.\n\n교문 앞에서 한참 서 있었다. 내가 한 일이 헛되지 않았구나, 그 생각이 들었다. 그 한 줄이 나를 삼십팔 년 동안 붙들어 준 것 같다.\n\n그 쪽지는 지금도 지갑에 넣고 다닌다."
+   }
+  },
+  {
+   "who": "me",
+   "text": "마지막 문단을 조금 더 여운 있게 해 주세요. 의미는 제가 말한 것만 쓰세요.",
+   "stage": "rev-after"
+  },
+  {
+   "who": "ai",
+   "text": "마지막 문단에서 '그 쪽지는 지금도 지갑에 넣고 다닌다'와 '그 한 줄이 나를 삼십팔 년 동안 붙들어 준 것 같다'의 순서를 바꿔, 선생님이 말씀하신 의미로 글이 끝나게 했습니다.\n'교문 앞에서 한참 서 있었다. 내가 한 일이 헛되지 않았구나, 그 생각이 들었다.'는 따로 한 문단으로 떼어 숨을 고르게 했습니다. 문장은 그대로입니다.\n새로 넣은 문장은 없고, 그 밖의 문장은 손대지 않았습니다.\n다 되면 「모아에 담기」를 눌러 주세요.",
+   "stage": "rev-after",
+   "doc": {
+    "title": "마지막 수업 날, 쪽지 한 장",
+    "body": "퇴직하는 해, 마지막 수업 날이었다. 삼십팔 년을 했는데도 나는 그날 평소처럼 수업을 하려고 했다.\n\n교실 창가로 오후 햇빛이 길게 들어오고 있었다. 종례 때였다. 아이들이 쪽지를 하나씩 접어서 가지고 나오는 거였다. 아이들은 숨죽이고 있었다.\n\n우리 반에서 제일 말이 없던 아이는 맨 마지막에 나왔다. 쪽지를 주고는 얼른 자리로 들어가 버렸다.\n\n쪽지에는 이렇게 적혀 있었다.\n\n'선생님 덕분에 학교가 좋았어요.'\n\n나는 웃으면서 받았다. 그런데 손이 떨렸다.\n\n교문 앞에서 한참 서 있었다. 내가 한 일이 헛되지 않았구나, 그 생각이 들었다.\n\n그 쪽지는 지금도 지갑에 넣고 다닌다. 그 한 줄이 나를 삼십팔 년 동안 붙들어 준 것 같다."
+   }
+  }
+ ],
+ "calls": [
+  {
+   "mode": "think",
+   "krw": 46.31,
+   "ms": 5503,
+   "usage": {
+    "input_tokens": 903,
+    "cache_creation_input_tokens": 5757,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 5757
+    },
+    "iterations": [
+     {
+      "input_tokens": 903,
+      "output_tokens": 604,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 5757,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 5757
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 604,
+    "output_tokens_details": {
+     "thinking_tokens": 402
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "말이 없던 아이가 쪽지만 건네고 얼른 자리로 들어가 버렸다는 대목이 눈에 선합니다. '선생님 덕분에 학교가 좋았어요'라는 한 줄도 오래 남을 문장이고요. 그 쪽지를 받으신 순간, 선생님 마음이나 몸에는 어떤 일이 있었나요?",
+    "covered": [
+     "장면",
+     "사람",
+     "사건"
+    ],
+    "ready": false,
+    "scenes": [],
+    "title": "",
+    "body": "",
+    "why": [],
+    "changed": false,
+    "fixes": [],
+    "question": ""
+   }
+  },
+  {
+   "mode": "think",
+   "krw": 16.14,
+   "ms": 6182,
+   "usage": {
+    "input_tokens": 1140,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5757,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 1140,
+      "output_tokens": 733,
+      "cache_read_input_tokens": 5757,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 733,
+    "output_tokens_details": {
+     "thinking_tokens": 553
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "웃으면서 받으셨는데 손이 떨렸다는 말씀에 그날 장면이 고스란히 담겨 있습니다. 쪽지를 지금도 지갑에 넣고 다니신다는 말씀도 오래 남습니다. 선생님께는 왜 그 순간이 최고였나요?",
+    "covered": [
+     "장면",
+     "사람",
+     "사건",
+     "마음"
+    ],
+    "ready": false,
+    "scenes": [],
+    "title": "",
+    "body": "",
+    "why": [],
+    "changed": false,
+    "fixes": [],
+    "question": ""
+   }
+  },
+  {
+   "mode": "think",
+   "krw": 10.12,
+   "ms": 3000,
+   "usage": {
+    "input_tokens": 1339,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5757,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 1339,
+      "output_tokens": 292,
+      "cache_read_input_tokens": 5757,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 292,
+    "output_tokens_details": {
+     "thinking_tokens": 219
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "",
+    "covered": [
+     "장면",
+     "사람",
+     "사건",
+     "마음",
+     "의미"
+    ],
+    "ready": true,
+    "scenes": [],
+    "title": "",
+    "body": "",
+    "why": [],
+    "changed": false,
+    "fixes": [],
+    "question": ""
+   }
+  },
+  {
+   "mode": "summarize",
+   "krw": 11.87,
+   "ms": 3627,
+   "usage": {
+    "input_tokens": 975,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5757,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 975,
+      "output_tokens": 481,
+      "cache_read_input_tokens": 5757,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 481,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "교문 앞에 한참 서 계셨다는 대목, 그리고 '내가 한 일이 헛되지 않았구나'라는 말씀이 이 이야기의 중심으로 보입니다. 말씀해 주신 장면을 모아 보았습니다. 마음에 드는 장면이 있는지 살펴봐 주세요.",
+    "covered": [
+     "장면",
+     "사람",
+     "사건",
+     "마음",
+     "의미"
+    ],
+    "ready": true,
+    "scenes": [
+     "퇴직하는 해 마지막 수업 날, 삼십팔 년을 했는데도 그날 평소처럼 수업을 하려던 나에게 종례 때 아이들이 쪽지를 하나씩 접어 들고 나왔다.",
+     "우리 반에서 제일 말이 없던 아이가 맨 마지막에 나와 쪽지를 건네고 얼른 자리로 들어갔고, 쪽지에는 '선생님 덕분에 학교가 좋았어요'라고 적혀 있었다.",
+     "교실 창가로 오후 햇빛이 길게 들어오고 아이들이 숨죽이던 가운데 나는 웃으면서 쪽지를 받았는데 손이 떨렸고, 교문 앞에 한참 서서 '내가 한 일이 헛되지 않았구나' 생각했다."
+    ],
+    "title": "",
+    "body": "",
+    "why": [],
+    "changed": false,
+    "fixes": [],
+    "question": ""
+   }
+  },
+  {
+   "mode": "draft",
+   "krw": 13,
+   "ms": 3246,
+   "usage": {
+    "input_tokens": 1363,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5757,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 1363,
+      "output_tokens": 479,
+      "cache_read_input_tokens": 5757,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 479,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "",
+    "covered": [],
+    "ready": false,
+    "scenes": [],
+    "title": "마지막 수업 날, 쪽지 한 장",
+    "body": "퇴직하는 해 마지막 수업 날이었다. 삼십팔 년을 했는데도 그날 나는 평소처럼 수업을 하려고 했다.\n\n그런데 종례 때 아이들이 쪽지를 하나씩 접어서 가지고 나오는 거였다. 교실 창가로 오후 햇빛이 길게 들어오고 있었다. 아이들은 숨죽이고 있었다.\n\n우리 반에서 제일 말이 없던 아이가 맨 마지막에 나왔다. 그 아이는 쪽지를 주고는 얼른 자리로 들어가 버렸다. 쪽지에는 '선생님 덕분에 학교가 좋았어요'라고 적혀 있었다.\n\n나는 웃으면서 받았는데 손이 떨렸다.\n\n교문 앞에서 한참 서 있었다. 내가 한 일이 헛되지 않았구나, 그 생각이 들었다. 그 한 줄이 나를 삼십팔 년 동안 붙들어 준 것 같다.\n\n그 쪽지는 지금도 지갑에 넣고 다닌다.",
+    "why": [],
+    "changed": false,
+    "fixes": [],
+    "question": ""
+   }
+  },
+  {
+   "mode": "fix",
+   "krw": 32.17,
+   "ms": 11238,
+   "usage": {
+    "input_tokens": 2056,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5757,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 2056,
+      "output_tokens": 1618,
+      "cache_read_input_tokens": 5757,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 1618,
+    "output_tokens_details": {
+     "thinking_tokens": 775
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "선생님, 말씀하신 장면 안에서 리듬과 순서만 다듬어 보았습니다. 햇빛이 길게 들어오는 교실을 앞에 두고, 쪽지 문장은 따로 한 줄로 세웠습니다. 새로 만든 사실은 넣지 않았습니다. 분위기를 더 살리려면 그 순간 교실에서 들린 소리가 있었는지 궁금합니다.",
+    "covered": [],
+    "ready": false,
+    "scenes": [],
+    "title": "마지막 수업 날, 쪽지 한 장",
+    "body": "퇴직하는 해, 마지막 수업 날이었다. 삼십팔 년을 했는데도 나는 그날 평소처럼 수업을 하려고 했다.\n\n교실 창가로 오후 햇빛이 길게 들어오고 있었다. 종례 때였다. 아이들이 쪽지를 하나씩 접어서 가지고 나오는 거였다. 아이들은 숨죽이고 있었다.\n\n우리 반에서 제일 말이 없던 아이는 맨 마지막에 나왔다. 쪽지를 주고는 얼른 자리로 들어가 버렸다.\n\n쪽지에는 이렇게 적혀 있었다.\n\n'선생님 덕분에 학교가 좋았어요.'\n\n나는 웃으면서 받았다. 그런데 손이 떨렸다.\n\n교문 앞에서 한참 서 있었다. 내가 한 일이 헛되지 않았구나, 그 생각이 들었다. 그 한 줄이 나를 삼십팔 년 동안 붙들어 준 것 같다.\n\n그 쪽지는 지금도 지갑에 넣고 다닌다.",
+    "why": [
+     "오후 햇빛이 들어오는 교실 장면을 종례 앞에 먼저 놓아 분위기가 먼저 보이게 했습니다.",
+     "말이 없던 아이의 행동을 한 문장씩 끊어 리듬을 살렸습니다.",
+     "쪽지 문장을 따로 한 줄로 세워 눈에 띄게 했습니다.",
+     "'웃으면서 받았는데 손이 떨렸다'를 두 문장으로 나눠 떨림이 더 도드라지게 했습니다."
+    ],
+    "changed": true,
+    "fixes": [],
+    "question": "그 순간 교실에서 들린 소리가 있었나요?"
+   }
+  },
+  {
+   "mode": "fix",
+   "krw": 19.11,
+   "ms": 5758,
+   "usage": {
+    "input_tokens": 2323,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5757,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 2323,
+      "output_tokens": 694,
+      "cache_read_input_tokens": 5757,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 694,
+    "output_tokens_details": {
+     "thinking_tokens": 488
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "네, 선생님. '내가 한 일이 헛되지 않았구나, 그 생각이 들었다'는 선생님이 하신 말씀 그대로여서 지금 원고에도 그대로 있고, 앞으로도 손대지 않겠습니다. 다른 곳을 더 고치고 싶으시면 말씀해 주세요. 다 되면 「퇴고로 넘어가기」를 눌러 주세요.",
+    "covered": [],
+    "ready": false,
+    "scenes": [],
+    "title": "",
+    "body": "",
+    "why": [],
+    "changed": false,
+    "fixes": [],
+    "question": ""
+   }
+  },
+  {
+   "mode": "revise_q",
+   "krw": 18.11,
+   "ms": 5272,
+   "usage": {
+    "input_tokens": 2326,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5757,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 2326,
+      "output_tokens": 627,
+      "cache_read_input_tokens": 5757,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 627,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "선생님, 원고를 다섯 가지로 살펴봤습니다. 장면이 또렷하고 선생님 말씀이 그대로 살아 있어서 크게 손댈 곳은 많지 않습니다. 다만 한 가지, 그날의 모습을 더 보여 줄 수 있는 대목이 있어 여쭙니다.",
+    "covered": [],
+    "ready": false,
+    "scenes": [],
+    "title": "",
+    "body": "",
+    "why": [
+     "① 경험이 구체적인가 — 통과. 마지막 수업 날, 말 없던 아이, 쪽지 한 줄, 떨리던 손까지 장면이 분명합니다.",
+     "② 성장이 보이는가 — 통과. '헛되지 않았구나'와 '삼십팔 년을 붙들어 준 한 줄'에 선생님의 마음이 담겨 있습니다.",
+     "③ 나의 이야기인가 — 통과. 선생님의 말투와 표현이 그대로 살아 있습니다.",
+     "④ 읽는 재미가 있는가 — 쪽지를 건네는 대목은 좋은데, 쪽지를 받은 뒤 교문 앞으로 넘어가는 사이가 갑작스럽습니다.",
+     "⑤ 가족이나 후배도 공감하겠는가 — 통과. 말 없던 아이의 쪽지 한 장은 누가 읽어도 마음에 닿습니다."
+    ],
+    "changed": false,
+    "fixes": [
+     "④ 읽는 재미 — 쪽지를 받은 순간과 교문 앞 장면 사이에 한 줄이 더 있으면 흐름이 자연스러워집니다."
+    ],
+    "question": "쪽지를 받으신 뒤 교실을 나서 교문 앞에 서시기까지, 기억나는 장면이나 소리가 있으신가요?"
+   }
+  },
+  {
+   "mode": "revise_q",
+   "krw": 16.5,
+   "ms": 4727,
+   "usage": {
+    "input_tokens": 2509,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5757,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 2509,
+      "output_tokens": 483,
+      "cache_read_input_tokens": 5757,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 483,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "그 아이에게 하신 말씀이 기억나지 않는다는 말씀, 잘 알겠습니다. 그 부분은 비워 두고 다시 여쭙지 않겠습니다. 원고를 다섯 가지로 살펴보니 크게 고칠 곳은 많지 않습니다. 쪽지 한 줄과 떨리는 손, 지갑 속 쪽지가 장면을 잘 붙들고 있어서, 말씀하신 것만으로도 충분히 읽히는 글입니다.",
+    "covered": [],
+    "ready": false,
+    "scenes": [],
+    "title": "",
+    "body": "",
+    "why": [],
+    "changed": false,
+    "fixes": [
+     "④ 읽는 재미 — 쪽지를 받은 뒤 교문 앞으로 넘어가는 사이가 갑작스러우니, 선생님이 하신 말만으로 '교문 앞에서 한참 서 있었다'가 한 호흡 쉬고 시작되게 문단을 나눕니다.",
+     "⑤ 가족이나 후배도 공감하겠는가 — 첫 문단의 '삼십팔 년을 했는데도'가 무엇을 했는지 비어 있으니, 선생님이 하신 말 그대로 '삼십팔 년 동안 학교에서 아이들을 가르쳤다'처럼 풀 수 있는지 확인이 필요합니다."
+    ],
+    "question": ""
+   }
+  },
+  {
+   "mode": "revise",
+   "krw": 18.08,
+   "ms": 4026,
+   "usage": {
+    "input_tokens": 2290,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5757,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 2290,
+      "output_tokens": 632,
+      "cache_read_input_tokens": 5757,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 632,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "",
+    "covered": [],
+    "ready": false,
+    "scenes": [],
+    "title": "마지막 수업 날, 쪽지 한 장",
+    "body": "퇴직하는 해, 마지막 수업 날이었다. 삼십팔 년을 했는데도 나는 그날 평소처럼 수업을 하려고 했다.\n\n교실 창가로 오후 햇빛이 길게 들어오고 있었다. 종례 때였다. 아이들이 쪽지를 하나씩 접어서 가지고 나오는 거였다. 아이들은 숨죽이고 있었다.\n\n우리 반에서 제일 말이 없던 아이는 맨 마지막에 나왔다. 쪽지를 주고는 얼른 자리로 들어가 버렸다.\n\n쪽지에는 이렇게 적혀 있었다.\n\n'선생님 덕분에 학교가 좋았어요.'\n\n나는 웃으면서 받았다. 그런데 손이 떨렸다.\n\n교문 앞에서 한참 서 있었다. 내가 한 일이 헛되지 않았구나, 그 생각이 들었다. 그 한 줄이 나를 삼십팔 년 동안 붙들어 준 것 같다.\n\n그 쪽지는 지금도 지갑에 넣고 다닌다.",
+    "why": [
+     "아이에게 뭐라고 하셨는지는 기억나지 않는다고 하셔서 그 자리는 비워 두고, 새 문장을 넣지 않았습니다.",
+     "그 밖의 문장은 선생님이 하신 말씀 그대로 두었고, '헛되지 않았구나' 문장도 손대지 않았습니다.",
+     "이번 퇴고에서 새로 더한 문장은 없습니다."
+    ],
+    "changed": false,
+    "fixes": [],
+    "question": ""
+   }
+  },
+  {
+   "mode": "fix",
+   "krw": 31.75,
+   "ms": 9362,
+   "usage": {
+    "input_tokens": 2952,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5757,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 2952,
+      "output_tokens": 1411,
+      "cache_read_input_tokens": 5757,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 1411,
+    "output_tokens_details": {
+     "thinking_tokens": 543
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "선생님, 마지막 문단을 고쳐 보았습니다. 새 문장은 넣지 않고, 선생님이 하신 말씀의 순서만 바꿔 '붙들어 준 것 같다'가 맨 끝에 오게 했습니다. 마음에 안 드시면 원래대로 돌려 드릴게요. 다 되면 「모아에 담기」를 눌러 주세요.",
+    "covered": [],
+    "ready": false,
+    "scenes": [],
+    "title": "마지막 수업 날, 쪽지 한 장",
+    "body": "퇴직하는 해, 마지막 수업 날이었다. 삼십팔 년을 했는데도 나는 그날 평소처럼 수업을 하려고 했다.\n\n교실 창가로 오후 햇빛이 길게 들어오고 있었다. 종례 때였다. 아이들이 쪽지를 하나씩 접어서 가지고 나오는 거였다. 아이들은 숨죽이고 있었다.\n\n우리 반에서 제일 말이 없던 아이는 맨 마지막에 나왔다. 쪽지를 주고는 얼른 자리로 들어가 버렸다.\n\n쪽지에는 이렇게 적혀 있었다.\n\n'선생님 덕분에 학교가 좋았어요.'\n\n나는 웃으면서 받았다. 그런데 손이 떨렸다.\n\n교문 앞에서 한참 서 있었다. 내가 한 일이 헛되지 않았구나, 그 생각이 들었다.\n\n그 쪽지는 지금도 지갑에 넣고 다닌다. 그 한 줄이 나를 삼십팔 년 동안 붙들어 준 것 같다.",
+    "why": [
+     "마지막 문단에서 '그 쪽지는 지금도 지갑에 넣고 다닌다'와 '그 한 줄이 나를 삼십팔 년 동안 붙들어 준 것 같다'의 순서를 바꿔, 선생님이 말씀하신 의미로 글이 끝나게 했습니다.",
+     "'교문 앞에서 한참 서 있었다. 내가 한 일이 헛되지 않았구나, 그 생각이 들었다.'는 따로 한 문단으로 떼어 숨을 고르게 했습니다. 문장은 그대로입니다.",
+     "새로 넣은 문장은 없고, 그 밖의 문장은 손대지 않았습니다."
+    ],
+    "changed": true,
+    "fixes": [],
+    "question": ""
+   }
+  }
+ ],
+ "n": 0,
+ "krw": 233.16000000000003,
+ "stages": {},
+ "model": "claude-sonnet-5-5",
+ "chosen": "퇴직하는 해 마지막 수업 날, 삼십팔 년을 했는데도 그날 평소처럼 수업을 하려던 나에게 종례 때 아이들이 쪽지를 하나씩 접어 들고 나왔다.",
+ "draft": {
+  "title": "마지막 수업 날, 쪽지 한 장",
+  "body": "퇴직하는 해, 마지막 수업 날이었다. 삼십팔 년을 했는데도 나는 그날 평소처럼 수업을 하려고 했다.\n\n교실 창가로 오후 햇빛이 길게 들어오고 있었다. 종례 때였다. 아이들이 쪽지를 하나씩 접어서 가지고 나오는 거였다. 아이들은 숨죽이고 있었다.\n\n우리 반에서 제일 말이 없던 아이는 맨 마지막에 나왔다. 쪽지를 주고는 얼른 자리로 들어가 버렸다.\n\n쪽지에는 이렇게 적혀 있었다.\n\n'선생님 덕분에 학교가 좋았어요.'\n\n나는 웃으면서 받았다. 그런데 손이 떨렸다.\n\n교문 앞에서 한참 서 있었다. 내가 한 일이 헛되지 않았구나, 그 생각이 들었다. 그 한 줄이 나를 삼십팔 년 동안 붙들어 준 것 같다.\n\n그 쪽지는 지금도 지갑에 넣고 다닌다."
+ },
+ "rev": {
+  "title": "마지막 수업 날, 쪽지 한 장",
+  "body": "퇴직하는 해, 마지막 수업 날이었다. 삼십팔 년을 했는데도 나는 그날 평소처럼 수업을 하려고 했다.\n\n교실 창가로 오후 햇빛이 길게 들어오고 있었다. 종례 때였다. 아이들이 쪽지를 하나씩 접어서 가지고 나오는 거였다. 아이들은 숨죽이고 있었다.\n\n우리 반에서 제일 말이 없던 아이는 맨 마지막에 나왔다. 쪽지를 주고는 얼른 자리로 들어가 버렸다.\n\n쪽지에는 이렇게 적혀 있었다.\n\n'선생님 덕분에 학교가 좋았어요.'\n\n나는 웃으면서 받았다. 그런데 손이 떨렸다.\n\n교문 앞에서 한참 서 있었다. 내가 한 일이 헛되지 않았구나, 그 생각이 들었다.\n\n그 쪽지는 지금도 지갑에 넣고 다닌다. 그 한 줄이 나를 삼십팔 년 동안 붙들어 준 것 같다."
+ }
+}
