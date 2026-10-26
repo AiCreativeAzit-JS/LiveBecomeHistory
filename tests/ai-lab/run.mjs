@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { buildBody, callAnthropic, fakeAnswer, costKrw, PIECES } from "./lib.mjs";
 import * as V3 from "./v3.mjs";
 import * as V4 from "./v4.mjs";
+import * as V41 from "./v41.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const arg = (k, d) => { const i = process.argv.indexOf("--" + k); return i < 0 ? d : (process.argv[i + 1]?.startsWith("--") || process.argv[i + 1] === undefined ? true : process.argv[i + 1]); };
@@ -19,7 +20,7 @@ const stamp = new Date().toISOString().replace(/[-:]/g, "").slice(0, 13);
 const OUT = String(arg("out", path.join(here, "runs", `${DRY ? "dry-" : ""}${stamp}`)));
 if (!DRY && !KEY) { console.error("ANTHROPIC_API_KEY 환경 변수가 없습니다. 키 없이 흐름만 보려면 --dry"); process.exit(1); }
 fs.mkdirSync(OUT, { recursive: true });
-const VERSIONS = { v3: V3, v4: V4 };
+const VERSIONS = { v3: V3, v4: V4, v41: V41 };
 const CALL = "선생님", QMAX = 8, RQMAX = 3;
 let totalKrw = 0;
 
@@ -43,7 +44,10 @@ async function ai(run, mode, extra = {}) {
 const aiSay = (run, text, more = {}) => run.msgs.push({ who: "ai", text, ...more });
 const meSay = (run, text, more = {}) => run.msgs.push({ who: "me", text, ...more });
 const docOf = (d) => `${d.title}\n\n${d.body}`;
-const toDoc = (o, prev) => ({ title: String(o.title || "").trim() || prev?.title || "제목", body: String(o.body || "") });
+// 모델이 body 첫 줄에 제목을 또 쓰면(파일럿 s4 v4) 걷어 낸다. 서버 ai-write 에도 같은 걸러내기가 필요하다.
+const toDoc = (o, prev) => { const title = String(o.title || "").trim() || prev?.title || "제목"; let body = String(o.body || "");
+  const lines = body.split("\n"); if (lines[0].trim() === title) body = lines.slice(1).join("\n").replace(/^\s*\n/, "");
+  return { title, body }; };
 
 async function play(script, vname) {
   const ver = VERSIONS[vname];
