@@ -101,3 +101,5 @@
 - **공개 사이트 브랜치**(`claude/confident-lovelace-w2mnqp`): `studio/ai-proto.js`와 `supabase/functions/ai-write/*` 네 파일만 올림.
 - 하지 않은 것(2단계 후보): 바뀐 문장만 받기(`from→to`), 대화 기록 접기·캐시, 바뀐 곳 문장별 되돌리기, 실패 호출 기록. 4차에서 대표가 「엉킨다」며 걷은 문장별 선택 기능은 되살리지 않음.
 - 알려진 한계: 검사는 정규식·정해 둔 목록이라 놓치거나 잘못 잡을 수 있음(예: 「줄」이 든 요청은 줄어듦 방지를 느슨하게 함). v4.4 지침서는 진짜 AI로 시험해 보지 않고 배포했으니 쓰면서 이상한 대답을 모아 주세요.
+- (9차 추가) **공개 사이트 노출 막기**: 배포 브랜치에 `_config.yml`(Jekyll `exclude`: supabase · docs · tests · CLAUDE.md)을 넣어 archive4everyone.com 주소로는 서버 코드·지침서·문서·시험 자료가 열리지 않게 함. 시험: 반영 뒤 `https://archive4everyone.com/supabase/functions/ai-write/prompt.ts` 가 404여야 함. **저장소 자체는 공개(public)**라 GitHub 에서는 지침서 글(과 이전 판 기록)이 그대로 보임 — 숨기려면 저장소를 비공개로 바꾸거나(Pages 비공개 저장소는 GitHub 유료 요금제 필요) 지침서를 저장소 밖(Supabase 비밀 값·DB)에 두어야 하고, 이미 올라간 옛 기록은 기록 다시 쓰기 없이는 남음 — 대표 결정 대기.
+- (9차 추가) **AI 창 너비 끌어 바꾸기**: 기본 400px(전에는 340px), 창 왼쪽 가장자리 손잡이를 끌면 300px~(가운데 지면 360px 남는 만큼) 사이에서 바뀜. 방향키(←넓게 →좁게, Shift는 72px)·두 번 누르면 처음 너비·`localStorage moa.aiw`에 기억. 1,001px 이상 화면에서만. 시험 ai-proto-test 85/0.
