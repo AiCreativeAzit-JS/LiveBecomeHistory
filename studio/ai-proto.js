@@ -131,8 +131,8 @@ const css=`
 .tile.aitile b{font-size:15px;color:var(--brand-2)} .tile.aitile span{font-size:12.5px}
 .tile.aitile .pro{font-size:11px;font-weight:700;color:#8A5A00;background:#FFF3DC;border-radius:999px;padding:1px 7px}
 @media(min-width:1001px){
-  .app.ai-on{grid-template-columns:76px minmax(0,1fr) 340px}
-  .app.ai-on.ai-wide{grid-template-columns:232px minmax(0,1fr) 340px}
+  .app.ai-on{grid-template-columns:76px minmax(0,1fr) var(--aiw,400px)}
+  .app.ai-on.ai-wide{grid-template-columns:232px minmax(0,1fr) var(--aiw,400px)}
   .app.ai-on:not(.ai-wide) .left{padding:10px 6px 18px}
   .app.ai-on:not(.ai-wide) .th{padding:6px 2px}
   .app.ai-on:not(.ai-wide) .th .mini{width:46px}
@@ -140,8 +140,15 @@ const css=`
   .app.ai-on:not(.ai-wide) .lh{justify-content:center}
 }
 .app.ai-on>.right{display:none}
-.aip{grid-column:3;grid-row:2;min-height:0;min-width:0;display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--line);font-size:18px;line-height:1.6;color:var(--ink);word-break:keep-all;overflow-wrap:anywhere}
+.aip{position:relative;grid-column:3;grid-row:2;min-height:0;min-width:0;display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--line);font-size:18px;line-height:1.6;color:var(--ink);word-break:keep-all;overflow-wrap:anywhere}
 .aip[hidden]{display:none}
+/* AI 창 너비를 마우스로 끌어 바꾸는 손잡이(넓은 화면에서만) */
+.aip-rs{position:absolute;left:-7px;top:0;bottom:0;width:14px;cursor:col-resize;z-index:6;touch-action:none;display:none}
+.aip-rs::after{content:"";position:absolute;left:5px;top:50%;width:4px;height:64px;margin-top:-32px;border-radius:3px;background:var(--line);transition:background .15s}
+.aip-rs:hover::after,.aip-rs:focus-visible::after,body.aip-dragging .aip-rs::after{background:var(--brand)}
+.aip-rs:focus-visible{outline:2px solid var(--brand);outline-offset:-2px;border-radius:6px}
+body.aip-dragging{cursor:col-resize!important;user-select:none!important}
+@media(min-width:1001px){ .aip-rs{display:block} }
 .aip button{min-height:44px}
 .aip-head{display:flex;align-items:center;gap:8px;padding:8px 10px 8px 16px;border-bottom:1px solid var(--line)}
 .aip-head b{font-family:var(--serif);font-size:19px;color:var(--brand-2);white-space:nowrap} .aip-head b:focus{outline:none}
@@ -226,6 +233,7 @@ const app=$('app');
 document.querySelector('.right .tiles').insertAdjacentHTML('beforeend',
   `<button class="tile aitile" id="aiTile" type="button"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span style="text-align:left"><b>AI와 쓰기</b> <span class="pro">시제품</span><br><span>이야기를 나누며 한 편 써요</span></span></button>`);
 app.insertAdjacentHTML('beforeend',`<aside class="aip" id="aiPanel" aria-label="AI와 쓰기" hidden>
+  <div class="aip-rs" id="aiRs" role="separator" aria-orientation="vertical" tabindex="0" aria-label="AI 창 너비 조절" title="끌어서 너비를 바꿔요 · 왼쪽 오른쪽 방향키로도 바꿔요 · 두 번 누르면 처음 너비로"></div>
   <div class="aip-head"><b>AI와 쓰기</b><span class="aip-pro" title="AI 답은 미리 써 둔 가짜 답이에요. 아무 데도 보내지 않아요">시제품 · 가짜 답</span><button class="aip-x" id="aiClose" type="button" title="AI 창 닫기(대화는 그대로 있어요)">닫기 ✕</button></div>
   <div class="aip-top"><ol class="aip-steps" id="aiSteps"></ol><div class="aip-sub" id="aiSub"></div><div class="aip-pieces" id="aiPieces"></div></div>
   <div class="aip-body" id="aiBody"></div><div id="aiLive" class="sr" aria-live="polite"></div>
@@ -241,6 +249,29 @@ document.body.insertAdjacentHTML('beforeend',`<div class="modal" id="aiConsent" 
   <div class="arow"><button class="ab" type="button" data-con="later">다음에 할게요</button><button class="ab pri" type="button" data-con="ok">동의하고 시작</button></div>
 </div></div>`);
 const panel=$('aiPanel'), body=$('aiBody'), foot=$('aiFoot');
+
+/* ═══════════════ 창 너비 끌어 바꾸기 ═══════════════ */
+// 오른쪽 AI 창의 왼쪽 가장자리를 마우스로 끌면 넓어지고 좁아진다(방향키 · 두 번 누르기 처음 너비 · 이 브라우저에 기억)
+const AIW={def:400,min:300,key:'moa.aiw'}, rs=$('aiRs');
+const viewW=()=>document.documentElement.clientWidth;
+const aiwMax=()=>Math.max(AIW.min,Math.min(Math.round(viewW()*0.6),viewW()-232-360));   // 가운데 지면이 360px 아래로 줄지 않게
+const aiwClamp=w=>Math.round(Math.max(AIW.min,Math.min(aiwMax(),w)));
+let aiw=AIW.def, rlT=0; try{ const v=+localStorage.getItem(AIW.key); if(v>0) aiw=v; }catch(e){}
+const scheduleRelayout=()=>{ if(rlT) return; rlT=requestAnimationFrame(()=>{ rlT=0; relayout(); }); };
+function setAiw(w,save){ aiw=aiwClamp(w); app.style.setProperty('--aiw',aiw+'px');
+  rs.setAttribute('aria-valuemin',AIW.min); rs.setAttribute('aria-valuemax',aiwMax()); rs.setAttribute('aria-valuenow',aiw);
+  if(save){ try{ localStorage.setItem(AIW.key,String(aiw)); }catch(e){} }
+  if(ui.open) scheduleRelayout(); }
+rs.addEventListener('pointerdown',ev=>{ if(ev.button!==0) return; ev.preventDefault(); rs.setPointerCapture(ev.pointerId); document.body.classList.add('aip-dragging'); });
+rs.addEventListener('pointermove',ev=>{ if(rs.hasPointerCapture(ev.pointerId)) setAiw(viewW()-ev.clientX,false); });
+const endDrag=ev=>{ if(!rs.hasPointerCapture(ev.pointerId)) return; rs.releasePointerCapture(ev.pointerId); document.body.classList.remove('aip-dragging'); setAiw(aiw,true); };
+rs.addEventListener('pointerup',endDrag); rs.addEventListener('pointercancel',endDrag);
+rs.addEventListener('dblclick',()=>setAiw(AIW.def,true));
+rs.addEventListener('keydown',ev=>{ const st=ev.shiftKey?72:24; let w=null;
+  if(ev.key==='ArrowLeft') w=aiw+st; else if(ev.key==='ArrowRight') w=aiw-st; else if(ev.key==='Home') w=AIW.def;
+  if(w==null) return; ev.preventDefault(); ev.stopPropagation(); setAiw(w,true); });
+addEventListener('resize',()=>{ if(ui.open) setAiw(aiw,false); });
+setAiw(aiw,false);
 
 /* ═══════════════ 열기 · 닫기 ═══════════════ */
 function relayout(){ state.zoom=fitZoom(); redrawCanvas(); }   // 가운데 지면 폭이 바뀌었으니 확대 비율을 다시 맞춘다
