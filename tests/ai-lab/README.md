@@ -1,6 +1,6 @@
 # AI 연구실 (모의고사 실행기)
 
-같은 어르신 대본(`scripts/s1~s6.json`)을 지침서 **v3(운영 중인 것을 얼린 기준선)**, **v4(후보)**, **v41(v4에 파일럿 결과를 반영한 후보)** 로 돌려, 대화 기록과 비용을 남긴다. 운영 서버·DB·사이트는 건드리지 않는다. 대본의 인물은 모두 가상이다.
+같은 어르신 대본(`scripts/s1~s6.json`)을 지침서 **v3(운영 중인 것을 얼린 기준선)**, **v4(후보)**, **v41**, **v42(v4.1에 2차 시험 결과를 반영한 후보)** 로 돌려, 대화 기록과 비용을 남긴다. 운영 서버·DB·사이트는 건드리지 않는다. 대본의 인물은 모두 가상이다.
 
 ```bash
 # 1) 키 없이 흐름만 시험(가짜 답, 비용 0) — 언제든 안전
@@ -9,7 +9,7 @@ node tests/ai-lab/run.mjs --dry
 # 2) 진짜로 돌리기: 키는 환경 변수로만(채팅·파일에 적지 않는다)
 #    Windows PowerShell:  $env:ANTHROPIC_API_KEY = "여기에 직접 입력"
 #    Mac/Linux:           export ANTHROPIC_API_KEY=...
-node tests/ai-lab/run.mjs --scripts s1,s2,s3,s4,s5,s6 --versions v3,v4,v41 --max-krw 15000
+node tests/ai-lab/run.mjs --scripts s1,s2,s3,s4,s5,s6 --versions v3,v4,v41,v42 --max-krw 15000
 
 # 3) 자동 검사(기록 폴더를 넘김)
 node tests/ai-lab/check.mjs tests/ai-lab/runs/<폴더>
