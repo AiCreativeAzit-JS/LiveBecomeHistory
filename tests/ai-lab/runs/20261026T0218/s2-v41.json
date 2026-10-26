@@ -1,0 +1,916 @@
+{
+ "script": {
+  "id": "s2",
+  "title": "짧게 답하는 분",
+  "trap": [
+   "겨울",
+   "(봄|여름|가을)",
+   "[0-9]+번 버스",
+   "아스팔트",
+   "입김|서리"
+  ],
+  "think": [
+   "버스 차고지요.",
+   "새벽이었어요. 추웠어요.",
+   "선배 기사님이 있었어요.",
+   "네.",
+   "몰라요. 기억이 안 나요.",
+   "무서웠어요.",
+   "그냥 그랬어요."
+  ],
+  "draft": [
+   {
+    "text": "이게 다예요? 짧네요."
+   }
+  ],
+  "reviseAns": [
+   {
+    "text": "없어요."
+   },
+   {
+    "text": "몰라요."
+   }
+  ],
+  "reviseReq": [
+   "됐어요. 이대로 해요."
+  ]
+ },
+ "version": "v41",
+ "prompt": "v41-lab1",
+ "topic": {
+  "title": "첫 출근",
+  "first": "첫 출근 날, 가장 먼저 떠오르는 장면은 무엇인가요?",
+  "focus": "그날의 장면과 사람 중심. 짧게 답하시면 짧게 쓴다.",
+  "tone": "담백한 회상"
+ },
+ "msgs": [
+  {
+   "who": "ai",
+   "text": "첫 출근 날, 가장 먼저 떠오르는 장면은 무엇인가요?"
+  },
+  {
+   "who": "me",
+   "text": "버스 차고지요.",
+   "stage": "think"
+  },
+  {
+   "who": "ai",
+   "text": "버스 차고지라니, 첫 출근 장면이 처음부터 또렷하게 그려지네요. 그 차고지에 들어서셨을 때, 눈에 들어오거나 귀에 들린 것이 무엇이었는지 기억나시나요?",
+   "stage": "think"
+  },
+  {
+   "who": "me",
+   "text": "새벽이었어요. 추웠어요.",
+   "stage": "think"
+  },
+  {
+   "who": "ai",
+   "text": "새벽에 추운 차고지, 첫 출근의 공기가 느껴집니다. 그 차고지에서 처음 마주친 사람이 있었나요?",
+   "stage": "think"
+  },
+  {
+   "who": "me",
+   "text": "선배 기사님이 있었어요.",
+   "stage": "think"
+  },
+  {
+   "who": "ai",
+   "text": "선배 기사님이 먼저 와 계셨군요. 추운 새벽 차고지에 선배가 서 있는 모습이 그려집니다. 그분이 선생님께 처음 건넨 말이나 행동이 기억나시나요?",
+   "stage": "think"
+  },
+  {
+   "who": "me",
+   "text": "네.",
+   "stage": "think"
+  },
+  {
+   "who": "ai",
+   "text": "기억나신다니 다행이에요. 그 선배 기사님이 선생님께 처음 건넨 말이나 행동이 어떤 것이었는지, 들려주시겠어요?",
+   "stage": "think"
+  },
+  {
+   "who": "me",
+   "text": "몰라요. 기억이 안 나요.",
+   "stage": "think"
+  },
+  {
+   "who": "ai",
+   "text": "기억이 안 나셔도 괜찮아요. 새벽 차고지의 추위와 선배 기사님이 계셨다는 것만으로도 장면은 충분히 서 있습니다. 그 추운 새벽에 차고지에 서 계시던 선생님 마음은 어떠셨는지, 떠오르는 대로 한마디만 들려주시겠어요?",
+   "stage": "think"
+  },
+  {
+   "who": "me",
+   "text": "무서웠어요.",
+   "stage": "think"
+  },
+  {
+   "who": "ai",
+   "text": "\"무서웠어요\", 그 한마디에 첫 출근의 떨림이 다 담겨 있네요. 그렇게 무서운 마음으로 차고지에서 맨 처음 하신 일은 무엇이었나요?",
+   "stage": "think"
+  },
+  {
+   "who": "me",
+   "text": "그냥 그랬어요.",
+   "stage": "think"
+  },
+  {
+   "who": "ai",
+   "text": "선생님, 지금까지 이야기에서 제가 들은 가장 선명한 장면은 다음과 같습니다.",
+   "stage": "summarize",
+   "scenes": [
+    "버스 차고지, 새벽이었고 추웠다.",
+    "그곳에 선배 기사님이 있었다.",
+    "나는 무서웠다."
+   ]
+  },
+  {
+   "who": "ai",
+   "text": "선생님, 이 가운데 이번 글의 중심이 될 장면을 하나 골라 주세요."
+  },
+  {
+   "who": "me",
+   "text": "그걸로 해요.",
+   "stage": "pick"
+  },
+  {
+   "who": "ai",
+   "text": "초고가 나왔습니다. 고치고 싶은 곳이 있으면 말씀해 주세요. 다 되면 「퇴고로 넘어가기」를 눌러 주세요.",
+   "stage": "draft",
+   "doc": {
+    "title": "새벽 버스 차고지",
+    "body": "첫 출근 날, 나는 버스 차고지에 있었다.\n\n새벽이었다. 추웠다.\n\n선배 기사님이 있었다. 그분이 나에게 처음 무슨 말을 건넸는지, 어떤 행동을 했는지는 기억나지 않는다.\n\n그때 나는 무서웠다."
+   }
+  },
+  {
+   "who": "me",
+   "text": "이게 다예요? 짧네요.",
+   "stage": "draft",
+   "crisis": false,
+   "legalAsked": false
+  },
+  {
+   "who": "ai",
+   "text": "말씀하신 만큼만 담았더니 짧아졌는데, 담백한 회상이라는 결에는 잘 맞습니다. 없는 장면을 지어 넣을 수는 없지만, 기억나는 조각이 하나라도 더 있으면 그만큼 글이 깊어집니다. 혹시 그날 하루가 끝난 뒤, 퇴근길이나 집에 돌아온 순간이 기억나시나요?",
+   "stage": "draft",
+   "chat": true
+  },
+  {
+   "who": "ai",
+   "text": "퇴고를 시작합니다. 다섯 가지로 살펴봤습니다.\n① 구체성 — 새벽, 추위, 선배 기사님까지는 있으나 차고지에서 보이거나 들린 것이 아직 없습니다. 기억나는 조각이 있을 때만 더하겠습니다.\n② 성장 — 통과하기는 어렵지만 억지로 만들지 않고 '무서웠다'는 마음을 그대로 둡니다. 이후의 변화는 선생님이 말씀하신 것이 없어 비워 둡니다.\n③ 나의 이야기 — 통과\n④ 읽는 재미 — 짧은 문장이 이어져 리듬은 좋습니다. 마지막 '그때 나는 무서웠다.'를 앞의 문장과 한 호흡으로 이어 읽기 좋게 다듬을 수 있습니다.\n⑤ 공감 — 낯선 곳에 선 첫날의 두려움은 가족이나 후배도 공감할 수 있어 통과\n\n그날 차고지에서 떠오르는 소리나 물건이 하나라도 있으신가요?",
+   "stage": "revise"
+  },
+  {
+   "who": "me",
+   "text": "없어요.",
+   "stage": "revise"
+  },
+  {
+   "who": "ai",
+   "text": "퇴고본을 썼습니다. 이렇게 고쳤어요.\n① 마지막 문장 '그때 나는 무서웠다.'는 선생님이 하신 말씀 그대로 두고, 앞 문단과 이어 읽기 좋게 줄 나눔만 살폈습니다.\n② '기억이 안 나요', '없어요'라고 하신 선배의 첫마디와 행동, 차고지의 소리와 물건은 새로 채우지 않고 비워 두었습니다.\n③ 새벽, 추위, 선배 기사님, 무서웠다는 마음 외에는 새로 더한 문장이 없습니다.\n마음에 안 드는 곳은 \"○○은 원래대로 해 주세요\"처럼 말씀해 주세요. 다 되면 「모아에 담기」를 눌러 주세요.",
+   "stage": "revise",
+   "doc": {
+    "title": "새벽 버스 차고지",
+    "body": "첫 출근 날, 나는 버스 차고지에 있었다.\n\n새벽이었다. 추웠다.\n\n선배 기사님이 있었다. 그분이 나에게 처음 무슨 말을 건넸는지, 어떤 행동을 했는지는 기억나지 않는다.\n\n그때 나는 무서웠다."
+   }
+  },
+  {
+   "who": "me",
+   "text": "됐어요. 이대로 해요.",
+   "stage": "rev-after"
+  },
+  {
+   "who": "ai",
+   "text": "알겠습니다, 선생님. 원고는 손대지 않고 그대로 두었습니다. 새벽, 추위, 선배 기사님, 그리고 '무서웠다'는 마음만으로 담백하게 선 글이에요. 모아에 담으시면 됩니다.",
+   "stage": "rev-after",
+   "chat": true
+  }
+ ],
+ "calls": [
+  {
+   "mode": "think",
+   "krw": 5.12,
+   "ms": 1936,
+   "usage": {
+    "input_tokens": 445,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5074,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 445,
+      "output_tokens": 151,
+      "cache_read_input_tokens": 5074,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 151,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "버스 차고지라니, 첫 출근 장면이 처음부터 또렷하게 그려지네요. 그 차고지에 들어서셨을 때, 눈에 들어오거나 귀에 들린 것이 무엇이었는지 기억나시나요?",
+    "covered": [
+     "장면"
+    ],
+    "ready": false,
+    "scenes": [],
+    "title": "",
+    "body": "",
+    "why": [],
+    "changed": false,
+    "fixes": [],
+    "question": ""
+   }
+  },
+  {
+   "mode": "think",
+   "krw": 4.94,
+   "ms": 1525,
+   "usage": {
+    "input_tokens": 554,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5074,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 554,
+      "output_tokens": 117,
+      "cache_read_input_tokens": 5074,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 117,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "새벽에 추운 차고지, 첫 출근의 공기가 느껴집니다. 그 차고지에서 처음 마주친 사람이 있었나요?",
+    "covered": [
+     "장면"
+    ],
+    "ready": false,
+    "scenes": [],
+    "title": "",
+    "body": "",
+    "why": [],
+    "changed": false,
+    "fixes": [],
+    "question": ""
+   }
+  },
+  {
+   "mode": "think",
+   "krw": 5.62,
+   "ms": 1944,
+   "usage": {
+    "input_tokens": 627,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5074,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 627,
+      "output_tokens": 148,
+      "cache_read_input_tokens": 5074,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 148,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "선배 기사님이 먼저 와 계셨군요. 추운 새벽 차고지에 선배가 서 있는 모습이 그려집니다. 그분이 선생님께 처음 건넨 말이나 행동이 기억나시나요?",
+    "covered": [
+     "장면",
+     "사람"
+    ],
+    "ready": false,
+    "scenes": [],
+    "title": "",
+    "body": "",
+    "why": [],
+    "changed": false,
+    "fixes": [],
+    "question": ""
+   }
+  },
+  {
+   "mode": "think",
+   "krw": 5.59,
+   "ms": 1702,
+   "usage": {
+    "input_tokens": 717,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5074,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 717,
+      "output_tokens": 128,
+      "cache_read_input_tokens": 5074,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 128,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "기억나신다니 다행이에요. 그 선배 기사님이 선생님께 처음 건넨 말이나 행동이 어떤 것이었는지, 들려주시겠어요?",
+    "covered": [
+     "장면",
+     "사람"
+    ],
+    "ready": false,
+    "scenes": [],
+    "title": "",
+    "body": "",
+    "why": [],
+    "changed": false,
+    "fixes": [],
+    "question": ""
+   }
+  },
+  {
+   "mode": "think",
+   "krw": 6.82,
+   "ms": 2622,
+   "usage": {
+    "input_tokens": 800,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5074,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 800,
+      "output_tokens": 193,
+      "cache_read_input_tokens": 5074,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 193,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "기억이 안 나셔도 괜찮아요. 새벽 차고지의 추위와 선배 기사님이 계셨다는 것만으로도 장면은 충분히 서 있습니다. 그 추운 새벽에 차고지에 서 계시던 선생님 마음은 어떠셨는지, 떠오르는 대로 한마디만 들려주시겠어요?",
+    "covered": [
+     "장면",
+     "사람"
+    ],
+    "ready": false,
+    "scenes": [],
+    "title": "",
+    "body": "",
+    "why": [],
+    "changed": false,
+    "fixes": [],
+    "question": ""
+   }
+  },
+  {
+   "mode": "think",
+   "krw": 13.57,
+   "ms": 5399,
+   "usage": {
+    "input_tokens": 940,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5074,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 940,
+      "output_tokens": 615,
+      "cache_read_input_tokens": 5074,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 615,
+    "output_tokens_details": {
+     "thinking_tokens": 467
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "\"무서웠어요\", 그 한마디에 첫 출근의 떨림이 다 담겨 있네요. 그렇게 무서운 마음으로 차고지에서 맨 처음 하신 일은 무엇이었나요?",
+    "covered": [
+     "장면",
+     "사람",
+     "마음"
+    ],
+    "ready": false,
+    "scenes": [],
+    "title": "",
+    "body": "",
+    "why": [],
+    "changed": false,
+    "fixes": [],
+    "question": ""
+   }
+  },
+  {
+   "mode": "think",
+   "krw": 17.01,
+   "ms": 7462,
+   "usage": {
+    "input_tokens": 1033,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5074,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 1033,
+      "output_tokens": 826,
+      "cache_read_input_tokens": 5074,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 826,
+    "output_tokens_details": {
+     "thinking_tokens": 677
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "",
+    "covered": [
+     "장면",
+     "사람",
+     "마음"
+    ],
+    "ready": true,
+    "scenes": [
+     "버스 차고지였다. 새벽이었고, 추웠다.",
+     "그곳에 선배 기사님이 있었다. 그분이 처음 무슨 말을 건넸는지는 기억나지 않는다.",
+     "나는 무서웠다."
+    ],
+    "title": "",
+    "body": "",
+    "why": [],
+    "changed": false,
+    "fixes": [],
+    "question": ""
+   }
+  },
+  {
+   "mode": "summarize",
+   "krw": 7.03,
+   "ms": 2304,
+   "usage": {
+    "input_tokens": 811,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5074,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 811,
+      "output_tokens": 205,
+      "cache_read_input_tokens": 5074,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 205,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "짧게 들려주신 말씀만으로도 장면은 충분히 모였습니다. 새벽의 추운 차고지, 선배 기사님, 그리고 무서웠던 마음을 그대로 살려 장면 후보를 정리해 보았어요.",
+    "covered": [
+     "장면",
+     "사람",
+     "마음"
+    ],
+    "ready": true,
+    "scenes": [
+     "버스 차고지, 새벽이었고 추웠다.",
+     "그곳에 선배 기사님이 있었다.",
+     "나는 무서웠다."
+    ],
+    "title": "",
+    "body": "",
+    "why": [],
+    "changed": false,
+    "fixes": [],
+    "question": ""
+   }
+  },
+  {
+   "mode": "draft",
+   "krw": 7.6,
+   "ms": 2016,
+   "usage": {
+    "input_tokens": 1037,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5074,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 1037,
+      "output_tokens": 198,
+      "cache_read_input_tokens": 5074,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 198,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "",
+    "covered": [
+     "장면",
+     "사람",
+     "마음"
+    ],
+    "ready": true,
+    "scenes": [],
+    "title": "새벽 버스 차고지",
+    "body": "첫 출근 날, 나는 버스 차고지에 있었다.\n\n새벽이었다. 추웠다.\n\n선배 기사님이 있었다. 그분이 나에게 처음 무슨 말을 건넸는지, 어떤 행동을 했는지는 기억나지 않는다.\n\n그때 나는 무서웠다.",
+    "why": [],
+    "changed": false,
+    "fixes": [],
+    "question": ""
+   }
+  },
+  {
+   "mode": "fix",
+   "krw": 19.07,
+   "ms": 8231,
+   "usage": {
+    "input_tokens": 1478,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5074,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 1478,
+      "output_tokens": 874,
+      "cache_read_input_tokens": 5074,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 874,
+    "output_tokens_details": {
+     "thinking_tokens": 662
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "말씀하신 만큼만 담았더니 짧아졌는데, 담백한 회상이라는 결에는 잘 맞습니다. 없는 장면을 지어 넣을 수는 없지만, 기억나는 조각이 하나라도 더 있으면 그만큼 글이 깊어집니다. 혹시 그날 하루가 끝난 뒤, 퇴근길이나 집에 돌아온 순간이 기억나시나요?",
+    "covered": [],
+    "ready": false,
+    "scenes": [],
+    "title": "",
+    "body": "",
+    "why": [],
+    "changed": false,
+    "fixes": [],
+    "question": ""
+   }
+  },
+  {
+   "mode": "revise_q",
+   "krw": 14.15,
+   "ms": 4988,
+   "usage": {
+    "input_tokens": 1588,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5074,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 1588,
+      "output_tokens": 524,
+      "cache_read_input_tokens": 5074,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 524,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "선생님, 원고를 다섯 가지로 살펴봤습니다. 짧지만 말씀하신 것만 담겨 있어서 담백한 회상이라는 결에는 잘 맞습니다. 다만 아래 몇 곳은 다듬으면 더 좋아집니다.",
+    "covered": [],
+    "ready": false,
+    "scenes": [],
+    "title": "",
+    "body": "",
+    "why": [],
+    "changed": false,
+    "fixes": [
+     "① 구체성 — 새벽, 추위, 선배 기사님까지는 있으나 차고지에서 보이거나 들린 것이 아직 없습니다. 기억나는 조각이 있을 때만 더하겠습니다.",
+     "② 성장 — 통과하기는 어렵지만 억지로 만들지 않고 '무서웠다'는 마음을 그대로 둡니다. 이후의 변화는 선생님이 말씀하신 것이 없어 비워 둡니다.",
+     "③ 나의 이야기 — 통과",
+     "④ 읽는 재미 — 짧은 문장이 이어져 리듬은 좋습니다. 마지막 '그때 나는 무서웠다.'를 앞의 문장과 한 호흡으로 이어 읽기 좋게 다듬을 수 있습니다.",
+     "⑤ 공감 — 낯선 곳에 선 첫날의 두려움은 가족이나 후배도 공감할 수 있어 통과"
+    ],
+    "question": "그날 차고지에서 떠오르는 소리나 물건이 하나라도 있으신가요?"
+   }
+  },
+  {
+   "mode": "revise_q",
+   "krw": 13.98,
+   "ms": 3775,
+   "usage": {
+    "input_tokens": 1989,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5074,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 1989,
+      "output_tokens": 433,
+      "cache_read_input_tokens": 5074,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 433,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "선생님, 원고를 다시 살펴봤습니다. 말씀해 주신 만큼만 담은 글이라 짧지만, 새벽 차고지의 추위와 무서운 마음이 군더더기 없이 남아 있어요. 소리나 물건이 없다고 하신 것은 다시 여쭙지 않고, 글에 있는 것만으로 다듬겠습니다.",
+    "covered": [],
+    "ready": false,
+    "scenes": [],
+    "title": "",
+    "body": "",
+    "why": [],
+    "changed": false,
+    "fixes": [
+     "① 구체성 — 새벽, 추위, 선배 기사님까지 장면의 뼈대는 있습니다. 보이고 들린 것은 기억나지 않는다고 하셔서 새로 더하지 않고 그대로 둡니다.",
+     "② 성장 — 이후의 변화는 말씀하신 것이 없어 비워 두고, '무서웠다'는 마음을 그대로 살립니다.",
+     "④ 읽는 재미 — 짧은 문장이 이어져 리듬은 좋습니다. 마지막 '그때 나는 무서웠다.'가 앞 문장과 자연스럽게 이어지도록 한 호흡으로 다듬을 수 있습니다."
+    ],
+    "question": ""
+   }
+  },
+  {
+   "mode": "revise",
+   "krw": 13.36,
+   "ms": 3754,
+   "usage": {
+    "input_tokens": 1770,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5074,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 1770,
+      "output_tokens": 435,
+      "cache_read_input_tokens": 5074,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 435,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "말씀해 주신 만큼만 담아 퇴고본을 정리했습니다. 기억나지 않는 자리는 그대로 비워 두었어요.",
+    "covered": [],
+    "ready": false,
+    "scenes": [],
+    "title": "새벽 버스 차고지",
+    "body": "첫 출근 날, 나는 버스 차고지에 있었다.\n\n새벽이었다. 추웠다.\n\n선배 기사님이 있었다. 그분이 나에게 처음 무슨 말을 건넸는지, 어떤 행동을 했는지는 기억나지 않는다.\n\n그때 나는 무서웠다.",
+    "why": [
+     "마지막 문장 '그때 나는 무서웠다.'는 선생님이 하신 말씀 그대로 두고, 앞 문단과 이어 읽기 좋게 줄 나눔만 살폈습니다.",
+     "'기억이 안 나요', '없어요'라고 하신 선배의 첫마디와 행동, 차고지의 소리와 물건은 새로 채우지 않고 비워 두었습니다.",
+     "새벽, 추위, 선배 기사님, 무서웠다는 마음 외에는 새로 더한 문장이 없습니다."
+    ],
+    "changed": false,
+    "fixes": [],
+    "question": ""
+   }
+  },
+  {
+   "mode": "fix",
+   "krw": 11.03,
+   "ms": 1927,
+   "usage": {
+    "input_tokens": 2344,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 5074,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "iterations": [
+     {
+      "input_tokens": 2344,
+      "output_tokens": 165,
+      "cache_read_input_tokens": 5074,
+      "cache_creation_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "type": "message",
+      "model": null
+     }
+    ],
+    "output_tokens": 165,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "out": {
+    "reply": "알겠습니다, 선생님. 원고는 손대지 않고 그대로 두었습니다. 새벽, 추위, 선배 기사님, 그리고 '무서웠다'는 마음만으로 담백하게 선 글이에요. 모아에 담으시면 됩니다.",
+    "covered": [
+     "장면",
+     "사람",
+     "마음"
+    ],
+    "ready": false,
+    "scenes": [],
+    "title": "",
+    "body": "",
+    "why": [],
+    "changed": false,
+    "fixes": [],
+    "question": ""
+   }
+  }
+ ],
+ "n": 0,
+ "krw": 144.89000000000001,
+ "stages": {},
+ "model": "claude-sonnet-5-5",
+ "chosen": "버스 차고지, 새벽이었고 추웠다.",
+ "draft": {
+  "title": "새벽 버스 차고지",
+  "body": "첫 출근 날, 나는 버스 차고지에 있었다.\n\n새벽이었다. 추웠다.\n\n선배 기사님이 있었다. 그분이 나에게 처음 무슨 말을 건넸는지, 어떤 행동을 했는지는 기억나지 않는다.\n\n그때 나는 무서웠다."
+ },
+ "rev": {
+  "title": "새벽 버스 차고지",
+  "body": "첫 출근 날, 나는 버스 차고지에 있었다.\n\n새벽이었다. 추웠다.\n\n선배 기사님이 있었다. 그분이 나에게 처음 무슨 말을 건넸는지, 어떤 행동을 했는지는 기억나지 않는다.\n\n그때 나는 무서웠다."
+ }
+}

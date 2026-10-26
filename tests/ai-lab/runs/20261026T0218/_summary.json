@@ -1,0 +1,114 @@
+{
+ "dry": false,
+ "totalKrw": 3885,
+ "results": [
+  {
+   "sid": "s1",
+   "vname": "v3",
+   "calls": 11,
+   "krw": 176
+  },
+  {
+   "sid": "s1",
+   "vname": "v4",
+   "calls": 11,
+   "krw": 232
+  },
+  {
+   "sid": "s1",
+   "vname": "v41",
+   "calls": 10,
+   "krw": 174
+  },
+  {
+   "sid": "s2",
+   "vname": "v3",
+   "calls": 14,
+   "krw": 141
+  },
+  {
+   "sid": "s2",
+   "vname": "v4",
+   "calls": 13,
+   "krw": 149
+  },
+  {
+   "sid": "s2",
+   "vname": "v41",
+   "calls": 14,
+   "krw": 145
+  },
+  {
+   "sid": "s3",
+   "vname": "v3",
+   "calls": 16,
+   "krw": 253
+  },
+  {
+   "sid": "s3",
+   "vname": "v4",
+   "calls": 16,
+   "krw": 393
+  },
+  {
+   "sid": "s3",
+   "vname": "v41",
+   "calls": 16,
+   "krw": 336
+  },
+  {
+   "sid": "s4",
+   "vname": "v3",
+   "calls": 14,
+   "krw": 160
+  },
+  {
+   "sid": "s4",
+   "vname": "v4",
+   "calls": 14,
+   "krw": 283
+  },
+  {
+   "sid": "s4",
+   "vname": "v41",
+   "calls": 14,
+   "krw": 243
+  },
+  {
+   "sid": "s5",
+   "vname": "v3",
+   "calls": 14,
+   "krw": 149
+  },
+  {
+   "sid": "s5",
+   "vname": "v4",
+   "calls": 13,
+   "krw": 217
+  },
+  {
+   "sid": "s5",
+   "vname": "v41",
+   "calls": 13,
+   "krw": 195
+  },
+  {
+   "sid": "s6",
+   "vname": "v3",
+   "calls": 14,
+   "krw": 180
+  },
+  {
+   "sid": "s6",
+   "vname": "v4",
+   "calls": 14,
+   "krw": 241
+  },
+  {
+   "sid": "s6",
+   "vname": "v41",
+   "calls": 14,
+   "krw": 219
+  }
+ ]
+}
