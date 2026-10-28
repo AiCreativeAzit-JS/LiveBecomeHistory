@@ -43,6 +43,10 @@ async function loadPrompt(admin: any): Promise<PromptRow | null> {
 
 const client = new Anthropic();   // ANTHROPIC_API_KEY
 
+// 호출 속도 제한: 한 회원이 1분에 12번까지(ai_usage 기록으로 센다), 동시에는 한 번만(이 서버 안에서 센다 — 여러 서버로 나뉘면 완벽하지 않은 보조 장치)
+const PER_MIN = 12, NOTE_MAX = 2000;
+const inflight = new Set<string>();
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method" }, 405);
@@ -73,6 +77,8 @@ Deno.serve(async (req: Request) => {
   const { data: used } = await admin.from("ai_usage").select("cost_krw").eq("user_id", uid).gte("created_at", since);
   const today = (used ?? []).reduce((a, r) => a + Number(r.cost_krw), 0);
   if (today >= DAILY_KRW) return json({ error: "daily_limit", today }, 429);
+  const { count: recent } = await admin.from("ai_usage").select("user_id", { count: "exact", head: true }).eq("user_id", uid).gte("created_at", new Date(Date.now() - 60_000).toISOString());
+  if ((recent ?? 0) >= PER_MIN || inflight.has(uid)) return json({ error: "rate_limit" }, 429);
 
   // 대화 → 메시지(사람/AI 번갈아). 첫 줄에 글감, 마지막 사람 말 뒤에 이번 단계 지시와 지금 원고
   const msgs: { role: "user" | "assistant"; content: string }[] = [];
@@ -80,9 +86,10 @@ Deno.serve(async (req: Request) => {
     if (last && last.role === role) last.content += "\n\n" + t; else msgs.push({ role, content: t }); };
   push("user", `[글감] ${String(body.topic ?? "").slice(0, 80)}${body.focus ? `\n[취재 초점] ${String(body.focus).slice(0, 200)}` : ""}${body.tone ? `\n[마무리 결] ${String(body.tone).slice(0, 80)}` : ""}`);
   for (const h of history) push(h.who === "ai" ? "assistant" : "user", String(h.text ?? "").slice(0, 6000));
-  push("user", `[모아 화면 지시] ${M.ask}${body.doc ? `\n\n[지금 원고]\n${body.doc}` : ""}${body.note ? `\n\n${body.note}` : ""}`);
+  push("user", `[모아 화면 지시] ${M.ask}${body.doc ? `\n\n[지금 원고]\n${body.doc}` : ""}${body.note ? `\n\n${String(body.note).slice(0, NOTE_MAX)}` : ""}`);
 
   let res;
+  inflight.add(uid);
   try {
     res = await client.beta.messages.create({
       model: MODEL, max_tokens: 8000,
@@ -94,7 +101,7 @@ Deno.serve(async (req: Request) => {
   } catch (e) {
     const status = (e as { status?: number }).status ?? 500;
     return json({ error: status === 429 ? "busy" : "ai_failed" }, status === 429 ? 503 : 502);   // 화면은 「쓰신 답은 그대로 있어요 · 다시 보내기」
-  }
+  } finally { inflight.delete(uid); }
   const u = res.usage as { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number };
   const usd = (u.input_tokens * PRICE.in + u.output_tokens * PRICE.out + (u.cache_read_input_tokens ?? 0) * PRICE.read + (u.cache_creation_input_tokens ?? 0) * PRICE.write) / 1e6;
   await admin.from("ai_usage").insert({ user_id: uid, book_id: body.book_id ?? null, mode: body.mode, model: `${res.model}/${P.version}`,

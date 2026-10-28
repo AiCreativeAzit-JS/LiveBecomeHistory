@@ -1573,18 +1573,30 @@ $('shDlg').addEventListener('click',async ev=>{
   if(ev.target.id==='shDlg'||ev.target.id==='shClose'){ $('shDlg').hidden=true; return; }
   const id=ev.target.closest('button')?.id; if(!id) return;
   if(id==='shCopy'){ try{ await navigator.clipboard.writeText(shareURL()); toast('링크를 복사했어요. 카카오톡 등에 붙여 넣으세요'); }catch{ $('shUrl').select(); toast('링크를 길게 눌러 복사해 주세요'); } return; }
-  if(id==='shMake'){ if((!snapPagesJSON||draftPagesJSON()!==snapPagesJSON) && !(await writeSnapshot())){ toast('만들지 못했어요'); return; }
+  if(id==='shMake'){ if(!sensitiveOK('비밀 링크를 만들면 링크를 받은')) return; if((!snapPagesJSON||draftPagesJSON()!==snapPagesJSON) && !(await writeSnapshot())){ toast('만들지 못했어요'); return; }
     const t=newToken(); const {error}=await sb.from('book_shares').insert({book_id:BOOK,token:t}); if(error){ console.error(error); toast('만들지 못했어요'); return; }
     shareToken=t; toast('비밀 링크를 만들었어요'); }
-  else if(id==='shRefresh'){ if(!(await writeSnapshot())){ toast('새로 고치지 못했어요'); return; } toast('링크에 지금 내용을 반영했어요'+(bookRow.is_public?' (서가에도 반영)':'')); }
+  else if(id==='shRefresh'){ if(!sensitiveOK('링크에 반영하면 링크를 받은')) return; if(!(await writeSnapshot())){ toast('새로 고치지 못했어요'); return; } toast('링크에 지금 내용을 반영했어요'+(bookRow.is_public?' (서가에도 반영)':'')); }
   else if(id==='shRotate'){ if(!confirm('새 링크로 바꿀까요?\n예전 링크(와 그 링크로 만든 QR)는 더 이상 열리지 않아요.')) return;
     const t=newToken(); const {error}=await sb.from('book_shares').update({token:t}).eq('book_id',BOOK); if(error){ toast('바꾸지 못했어요'); return; } shareToken=t; toast('새 링크로 바꿨어요'); }
   else if(id==='shCut'){ if(!confirm('비밀 링크를 끊을까요?\n링크를 받은 분들이 더 이상 볼 수 없어요.')) return;
     const {error}=await sb.from('book_shares').delete().eq('book_id',BOOK); if(error){ toast('끊지 못했어요'); return; } shareToken=null; toast('링크를 끊었어요'); }
   renderShare(); updPublish();
 });
+/* 민감 정보 모양 감지: 주민등록번호·카드번호·계좌번호처럼 보이는 글이 있으면 공개·공유·AI 전송 앞에서 한 번 더 물어본다(판정이 아니라 「모양」만 본다) */
+window.moaSensitive=function(text){
+  const t=String(text||''), out=[];
+  const rrn=/(?<!\d)(\d{2})(\d{2})(\d{2})[-\s]?([1-8])\d{6}(?!\d)/g; let m;
+  while((m=rrn.exec(t))){ const mo=+m[2], d=+m[3]; if(mo>=1&&mo<=12&&d>=1&&d<=31){ out.push('주민등록번호'); break; } }
+  if(/(?<!\d)\d{4}[-\s]\d{4}[-\s]\d{4}[-\s]\d{4}(?!\d)/.test(t)) out.push('카드번호');
+  const acc=/(?<!\d)\d{2,6}-\d{2,6}-\d{2,8}(?:-\d{1,4})?(?!\d)/g;
+  while((m=acc.exec(t))){ if(/^0\d{1,2}-\d{3,4}-\d{4}$/.test(m[0])||m[0].replace(/\D/g,'').length<10||out.includes('카드번호')) continue; out.push('계좌번호'); break; }   // 전화번호 꼴은 제외
+  return out; };
+function sensitiveInBook(){ const txt=[state.title]; state.pages.forEach(p=>p.els.forEach(e=>{ if(e.type==='text') txt.push(plain(e.html)); })); return window.moaSensitive(txt.join('\n')); }
+function sensitiveOK(what){ const f=sensitiveInBook(); if(!f.length) return true;
+  return confirm(`⚠ 책 안에 ${f.join('·')}처럼 보이는 글이 있어요.\n${what} 다른 사람이 볼 수 있어요. 정말 그대로 진행할까요?\n\n(취소하고 「${f[0]}」 부분을 지우거나 가린 뒤 다시 눌러 주세요)`); }
 async function togglePublic(){ // 「발행하기 / 다시 발행」
-  endEdit(); await saveNow(true); if(serialize()!==lastSaved){ toast('저장이 끝나면 다시 눌러 주세요'); return; }
+  endEdit(); if(!sensitiveOK('서가에 올리면')) return; await saveNow(true); if(serialize()!==lastSaved){ toast('저장이 끝나면 다시 눌러 주세요'); return; }
   const first=!bookRow.is_public; if(!first && !pubDirty()){ toast('이미 최신 발행본이 서가에 있어요'); return; }
   if(!confirm(first ? '이 책을 서가에 발행할까요?\n다른 회원들이 읽을 수 있게 돼요.\n\n발행한 뒤에 고친 내용은 「다시 발행」을 눌러야 서가에 반영돼요.' : '고친 내용을 서가에 다시 발행할까요?\n지금 서가의 발행본이 새 내용으로 바뀌어요.')) return;
   const now=new Date().toISOString(); if(!(await writeSnapshot())){ toast('발행하지 못했어요. 다시 시도해 주세요'); return; }

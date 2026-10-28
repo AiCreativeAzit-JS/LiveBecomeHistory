@@ -614,13 +614,14 @@ if(REAL){
   async function guard(s,text,fn,onFail){ try{ await fn(); }catch(e){ const w=s.msgs[s.msgs.length-1]; if(w&&w.wait) s.msgs.pop(); s.busy=false;
       const me=s.msgs[s.msgs.length-1]; if(text&&me&&me.who==='me'&&me.text===text){ s.msgs.pop(); const a=s.answers[s.answers.length-1]; if(a&&a.text===text) s.answers.pop(); s.input=text; }
       if(onFail) onFail();
-      s.msgs.push({who:'ai',sys:true,text:{daily_limit:'오늘 쓸 수 있는 양을 다 썼어요. 내일 이어서 쓸 수 있어요. 쓰신 글은 그대로 있어요.',not_enabled:'AI와 쓰기가 아직 켜져 있지 않아요. 운영자에게 알려 주세요.',no_consent:'먼저 동의가 필요해요. 창을 닫았다가 다시 열어 주세요.'}[e.code]||'연결이 잠시 끊겼어요. 쓰신 말은 그대로 있어요. 같은 단추를 한 번 더 눌러 주세요.'});
+      s.msgs.push({who:'ai',sys:true,text:{daily_limit:'오늘 쓸 수 있는 양을 다 썼어요. 내일 이어서 쓸 수 있어요. 쓰신 글은 그대로 있어요.',not_enabled:'AI와 쓰기가 아직 켜져 있지 않아요. 운영자에게 알려 주세요.',no_consent:'먼저 동의가 필요해요. 창을 닫았다가 다시 열어 주세요.',rate_limit:'너무 빨리 보내셨어요. 잠깐 쉬었다가 같은 단추를 한 번 더 눌러 주세요. 쓰신 말은 그대로 있어요.'}[e.code]||'연결이 잠시 끊겼어요. 쓰신 말은 그대로 있어요. 같은 단추를 한 번 더 눌러 주세요.'});
       render(); } }
   const toDoc=(kind,title,bodyText,prev,ver)=>{ const old=new Set(prev?prev.sents.map(x=>x.t):[]), sents=[];
     String(bodyText||'').split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean).forEach((p,pi)=>split(p).forEach(t=>sents.push({id:'x'+(++sid),t,orig:t,p:pi,chg:!!prev&&!old.has(t)})));
     return {kind,title:String(title||'').trim()||(prev&&prev.title)||'제목',sents,ver}; };
   send=async function(kind){ const s=cur; if(s.busy) return;
     const text=kind==='idk'?'잘 모르겠어요.':kind==='forgot'?'기억 안 나요.':s.input.trim(); if(!text){ toast('적은 뒤 보내 주세요'); return; }
+    const sens=window.moaSensitive?window.moaSensitive(text):[]; if(sens.length&&!confirm(`⚠ 적으신 글에 ${sens.join('·')}처럼 보이는 내용이 있어요.\n이 글은 AI 서비스(Anthropic)로 전송돼요. 정말 보낼까요?\n\n(취소하면 입력칸에 그대로 남아 있어요)`)){ s.input=text; render(); return; }
     s.input=''; s.updated=Date.now();
     if(s.step==='draft') return fixByTalk(s,'draft',text);
     if(s.step==='revise') return s.asking?revAnswer(s,text,kind==='forgot'):fixByTalk(s,'rev',text);
