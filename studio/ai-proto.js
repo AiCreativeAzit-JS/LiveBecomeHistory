@@ -354,7 +354,7 @@ function sampleText(s){ const S=scriptOf(s); if(!S) return '';
   return ''; }
 const HINT={think:'여기에 답을 적어 주세요. 엔터는 줄바꿈, Ctrl+Enter는 보내기예요.',ask:'기억나는 것을 적어 주세요. 엔터는 줄바꿈, Ctrl+Enter는 보내기예요.',
   fix:'고치고 싶은 것을 말씀해 주세요. 예: 아버지 이야기는 빼 주세요 · 이 문장은 제가 한 말이 아니에요'};
-const box=(ph,v)=>`<textarea id="aiIn" data-k="input" aria-label="${esc(ph)}" placeholder="${esc(ph)}">${esc(v)}</textarea>`;
+const box=(ph,v)=>`<div class="sensnote" style="font-size:12.5px;color:var(--muted,#667);margin:0 0 6px;line-height:1.5">🔒 주민등록번호·계좌·카드번호 같은 개인정보는 적지 마세요. 적으면 AI로 보내지지 않아요.</div><textarea id="aiIn" data-k="input" aria-label="${esc(ph)}" placeholder="${esc(ph)}">${esc(v)}</textarea>`;
 function footView(s){
   if(s.step==='think'){
     if(s.chosen!=null) return `<button class="ab pri" type="button" data-act="draft">초고 쓰기</button>`;
@@ -567,7 +567,7 @@ panel.addEventListener('click',ev=>{
     topic:()=>startTopic(topicOf(b.dataset.id)), pack:()=>{ ui.view='pack'; render(true); }, packmore:()=>{ ui.pack++; render(true); },
     own:()=>{ ui.view='own'; render(true); $('aiOwn').focus(); }, home:()=>{ ui.view='topics'; render(true); },
     ownstart:()=>{ const t=ui.own.trim(); if(!t){ toast('쓰고 싶은 글감을 적어 주세요'); $('aiOwn').focus(); return; }
-      const sens=window.moaSensitive?window.moaSensitive(t):[]; if(sens.length&&!confirm(`⚠ 적으신 글감에 ${sens.join('·')}처럼 보이는 내용이 있어요.\n이 글은 AI 서비스(Anthropic)로 전송돼요. 정말 쓸까요?\n\n(취소하면 입력칸에 그대로 남아 있어요)`)) return;
+      const sens=window.moaSensitive?window.moaSensitive(t):[]; if(sens.length){ toast(`${sens.join('·')}처럼 보이는 내용이 있어서 시작하지 않았어요. 지우고 다시 눌러 주세요`); return; }
       ui.own=''; ui.view='topics'; startTopic({id:'o'+(++seq),label:'내가 정한 글감',title:t,first:'이 이야기에서 가장 먼저 떠오르는 장면은 무엇인가요?'}); },
     keepdel:()=>{ const i=kept.findIndex(k=>k.id===b.dataset.id); if(i>=0) kept.splice(i,1); toast('남겨 둔 장면을 지웠어요'); render(); },
     send:()=>send('me'), idk:()=>send('idk'), forgot:()=>send('forgot'), sum:()=>{ if(!s.busy){ call(s); summarize(s); } },
@@ -622,7 +622,7 @@ if(REAL){
     return {kind,title:String(title||'').trim()||(prev&&prev.title)||'제목',sents,ver}; };
   send=async function(kind){ const s=cur; if(s.busy) return;
     const text=kind==='idk'?'잘 모르겠어요.':kind==='forgot'?'기억 안 나요.':s.input.trim(); if(!text){ toast('적은 뒤 보내 주세요'); return; }
-    const sens=window.moaSensitive?window.moaSensitive(text):[]; if(sens.length&&!confirm(`⚠ 적으신 글에 ${sens.join('·')}처럼 보이는 내용이 있어요.\n이 글은 AI 서비스(Anthropic)로 전송돼요. 정말 보낼까요?\n\n(취소하면 입력칸에 그대로 남아 있어요)`)){ s.input=text; render(); return; }
+    const sens=window.moaSensitive?window.moaSensitive(text):[]; if(sens.length){ s.input=text; render(); toast(`${sens.join('·')}처럼 보이는 내용이 있어서 보내지 않았어요. 지우고 다시 보내 주세요`); return; }
     s.input=''; s.updated=Date.now();
     if(s.step==='draft') return fixByTalk(s,'draft',text);
     if(s.step==='revise') return s.asking?revAnswer(s,text,kind==='forgot'):fixByTalk(s,'rev',text);
