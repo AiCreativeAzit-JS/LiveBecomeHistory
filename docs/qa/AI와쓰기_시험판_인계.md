@@ -111,3 +111,8 @@
 - **ai-write 버전 4 배포**: 지침서를 코드가 아니라 DB 에서 읽음(1분 기억, 읽기 실패해도 직전 것 사용). 지침서 파일(`prompt.ts`) 없음 → `index.ts`·`check.ts` 두 파일. 지침서가 DB 에 없으면 503 `not_ready`.
 - 저장소: `prompt.ts` 삭제, `tests/ai-lab/v44.mjs` → `tests/ai-lab/private/`(`.gitignore`), `prompt-sql.mjs` 추가. **옛 기록(git 이력)에는 v4.4 까지의 지침서가 남아 있음** — 지워지지 않음(기록 다시 쓰기는 하지 않았음). 이제부터 새로 고치는 최종 지침서(v4.5~)는 DB 에만 둠.
 - 바꾸는 법: `tests/ai-lab/README.md` 「최종(비공개) 지침서」.
+
+## 11차 (2026-10-28): 보안 강화
+- ai-write v5(메모 길이·호출 속도·동시 호출 제한), 주민번호·계좌 모양 감지(AI 전송은 차단), media v12·shared-book v10(형식 허용 목록·속도 제한·cleanup·no-store). 자세한 내용과 남은 숙제는 `docs/qa/작업메모_다음세션.md` 맨 위 「2026-10-28」 참고
+- 지침서 교체: `tests/ai-lab/prompt-sql.mjs`로 SQL을 만들어(private/) 새 줄을 넣고 켠다. 되돌리기: `update public.ai_prompts set active = (version = 'v4.4-moa1');`
+
