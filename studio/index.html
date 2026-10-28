@@ -1715,7 +1715,7 @@ async function boot(){
 async function loadAI(){
   if(!ONLINE){ if(QS.get('ai')!=='proto') return; }
   else { if(!sb||!user) return; const {data}=await sb.from('profiles').select('ai_enabled').eq('id',user.id).maybeSingle(); if(!data||!data.ai_enabled) return; window.MOA_AI_REAL=true; }
-  const s=document.createElement('script'); s.src='ai-proto.js'; document.body.appendChild(s); }
+  const s=document.createElement('script'); s.src='ai-proto.js?v=20261028b'; document.body.appendChild(s); }
 if(ONLINE) boot().then(loadAI); else { boot(); loadAI(); }   // 체험 편집기는 바로(「지난번 체험하던 책」 질문과 함께), 로그인 편집기는 회원 정보를 읽은 뒤
 </script>
 </body>

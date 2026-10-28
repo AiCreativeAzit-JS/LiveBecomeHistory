@@ -567,6 +567,7 @@ panel.addEventListener('click',ev=>{
     topic:()=>startTopic(topicOf(b.dataset.id)), pack:()=>{ ui.view='pack'; render(true); }, packmore:()=>{ ui.pack++; render(true); },
     own:()=>{ ui.view='own'; render(true); $('aiOwn').focus(); }, home:()=>{ ui.view='topics'; render(true); },
     ownstart:()=>{ const t=ui.own.trim(); if(!t){ toast('쓰고 싶은 글감을 적어 주세요'); $('aiOwn').focus(); return; }
+      const sens=window.moaSensitive?window.moaSensitive(t):[]; if(sens.length&&!confirm(`⚠ 적으신 글감에 ${sens.join('·')}처럼 보이는 내용이 있어요.\n이 글은 AI 서비스(Anthropic)로 전송돼요. 정말 쓸까요?\n\n(취소하면 입력칸에 그대로 남아 있어요)`)) return;
       ui.own=''; ui.view='topics'; startTopic({id:'o'+(++seq),label:'내가 정한 글감',title:t,first:'이 이야기에서 가장 먼저 떠오르는 장면은 무엇인가요?'}); },
     keepdel:()=>{ const i=kept.findIndex(k=>k.id===b.dataset.id); if(i>=0) kept.splice(i,1); toast('남겨 둔 장면을 지웠어요'); render(); },
     send:()=>send('me'), idk:()=>send('idk'), forgot:()=>send('forgot'), sum:()=>{ if(!s.busy){ call(s); summarize(s); } },
