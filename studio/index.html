@@ -1586,7 +1586,7 @@ $('shDlg').addEventListener('click',async ev=>{
 /* 민감 정보 모양 감지: 주민등록번호·카드번호·계좌번호처럼 보이는 글이 있으면 공개·공유·AI 전송 앞에서 한 번 더 물어본다(판정이 아니라 「모양」만 본다) */
 window.moaSensitive=function(text){
   const t=String(text||''), out=[];
-  const rrn=/(?<!\d)(\d{2})(\d{2})(\d{2})[-\s]?([1-8])\d{6}(?!\d)/g; let m;
+  const rrn=/(?<!\d)(\d{2})(\d{2})(\d{2})[-\s]?([1-8])\d{5,6}(?!\d)/g; let m;
   while((m=rrn.exec(t))){ const mo=+m[2], d=+m[3]; if(mo>=1&&mo<=12&&d>=1&&d<=31){ out.push('주민등록번호'); break; } }
   if(/(?<!\d)\d{4}[-\s]\d{4}[-\s]\d{4}[-\s]\d{4}(?!\d)/.test(t)) out.push('카드번호');
   const acc=/(?<!\d)\d{2,6}-\d{2,6}-\d{2,8}(?:-\d{1,4})?(?!\d)/g;
@@ -1715,7 +1715,7 @@ async function boot(){
 async function loadAI(){
   if(!ONLINE){ if(QS.get('ai')!=='proto') return; }
   else { if(!sb||!user) return; const {data}=await sb.from('profiles').select('ai_enabled').eq('id',user.id).maybeSingle(); if(!data||!data.ai_enabled) return; window.MOA_AI_REAL=true; }
-  const s=document.createElement('script'); s.src='ai-proto.js?v=20261028b'; document.body.appendChild(s); }
+  const s=document.createElement('script'); s.src='ai-proto.js?v=20261028c'; document.body.appendChild(s); }
 if(ONLINE) boot().then(loadAI); else { boot(); loadAI(); }   // 체험 편집기는 바로(「지난번 체험하던 책」 질문과 함께), 로그인 편집기는 회원 정보를 읽은 뒤
 </script>
 </body>
