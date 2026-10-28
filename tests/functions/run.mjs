@@ -7,7 +7,7 @@ globalThis.fetch=async (url,init={})=>{ const u=new URL(url); if(!u.host.endsWit
   if(!u.searchParams.get('X-Amz-Signature')) return new Response('',{status:403});
   const signed=u.searchParams.get('X-Amz-SignedHeaders').split(';'); const m=(init.method||'GET');
   const key=decodeURIComponent(u.pathname.replace(/^\/book-media\/?/,''));
-  if(m==='GET'&&u.searchParams.get('list-type')){ const pre=u.searchParams.get('prefix')||''; return new Response(`<x>${Object.keys(R2).filter(k=>k.startsWith(pre)).map(k=>`<Contents><Key>${k}</Key><Size>${R2[k].size}</Size></Contents>`).join('')}<IsTruncated>false</IsTruncated></x>`); }
+  if(m==='GET'&&u.searchParams.get('list-type')){ const pre=u.searchParams.get('prefix')||''; return new Response(`<x>${Object.keys(R2).filter(k=>k.startsWith(pre)).map(k=>`<Contents><Key>${k}</Key><Size>${R2[k].size}</Size><LastModified>${new Date(R2[k].at||Date.now()).toISOString()}</LastModified></Contents>`).join('')}<IsTruncated>false</IsTruncated></x>`); }
   if(m==='PUT'){ const body=init.body; const size=body.size; if(signed.includes('content-length')&&init.__len!==undefined&&init.__len!==size) return new Response('',{status:403}); R2[key]={size,type:(init.headers||{})['Content-Type']||(init.headers||{})['content-type']}; return new Response(''); }
   if(m==='HEAD'){ const o=R2[key]; return o?new Response(null,{headers:{'content-length':String(o.size),'content-type':o.type}}):new Response(null,{status:404}); }
   if(m==='DELETE'){ delete R2[key]; return new Response(null,{status:204}); }
@@ -112,5 +112,25 @@ ok('D22: 지금까지 만든 media 기록은 모두 서비스 키로(회원 권�
   const all=await call({action:'audit'},'jwt-adm');
   ok('D39 대조(관리자): 전체 범위', all.scope==='all' && all.r2_files>mine.r2_files && all.orphan_files>=1, JSON.stringify(all));
   ok('D39 대조: 비로그인 거절', (await call({action:'audit'})).error==='unauthorized'); }
+// ── 보안 강화: 형식 허용 목록 · 올릴 자리 속도 제한 · 올리다 만 파일 정리 · 서명 응답 no-store ──
+{ const B6='99999999-9999-4999-8999-999999999999'; S.books.push({id:B6,owner_id:'u1',is_public:false});
+  const up=(type,kind='image')=>call({action:'upload',book_id:B6,kind,type,size:100,ext:'x'},'jwt-u1');
+  ok('형식: jpeg·png·webp·gif 허용', ['image/jpeg','image/png','image/webp','image/gif'].every(t=>true) && !(await up('image/png')).error && !(await up('image/webp')).error && !(await up('image/gif')).error);
+  ok('형식: 목록에 없는 사진 형식(tiff·x-icon·html 위장)은 거절', (await up('image/tiff')).error==='type' && (await up('image/x-icon')).error==='type' && (await up('image/html')).error==='type');
+  ok('형식: 영상·노래 허용 목록', !(await up('video/mp4','video')).error && !(await up('audio/mpeg','audio')).error && (await up('video/x-msvideo','video')).error==='type' && (await up('audio/midi','audio')).error==='type');
+  const slot=await up('image/jpeg'); R2[slot.key]={size:100,type:'image/tiff'};
+  ok('형식: commit 때 실제 올라온 형식이 목록 밖이면 거절하고 파일 지움', (await call({action:'commit',book_id:B6,kind:'image',key:slot.key,backend:'r2'},'jwt-u1')).error==='too_big' && !R2[slot.key]);
+  let limited=null; for(let i=0;i<70&&!limited;i++){ const r=await up('image/jpeg'); if(r.error==='rate_limit') limited=i; }
+  ok('속도: 한 회원이 10분에 60번을 넘으면 올릴 자리 발급을 멈춤(rate_limit)', limited!==null && limited<=60, String(limited));
+  ok('속도: 다른 회원은 영향 없음', (await call({action:'upload',book_id:'22222222-2222-4222-8222-222222222222',kind:'image',type:'image/jpeg',size:100,ext:'jpg'},'jwt-u2')).error!=='rate_limit');
+  // 올리다 만 파일 정리
+  R2['u2/zz/stale.jpg']={size:50,type:'image/jpeg',at:Date.now()-3*3600e3}; R2['u2/zz/fresh.jpg']={size:50,type:'image/jpeg',at:Date.now()};
+  ok('정리: 회원은 못 부름', (await call({action:'cleanup'},'jwt-u1')).error==='forbidden' && (await call({action:'cleanup'})).error==='unauthorized');
+  const dry=await call({action:'cleanup'},'jwt-adm');
+  ok('정리: 기본은 목록만(지우지 않음) · 1시간 안의 새 파일은 제외', dry.applied===false && dry.files>=1 && !!R2['u2/zz/stale.jpg'] && !!R2['u2/zz/fresh.jpg']);
+  const real=await call({action:'cleanup',apply:true},'jwt-adm');
+  ok('정리: apply 면 오래된 기록 없는 파일만 지움', real.applied===true && !R2['u2/zz/stale.jpg'] && !!R2['u2/zz/fresh.jpg']);
+  const raw=await handler(new Request('https://f/media',{method:'POST',headers:{'content-type':'application/json',apikey:'sb_publishable_x',Authorization:'Bearer sb_publishable_x'},body:JSON.stringify({action:'sign',ids:[]})}));
+  ok('서명 응답: Cache-Control no-store', raw.headers.get('Cache-Control')==='no-store'); }
 // 설정 전(비밀 값 없음)
 for(const k of ['R2_ACCOUNT_ID','R2_ACCESS_KEY_ID','R2_SECRET_ACCESS_KEY','R2_BUCKET']) delete env[k];

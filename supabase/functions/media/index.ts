@@ -25,8 +25,23 @@ const CORS = {
   "Access-Control-Max-Age": "86400", // 브라우저가 사전 확인(OPTIONS)을 매번 하지 않게
 };
 const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
+  new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "no-store" } }); // 서명 주소는 어디에도 저장되지 않게
 const LIMIT: Record<string, number> = { image: 15 * 1048576, video: 50 * 1048576, audio: 30 * 1048576 };
+// 올릴 수 있는 파일 형식(종류별). 목록에 없는 형식은 올릴 자리를 주지 않는다
+const ALLOWED: Record<string, string[]> = {
+  image: ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "image/svg+xml"],
+  video: ["video/mp4", "video/webm", "video/quicktime"],
+  audio: ["audio/mpeg", "audio/mp3", "audio/mp4", "audio/x-m4a", "audio/m4a", "audio/aac", "audio/wav", "audio/x-wav", "audio/ogg", "audio/webm", "audio/flac"],
+};
+const typeOk = (kind: string, t: unknown) => typeof t === "string" && !!ALLOWED[kind]?.includes(t.toLowerCase().split(";")[0].trim());
+// 올릴 자리 발급 속도 제한: 한 회원이 10분에 60번까지(이 서버 안에서만 세는 보조 장치). 올리다 만 파일은 cleanup 이 정리한다
+const SIGN_MAX = 60, SIGN_WINDOW = 600_000;
+const signLog = new Map<string, number[]>();
+const signTooFast = (uid: string) => {
+  const now = Date.now(), recent = (signLog.get(uid) ?? []).filter((t) => now - t < SIGN_WINDOW);
+  if (recent.length >= SIGN_MAX) { signLog.set(uid, recent); return true; }
+  recent.push(now); signLog.set(uid, recent); return false;
+};
 const BOOK_QUOTA = 200 * 1048576;
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const isUuid = (s: unknown) => typeof s === "string" && new RegExp(`^${UUID}$`, "i").test(s);
@@ -96,12 +111,13 @@ Deno.serve(async (req: Request) => {
         if (!uid) return json({ error: "unauthorized" });
         const { book_id, kind, type } = body;
         const size = Number(body.size);
-        if (!(kind in LIMIT) || typeof type !== "string" || !type.startsWith(kind + "/") || type.length > 100) return json({ error: "type" });
+        if (!(kind in LIMIT) || typeof type !== "string" || !type.startsWith(kind + "/") || type.length > 100 || !typeOk(kind, type)) return json({ error: "type" });
         if (!(size > 0) || size > LIMIT[kind]) return json({ error: "too_big" });
         const pSize = kind === "image" && body.print ? Number(body.print.size) : 0; // 인쇄용 원본(사진만, 화면용과 같은 종류)
         if (body.print && kind === "image" && (!(pSize > 0) || pSize > LIMIT.image)) return json({ error: "too_big" });
         if (!(await approved())) return json({ error: "not_approved" });
         if (!(await myBook(uid, book_id))) return json({ error: "forbidden" });
+        if (signTooFast(uid)) return json({ error: "rate_limit" }); // 다른 오류처럼 200 으로(화면이 error 글자를 읽어 안내한다)
         const { data: used } = await user.from("media").select("size_bytes").eq("book_id", book_id);
         if ((used ?? []).reduce((n, m) => n + Number(m.size_bytes || 0), 0) + size + pSize > BOOK_QUOTA) return json({ error: "quota" });
         const ext = String(body.ext ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || "bin";
@@ -135,7 +151,7 @@ Deno.serve(async (req: Request) => {
         }
         const drop = () => r2 ? Promise.all([r2Delete(key), pk ? r2Delete(pk) : true]) : admin.storage.from(BUCKET).remove([key]);
         if (!info || (pk && !pinfo)) { await drop(); return json({ error: "missing" }); } // 두 벌이면 둘 다 있어야
-        const bad = (f: { size: number; type: string }) => !(f.size > 0) || f.size > LIMIT[kind] || !f.type.startsWith(kind + "/");
+        const bad = (f: { size: number; type: string }) => !(f.size > 0) || f.size > LIMIT[kind] || !f.type.startsWith(kind + "/") || !typeOk(kind, f.type);
         if (bad(info) || (pinfo && bad(pinfo))) { await drop(); return json({ error: "too_big" }); }
         const path = r2 ? R2_PREFIX + key : key;
         // 기록은 서비스 키로(회원 권한에는 media INSERT 가 없다). 책이 내 것인지는 위에서 부른 사람 권한(RLS)으로 확인했고,
@@ -184,6 +200,22 @@ Deno.serve(async (req: Request) => {
           orphan_files: orphans.length, orphan_bytes: orphans.reduce((n, o) => n + o.size, 0),
           missing_files: [...keys].filter((k) => !have.has(k)).length,
         });
+      }
+      case "cleanup": { // 관리자: 올리다 만 파일(기록 없는 R2 파일) 정리. 기본은 목록만 보여 주고, apply:true 일 때만 지운다. 최근 1시간 안에 올린 것은 건드리지 않는다
+        const uid = await me();
+        if (!uid) return json({ error: "unauthorized" });
+        const { data: isAdm } = await user.rpc("am_i_admin");
+        if (isAdm !== true) return json({ error: "forbidden" });
+        if (!r2Ready()) return json({ error: "not_configured" });
+        const objs = await r2ListSized("");
+        const { data: rows, error } = await admin.from("media").select("storage_path");
+        if (error) return json({ error: "read_failed" });
+        const keys = new Set((rows ?? []).filter((m: any) => typeof m.storage_path === "string" && m.storage_path.startsWith(R2_PREFIX)).map((m: any) => m.storage_path.slice(R2_PREFIX.length)));
+        const base = (k: string) => k.replace(/@print(\.[a-z0-9]{1,8})$/i, "$1");
+        const old = Date.now() - 3600_000;
+        const stale = objs.filter((o) => !keys.has(base(o.key)) && o.at > 0 && o.at < old);
+        if (body.apply === true) for (const o of stale) await r2Delete(o.key);
+        return json({ applied: body.apply === true, files: stale.length, bytes: stale.reduce((n, o) => n + o.size, 0) });
       }
       case "migrate": {
         const uid = await me();
