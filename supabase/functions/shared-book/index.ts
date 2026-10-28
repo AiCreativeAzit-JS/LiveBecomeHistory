@@ -12,24 +12,30 @@ const CORS = {
   "Access-Control-Max-Age": "86400", // 브라우저가 사전 확인(OPTIONS)을 매번 하지 않게
 };
 const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
+  new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "no-store" } });
+// 열쇠 맞히기 시도 제한: 같은 주소에서 1분에 못 찾은 요청이 30번을 넘으면 잠시 막는다(이 서버 안에서만 세는 보조 장치)
+const misses = new Map<string, number[]>();
+const tooManyMisses = (ip: string) => { const now = Date.now(), r = (misses.get(ip) ?? []).filter((t) => now - t < 60_000); misses.set(ip, r); return r.length >= 30; };
+const miss = (ip: string) => { const r = misses.get(ip) ?? []; r.push(Date.now()); misses.set(ip, r); return json({ error: "not_found" }, 404); };
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method" }, 405);
+  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "?";
+  if (tooManyMisses(ip)) return json({ error: "rate_limit" }, 429);
   let token = "";
   try { token = String((await req.json())?.token ?? ""); } catch { /* 빈 요청 */ }
-  if (!/^[A-Za-z0-9_-]{32,64}$/.test(token)) return json({ error: "not_found" }, 404);
+  if (!/^[A-Za-z0-9_-]{32,64}$/.test(token)) return miss(ip);
 
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
     auth: { persistSession: false },
   });
   const { data: share } = await sb.from("book_shares").select("book_id").eq("token", token).maybeSingle();
-  if (!share) return json({ error: "not_found" }, 404);
+  if (!share) return miss(ip);
   const { data: book } = await sb.from("books").select("id,deleted_at,admin_hidden").eq("id", share.book_id).maybeSingle();
-  if (!book || book.deleted_at || book.admin_hidden) return json({ error: "not_found" }, 404);
+  if (!book || book.deleted_at || book.admin_hidden) return miss(ip);
   const { data: snap } = await sb.from("book_snapshots").select("title,author_name,pages").eq("book_id", book.id).maybeSingle();
-  if (!snap) return json({ error: "not_found" }, 404);
+  if (!snap) return miss(ip);
 
   // 발행본에 쓰인 미디어만 서명한다(이 책의 파일만)
   const ids = new Set<string>();
