@@ -39,7 +39,7 @@ const lastAI=()=>st(()=>{ const m=__aiProto.cur.msgs.filter(x=>x.who==='ai'); re
 
 try{
   await pg.goto(U+'/studio/?new=1'); await pg.waitForSelector('#canvas .pg'); await pg.waitForTimeout(800);
-  ok('AI를 켜지 않은 회원: 「AI와 쓰기」 칸 없음 · 파일도 불러오지 않음', await pg.locator('#aiTile').count()===0 && await st(()=>!document.querySelector('script[src="ai-proto.js"]')));
+  ok('AI를 켜지 않은 회원: 「AI와 쓰기」 칸 없음 · 파일도 불러오지 않음', await pg.locator('#aiTile').count()===0 && await st(()=>!document.querySelector('script[src^="ai-proto.js"]')));
   await st(()=>{ __db.profiles[0].ai_enabled=true; __persist(); });
   await pg.goto(U+'/studio/?new=1'); await pg.waitForSelector('#aiTile');
   ok('관리자가 켠 회원: 「AI와 쓰기」 칸(「시험」 표시) · 시제품 표시 없음', (await pg.locator('#aiTile .pro').innerText())==='시험' && await pg.locator('#aiCalls').isHidden());
