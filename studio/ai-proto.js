@@ -352,7 +352,8 @@ function sampleText(s){ const S=scriptOf(s); if(!S) return '';
   if(s.step==='draft') return s.draft&&S.draftReq[s.reqAt.draft]||'';
   if(s.step==='revise'){ if(s.asking){ const q=s.revQs[s.revAt]; return q&&q.a||''; } return s.rev&&(s.placed.length?S.againReq[s.reqAt.again]:S.revReq[s.reqAt.rev])||''; }
   return ''; }
-const HINT={think:'여기에 답을 적어 주세요. 엔터는 줄바꿈, Ctrl+Enter는 보내기예요.',ask:'기억나는 것을 적어 주세요. 엔터는 줄바꿈, Ctrl+Enter는 보내기예요.',
+const SENDHOW=(window.matchMedia&&matchMedia('(pointer:coarse)').matches)?'다 쓰시면 아래 「보내기」를 눌러 주세요.':'엔터는 줄바꿈, Ctrl+Enter는 보내기예요.';   // 폰(손가락)에는 Ctrl 키가 없다
+const HINT={think:'여기에 답을 적어 주세요. '+SENDHOW,ask:'기억나는 것을 적어 주세요. '+SENDHOW,
   fix:'고치고 싶은 것을 말씀해 주세요. 예: 아버지 이야기는 빼 주세요 · 이 문장은 제가 한 말이 아니에요'};
 const box=(ph,v)=>`<div class="sensnote" style="font-size:12.5px;color:var(--muted,#667);margin:0 0 6px;line-height:1.5">🔒 주민등록번호·계좌·카드번호 같은 개인정보는 적지 마세요. 적으면 AI로 보내지지 않아요.</div><textarea id="aiIn" data-k="input" aria-label="${esc(ph)}" placeholder="${esc(ph)}">${esc(v)}</textarea>`;
 function footView(s){
