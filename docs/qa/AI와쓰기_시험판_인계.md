@@ -77,3 +77,42 @@
 - 시험: 기존 35개 724 PASS / FAIL 0, ai-proto-test 77/0, 새 ai-real-test 21/0(가짜 ai-write). fake-supabase 에 ai 표·onConflict·neq 추가
 - 대표 결정 대기: ① 약관 제9조 「나만 보기」 문장에도 예외 넣을지 ② 처리방침 10/27 바로 시행(동의자만) 괜찮은지
 - 남은 운영 단계(하나씩 승인): 0016 적용 → 대표가 ANTHROPIC_API_KEY 비밀값 입력 → ai-write 배포(verify_jwt=true) → 배포 브랜치 합치고 push → 관리자에서 시험 회원 켜기
+
+## 7차 (2026-10-26) — 운영 반영 끝, 품질 개선(v4) 준비 중
+- **운영 반영 완료**: 0016 적용(apply_migration `ai_writing`) · `ANTHROPIC_API_KEY` 비밀값 입력(대표) · `ai-write` 배포(버전 1, verify_jwt=true, Sonnet 5.5) · 배포 브랜치 `claude/confident-lovelace-w2mnqp` 에 병합·푸시(2704a25→8dad8c8) · 시험 회원 1명 켬(대표 계정). 크레딧 $100(11월 21일 만료, 결제수단 없음), 월 한도 $80.
+- **대표 실사용 결과**: 실제 AI 연결은 잘 됨. 그러나 딱딱함(조언·평가 세 번 거절 「제 역할이 아니어서」, 초고 건조, 질문 틀 반복). 원인은 모델이 아니라 설계(v3 지침서의 금지 목록, JSON 틀). 21번 호출 약 960원. 지침서 저장(캐시 쓰기)이 단계마다 6번(약 390원) — 답 모양을 통일하면 줄 것으로 추정(미확인).
+- **방향(대표 결정)**: 지침서 v4 = 약속 3개 + 말투 + 단계별 짧은 지시 + 예시. 사실 보호는 「특정할 수 있는 사실의 창작」만 막음, 문체·완성도·조언은 허용. 챕터 정보는 글감 데이터(`[글감]`·`[취재 초점]`·`[마무리 결]`)로. 생각하기 effort high. **Opus 비교 안 함**(Sonnet 5.5 하나). 위기 신호는 「곁에 있겠다」까지, **번호 안내·전문 상담 권유 없음**. 실명·병력은 쓰는 동안 경고 없이 **퇴고에서 옵션**. 전문 영역 걱정은 딱딱한 법률 말 없이 따뜻한 대안.
+- **파일**: `docs/qa/지침서_v4_초안.md` · `docs/qa/채점표_v0.md`(안전검사 8 + 성적표 100점) · `docs/qa/모의대본_파일럿6_초안.md`(대본 확정) · `tests/ai-lab/`(실행기·자동 검사, 키 없이 `--dry` 로 흐름 시험 통과).
+- **다음**: ① 실제 API 로 파일럿(6편×v3/v4, 약 1만 원) — 키는 대표가 환경 변수로만 넣음(채팅 금지). 이 세션 환경엔 키가 없음 ② 결과를 `check.mjs` + 사람이 읽기로 채점, 판정 AI·사람 보정은 본시험(24편)에서 ③ v4 가 이기면 `ai-write` 에 반영(지침서·통일 답 모양·글감 데이터 전달·effort) → 배포는 대표 승인 ④ 화면 쪽: 글감 꾸러미에 `focus`·`tone`, 퇴고 옵션 UI, 「바뀐 문장만 받기」.
+
+## 8차 (2026-10-26) — v4.3 배포(대표 결정: 「더 시험하지 말고 배포해서 직접 써 보며 고치자」)
+- **ai-write 버전 2 배포**(Supabase MCP, verify_jwt=true, 프로젝트 qsucbnvicaviatdpnfxx): 지침서 v4.3(`PROMPT_VERSION` `v4.3-moa1`, 원본 `tests/ai-lab/v43.mjs`), 모든 단계 같은 답 모양, 생각하기 effort high, 글감 초점·마무리 결 받기, 본문 첫 줄 제목 중복 걷어내기. 배포된 파일을 다시 받아 읽어 글자 깨짐 없음 확인. 이전(버전 1·v3-moa1)으로 되돌리려면 커밋 `8dad8c8`의 `supabase/functions/ai-write/`를 다시 배포.
+- **배포 브랜치**(`claude/confident-lovelace-w2mnqp` 8dad8c8→228d3c3): `studio/ai-proto.js`(글감마다 취재 초점·마무리 결 보냄)와 `supabase/functions/ai-write/*` 두 파일만 올림. `tests/ai-lab/`(지침서 원문·시험 기록)과 docs는 올리지 않음.
+- **시험 전 확인**: 화면 시험 ai-real-test 21/0 · ai-proto-test 77/0 · studio-test 96/0. 새 지침서(v4.3)를 진짜 AI로 돌려 본 적은 없음(v4.1·v4.2까지 파일럿). 대표 직접 사용으로 확인.
+- **알아 둘 것**: 배포 브랜치(공개 사이트)에는 이미 `supabase/functions/ai-write/prompt.ts`가 있어 지침서 글이 주소로 열릴 수 있음(이전 판 때부터). 지침서를 숨기려면 서버 코드를 사이트 브랜치 밖에 두는 정리가 필요.
+- 쓰면서 고칠 곳은 `tests/ai-lab/v43.mjs`를 고친 뒤 `prompt.ts`를 다시 만들고(`PROMPT_VERSION` 올림) 같은 방법으로 배포.
+
+## 9차 (2026-10-26) — v4.4 배포 (대표 결정: 순서 제안은 선택지 두 개 · AI 말투 해요체 · 실존 인물 옵션 넣기 · 「시험 없이 배포해 쓰면서 고치기」)
+- 근거: 대표가 v4.3으로 쓴 대화 한 편(「인생이 바뀐 날」, 41개 메시지) 분석 + AI 자문위원 4명(편집자·어르신 대변인·레드팀·엔지니어) 의견. 결과: 모델이 「1년 문장은 빼지 않았다」고 보고했지만 최종 원고에서 「1년」이 사라짐 · 흐름 불만에 순서를 바꿔 논리가 깨짐 · 알리지 않은 인과 이음말 「그래서」.
+- **ai-write 버전 3 배포**(Supabase MCP, verify_jwt=true, 배포 파일을 다시 받아 읽어 확인): 지침서 v4.4(`v4.4-moa1`, 원본 `tests/ai-lab/v44.mjs`) + **`check.ts`**(새 파일). v4.3으로 되돌리려면 커밋 `228d3c3`의 `supabase/functions/ai-write/`를 다시 배포.
+  - 서버 코드 점검(`check.ts`): 고치기·퇴고 답을 이전 원고와 비교해 빠진 숫자·기간(「1년/일 년/한 해」 같은 값)·따옴표 대사·이름, AI가 새로 늘린 인과 이음말(그래서·결국·그러나·때문에…), 글이 70% 아래로 줄면 반영 거부. 결과는 응답 `out.check`. 시험 `tests/functions/ai-write-check.mjs` 20/0.
+  - 지침: 해요체 · 순서는 바꾸지 않고 `proposal`로 제안 · 인과·대비 이음말은 어르신이 쓴 것만 · 장면은 한 순간(요약문 금지) · 의미 질문은 사건·사람·마음 뒤 · 길이 3~4문장 · 실존 인물 비판 묘사는 퇴고 때 한 번 옵션.
+- **화면(`studio/ai-proto.js`)**: AI 말에 단추(「이렇게 바꿔요 / 그대로 두기」, 서버가 찾은 빠진 것이 있으면 경고 + 「방금 고친 것 되돌리기 / 그대로 두기」), 화면이 직접 하는 말 해요체, 「…다.를 중심으로」 문구 고침. 시험 ai-real-test 27/0 · ai-proto-test 77/0 · studio 96 · demo 16 · sample 9.
+- **공개 사이트 브랜치**(`claude/confident-lovelace-w2mnqp`): `studio/ai-proto.js`와 `supabase/functions/ai-write/*` 네 파일만 올림.
+- 하지 않은 것(2단계 후보): 바뀐 문장만 받기(`from→to`), 대화 기록 접기·캐시, 바뀐 곳 문장별 되돌리기, 실패 호출 기록. 4차에서 대표가 「엉킨다」며 걷은 문장별 선택 기능은 되살리지 않음.
+- 알려진 한계: 검사는 정규식·정해 둔 목록이라 놓치거나 잘못 잡을 수 있음(예: 「줄」이 든 요청은 줄어듦 방지를 느슨하게 함). v4.4 지침서는 진짜 AI로 시험해 보지 않고 배포했으니 쓰면서 이상한 대답을 모아 주세요.
+- (9차 추가) **공개 사이트 노출 막기**: 배포 브랜치에 `_config.yml`(Jekyll `exclude`: supabase · docs · tests · CLAUDE.md)을 넣어 archive4everyone.com 주소로는 서버 코드·지침서·문서·시험 자료가 열리지 않게 함. 시험: 반영 뒤 `https://archive4everyone.com/supabase/functions/ai-write/prompt.ts` 가 404여야 함. **저장소 자체는 공개(public)**라 GitHub 에서는 지침서 글(과 이전 판 기록)이 그대로 보임 — 숨기려면 저장소를 비공개로 바꾸거나(Pages 비공개 저장소는 GitHub 유료 요금제 필요) 지침서를 저장소 밖(Supabase 비밀 값·DB)에 두어야 하고, 이미 올라간 옛 기록은 기록 다시 쓰기 없이는 남음 — 대표 결정 대기.
+- (9차 추가) **AI 창 너비 끌어 바꾸기**: 기본 400px(전에는 340px), 창 왼쪽 가장자리 손잡이를 끌면 300px~(가운데 지면 360px 남는 만큼) 사이에서 바뀜. 방향키(←넓게 →좁게, Shift는 72px)·두 번 누르면 처음 너비·`localStorage moa.aiw`에 기억. 1,001px 이상 화면에서만. 시험 ai-proto-test 85/0.
+
+## 10차 (2026-10-26) — 지침서를 저장소 밖(DB)으로 (대표 결정 B: 최종 지침서만 보호)
+- 사실: 저장소(AiCreativeAzit-JS/LiveBecomeHistory)가 **공개**라 지침서 글이 GitHub 에서 읽힘. 사이트 주소는 `_config.yml` 로 막았지만 저장소 자체는 그대로.
+- **마이그레이션 0017 적용**: 표 `public.ai_prompts`(version·system_prompt·asks·active, RLS 켬·정책 없음·anon/authenticated 권한 회수 → 서비스 키만 읽음, 켜진 줄은 하나만). 보안 점검: 「RLS 켜짐·정책 없음」 INFO 한 건(의도).
+- 현재 켜진 줄: `v4.4-moa1`(길이 6,206자·md5가 로컬 원본과 일치, 단계 지시 6개 md5 모두 일치).
+- **ai-write 버전 4 배포**: 지침서를 코드가 아니라 DB 에서 읽음(1분 기억, 읽기 실패해도 직전 것 사용). 지침서 파일(`prompt.ts`) 없음 → `index.ts`·`check.ts` 두 파일. 지침서가 DB 에 없으면 503 `not_ready`.
+- 저장소: `prompt.ts` 삭제, `tests/ai-lab/v44.mjs` → `tests/ai-lab/private/`(`.gitignore`), `prompt-sql.mjs` 추가. **옛 기록(git 이력)에는 v4.4 까지의 지침서가 남아 있음** — 지워지지 않음(기록 다시 쓰기는 하지 않았음). 이제부터 새로 고치는 최종 지침서(v4.5~)는 DB 에만 둠.
+- 바꾸는 법: `tests/ai-lab/README.md` 「최종(비공개) 지침서」.
+
+## 11차 (2026-10-28): 보안 강화
+- ai-write v5(메모 길이·호출 속도·동시 호출 제한), 주민번호·계좌 모양 감지(AI 전송은 차단), media v12·shared-book v10(형식 허용 목록·속도 제한·cleanup·no-store). 자세한 내용과 남은 숙제는 `docs/qa/작업메모_다음세션.md` 맨 위 「2026-10-28」 참고
+- 지침서 교체: `tests/ai-lab/prompt-sql.mjs`로 SQL을 만들어(private/) 새 줄을 넣고 켠다. 되돌리기: `update public.ai_prompts set active = (version = 'v4.4-moa1');`
+
