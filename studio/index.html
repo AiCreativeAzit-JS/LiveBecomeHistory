@@ -222,6 +222,7 @@
 </style>
 </head>
 <body>
+<script>if(/[?&]ms=1(&|$)/.test(location.search)) document.body.classList.add('ms');</script><style>body.ms .app{visibility:hidden}</style><!-- 폰 원고 화면(시험판, ms.js) -->
 <div class="app" id="app">
   <header class="top">
     <a class="btn homebtn" id="home" href="https://archive4everyone.com/" title="인물대백과사 홈으로" aria-label="인물대백과사 홈으로"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></a>
@@ -1356,7 +1357,7 @@ function ensureBook(){
   })();
   return creating;
 }
-function history_replace(){ try{ window.history.replaceState(null,'','?book='+encodeURIComponent(BOOK)); }catch{} }
+function history_replace(){ try{ window.history.replaceState(null,'','?book='+encodeURIComponent(BOOK)+(QS.get('ms')==='1'?'&ms=1':'')); }catch{} }   // 폰 원고 화면에서 만든 새 책은 그 화면 그대로
 // 저장은 한 줄로 선다: 저장 중에 다시 부르면 그 저장이 끝난 뒤 최신 원고로 한 번 더 저장하고,
 // 부른 쪽(내 서재로 가기·임시저장·공유·발행)은 지금까지 고친 것이 모두 저장되거나 실패할 때까지 기다린다.
 // 아무도 다시 부르지 않았으면 한 번만(이어 친 글은 1.5초 주기 저장이 맡는다 — 서버에 쉴 새 없이 보내지 않게)
@@ -1731,7 +1732,10 @@ async function loadAI(){
   if(!ONLINE){ if(QS.get('ai')!=='proto') return; }
   else { if(!sb||!user) return; const {data}=await sb.from('profiles').select('ai_enabled').eq('id',user.id).maybeSingle(); if(!data||!data.ai_enabled) return; window.MOA_AI_REAL=true; }
   const s=document.createElement('script'); s.src='ai-proto.js?v=20261101a'; document.body.appendChild(s); }
-if(ONLINE) boot().then(loadAI); else { boot(); loadAI(); }   // 체험 편집기는 바로(「지난번 체험하던 책」 질문과 함께), 로그인 편집기는 회원 정보를 읽은 뒤
+const booting=boot();
+if(ONLINE) booting.then(loadAI); else loadAI();   // 체험 편집기는 바로(「지난번 체험하던 책」 질문과 함께), 로그인 편집기는 회원 정보를 읽은 뒤
+// 폰 원고 화면(시험판): 주소에 ms=1이 있을 때만. 책을 다 불러온 뒤에 연다
+if(QS.get('ms')==='1'){ const s=document.createElement('script'); s.src='ms.js?v=20261102a'; s.onload=()=>booting.then(()=>window.MS&&MS.start()); document.body.appendChild(s); }
 </script>
 </body>
 </html>
