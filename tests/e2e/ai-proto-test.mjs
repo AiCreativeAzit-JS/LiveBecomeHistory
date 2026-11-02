@@ -50,7 +50,27 @@ await pg.click('#aiTile'); await pg.click('#aiConsent [data-con=ok]');
 ok('동의하고 시작 → AI 창 열림 · 동의 기록', await pg.locator('#aiPanel').isVisible() && await st(()=>localStorage.getItem('moa-ai-proto-consent'))==='1');
 const lay=await st(()=>({ ai:document.getElementById('aiPanel').getBoundingClientRect().width, left:document.querySelector('.left').getBoundingClientRect().width,
   right:getComputedStyle(document.querySelector('.right')).display, canvas:document.getElementById('canvas').getBoundingClientRect().width, center:document.getElementById('center').getBoundingClientRect().width }));
-ok('B안: 오른쪽 AI 창 약 340px · 도구 칸 숨김 · 쪽 목록 접힘 · 지면은 가운데 칸 안에', Math.abs(lay.ai-340)<2 && lay.right==='none' && lay.left<90 && lay.canvas<=lay.center);
+ok('B안: 오른쪽 AI 창 기본 400px · 도구 칸 숨김 · 쪽 목록 접힘 · 지면은 가운데 칸 안에', Math.abs(lay.ai-400)<2 && lay.right==='none' && lay.left<90 && lay.canvas<=lay.center);
+// 창 너비 끌어 바꾸기: 손잡이를 마우스로 끌기 · 방향키 · 처음 너비로 · 기억 · 범위
+const W=()=>st(()=>Math.round(document.getElementById('aiPanel').getBoundingClientRect().width));
+const rsb=await pg.locator('#aiRs').boundingBox();
+ok('너비 손잡이: 창 왼쪽 가장자리에 보임 · 방향키로 쓸 수 있음(separator)', !!rsb && Math.abs(rsb.x+rsb.width/2-(1366-400))<12 && await pg.locator('#aiRs').getAttribute('role')==='separator' && await pg.locator('#aiRs').getAttribute('tabindex')==='0');
+await pg.mouse.move(rsb.x+rsb.width/2,rsb.y+rsb.height/2); await pg.mouse.down(); await pg.mouse.move(rsb.x+rsb.width/2-120,rsb.y+rsb.height/2,{steps:6}); await pg.mouse.up();
+ok('왼쪽으로 끌면 창이 넓어짐(400 → 약 520px) · 가운데 지면이 맞춰 줄어듦', Math.abs(await W()-520)<=4 && await st(()=>document.getElementById('canvas').getBoundingClientRect().width<=document.getElementById('center').getBoundingClientRect().width));
+ok('끈 너비를 이 브라우저에 기억함', await st(()=>+localStorage.getItem('moa.aiw'))===await W());
+const rs2=await pg.locator('#aiRs').boundingBox();
+await pg.mouse.move(rs2.x+rs2.width/2,rs2.y+rs2.height/2); await pg.mouse.down(); await pg.mouse.move(rs2.x+rs2.width/2+400,rs2.y+rs2.height/2,{steps:6}); await pg.mouse.up();
+ok('너무 좁게 끌어도 최소 300px에서 멈춤', await W()===300);
+await pg.locator('#aiRs').focus(); await pg.keyboard.press('ArrowLeft'); await pg.keyboard.press('ArrowLeft');
+ok('방향키 왼쪽 두 번: 24px씩 넓어짐(300 → 348px) · 지면 선택·이동에 영향 없음', await W()===348);
+await pg.keyboard.press('Shift+ArrowRight');
+ok('Shift+오른쪽: 72px 좁아짐(최소 300에서 멈춤)', await W()===300);
+await pg.locator('#aiRs').dblclick();
+ok('두 번 누르면 처음 너비(400px)로', await W()===400);
+await pg.mouse.move(rs2.x+rs2.width/2,rs2.y+rs2.height/2);
+const rs3=await pg.locator('#aiRs').boundingBox(); await pg.mouse.move(rs3.x+rs3.width/2,rs3.y+rs3.height/2); await pg.mouse.down(); await pg.mouse.move(40,rs3.y+rs3.height/2,{steps:8}); await pg.mouse.up();
+ok('너무 넓게 끌어도 가운데 지면이 360px 아래로 줄지 않음', await W()<=1366-232-360 && await st(()=>document.getElementById('center').getBoundingClientRect().width)>=360);
+await pg.locator('#aiRs').dblclick(); await pg.evaluate(()=>localStorage.removeItem('moa.aiw'));
 let sv=await senior(); ok('시니어 기본값: AI 창 글자 18px · 버튼 44px 이상(글감 화면)', sv.fs===18 && sv.small.length===0); if(sv.small.length) console.log('  작은 버튼:',sv.small);
 
 // 글감 고르기
@@ -63,7 +83,7 @@ ok('다른 글감 더 보기: 다른 3장', (await pg.locator('#aiBody .tcard b'
 // 생각하기 — 길게 답하는 분: 다섯 관점이 채워지면 끝(다섯 번째 답에서)
 await act('topic','[data-id=w1]');
 const g=await st(()=>__aiProto.cur.msgs[0].text);
-ok('첫인사(프롬프트 v3 4장, 호칭 선생님): 고른 글감 이름 + 첫 질문', g.startsWith('안녕하세요, 선생님.') && g.includes("'내 생애 최고의 순간'을 찾아보겠습니다") && g.endsWith('가장 먼저 떠오르는 장면은 무엇인가요?'));
+ok('첫인사(프롬프트 v3 4장, 호칭 선생님): 고른 글감 이름 + 첫 질문', g.startsWith('안녕하세요, 선생님.') && g.includes("'내 생애 최고의 순간'을 찾아볼게요") && g.endsWith('가장 먼저 떠오르는 장면은 무엇인가요?'));
 ok('질문 수 대신 「이야기 조각」 다섯 관점(장면·사람·사건·마음·의미)', (await pg.locator('#aiPieces').innerText()).replace(/\s+/g,' ').includes('장면 사람 사건 마음 의미') && await pieces()===0);
 await act('topics'); ok('대화 중 「글감 목록」 → 시작한 글감은 맨 위 「내 글」에 「쓰는 중」', await pg.locator('#aiBody .tcard.big').count()===0 && (await pg.locator('#aiBody .mrow').innerText()).includes('쓰는 중'));
 await act('topic','[data-id=w1]'); ok('다시 누르면 대화 그대로', await st(()=>__aiProto.cur.msgs.length)===1);
@@ -109,7 +129,7 @@ sv=await senior(); ok('초고 화면 버튼도 44px 이상', sv.small.length===0
 // 퇴고 — 대화로 보충: 진단 → 꼭 필요한 질문(최대 3개) → 답을 다 들은 뒤 퇴고본 한 번 → 말로 고치기
 await act('revise');
 const rq1=await lastAI();
-ok('퇴고: 다섯 진단을 짧게(고칠 곳만 · 나머지는 통과) + 첫 질문', rq1.includes('다섯 가지로 살펴봤습니다') && rq1.includes('나머지 네 가지는 통과') && rq1.includes('됐습니다') && rq1.trim().endsWith('?'));
+ok('퇴고: 다섯 진단을 짧게(고칠 곳만 · 나머지는 통과) + 첫 질문', rq1.includes('다섯 가지로 살펴봤어요') && rq1.includes('나머지 네 가지는 통과') && rq1.includes('됐습니다') && rq1.trim().endsWith('?'));
 ok('퇴고 질문에는 「기억 안 나요」·「답하기」', await pg.locator('#aiPanel [data-act=forgot]').count()===1 && (await pg.locator('#aiPanel [data-act=send]').innerText())==='답하기');
 await shot('퇴고_질문');
 await sample();
