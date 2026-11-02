@@ -6,10 +6,13 @@
 (()=>{
 const KIND={image:'사진',video:'영상',audio:'노래'}, OBJ={image:'사진을',video:'영상을',audio:'노래를'};
 const css=`
-body.ms{background:#FBF8F1;margin:0}
-body.ms .app{display:none!important}
-.ms{max-width:680px;margin:0 auto;min-height:100vh;padding:0 16px 120px;box-sizing:border-box;font-family:'Noto Sans KR',system-ui,sans-serif;color:#1B2B25}
-.ms *{box-sizing:border-box}
+body.ms{background:#FBF8F1;margin:0;height:auto;overflow:visible}   /* 편집기는 화면 전체를 손으로 못 움직이게 잠가 둔다(overflow:hidden) — 원고 화면은 풀어야 위아래로 밀린다 */
+body.ms:has(.aip:not([hidden])){overflow:hidden}   /* AI 창이 열려 있을 때는 뒤 원고가 같이 밀리지 않게 */
+body.ms .app{display:contents!important}
+body.ms .app>:not(.aip){display:none!important}   /* 편집기 화면은 감추고 AI 창(있으면)만 남긴다 */
+body.ms .aip{visibility:visible;position:fixed;inset:0;z-index:80;border:0}
+.msr{max-width:680px;margin:0 auto;min-height:100vh;padding:0 16px 120px;box-sizing:border-box;font-family:'Noto Sans KR',system-ui,sans-serif;color:#1B2B25}
+.msr *{box-sizing:border-box}
 .ms-top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:8px;margin:0 -16px;padding:8px 12px;background:#FBF8F1;border-bottom:1px solid #E4DCC8}
 .ms-top button{min-height:44px;font:inherit;font-size:16px;font-weight:700;padding:0 14px;border-radius:12px;border:1px solid #D9D2BA;background:#fff;color:#0B3324;white-space:nowrap}
 .ms-top .ms-pvbtn{background:#0F5B48;border-color:#0F5B48;color:#fff}
@@ -19,7 +22,7 @@ body.ms .app{display:none!important}
 .ms-trial a{color:#0F5B48;font-weight:700}
 .ms-title{display:block;width:100%;margin:14px 0 4px;font:inherit;font-size:24px;font-weight:800;line-height:1.4;border:0;border-bottom:2px solid #E4DCC8;background:transparent;padding:10px 2px;color:#0B3324;outline:none;border-radius:0}
 .ms-title:focus{border-bottom-color:#0F5B48}
-.ms-grp{margin:26px 0 0}
+.ms-grp{margin:26px 0 0;scroll-margin-top:76px}   /* 그 자리로 옮겨 갈 때 위 줄(내 책·책으로 보기)에 가리지 않게 */
 .ms-pno{display:flex;align-items:center;gap:10px;font-size:14px;color:#7A776C;margin:0 0 6px}
 .ms-pno::after{content:'';flex:1;height:1px;background:#E4DCC8}
 .ms-tx{font-size:18px!important;line-height:1.8;min-height:1.8em;padding:8px 10px;margin:2px -10px;border-radius:10px;outline:none;word-break:keep-all;overflow-wrap:anywhere;white-space:pre-wrap;color:#1B2B25;font-weight:400;-webkit-user-select:text;user-select:text;scroll-margin:90px 0 140px}
@@ -46,15 +49,26 @@ body.ms .app{display:none!important}
 .ms-load{padding:60px 0;text-align:center;font-size:17px;color:#5F5D54}
 body.ms .pv{background:#F4F6F4;z-index:60}
 body.ms .toast{bottom:calc(92px + env(safe-area-inset-bottom));font-size:16px;line-height:1.5;text-align:center;border-radius:16px}
-@media(max-width:360px){.ms{padding:0 12px 120px}.ms-top{margin:0 -12px}.ms-top button{padding:0 10px;font-size:15px}.ms-tools{gap:4px;padding-left:6px;padding-right:6px}.ms-tools button{font-size:14px}}
+.ms-ai{display:flex;align-items:center;gap:12px;width:100%;margin:16px 0 0;padding:14px 16px;font:inherit;text-align:left;border:2px solid #0F5B48;border-radius:16px;background:#E8F3EE;color:#0B3324}
+.ms-ai[hidden],.ms-tools [hidden]{display:none}
+.ms-ai svg{flex:none;width:34px;height:34px;fill:none;stroke:#0F5B48;stroke-width:1.8;stroke-linejoin:round}
+.ms-ai b{display:block;font-size:19px;font-weight:800}
+.ms-ai span span{display:block;font-size:15px;line-height:1.5;color:#3D5A4F;margin-top:2px}
+.ms-tools .ms-aib{color:#0F5B48;border-color:#0F5B48;background:#E8F3EE}
+.ms-placed{margin:0 0 8px;padding:12px 14px;border-radius:12px;background:#FFF6DF;border:1px solid #E8C873;font-size:16px;line-height:1.6;color:#5A4300}
+.ms-placed .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+@media(max-width:360px){.msr{padding:0 12px 120px}.ms-top{margin:0 -12px}.ms-top button{padding:0 10px;font-size:15px}.ms-tools{gap:4px;padding-left:6px;padding-right:6px}.ms-tools button{font-size:13.5px}}
 `;
 const IC={
   image:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.6"/><path d="M21 15l-5-5L5 21"/></svg>',
   video:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M10 9l5 3-5 3z"/></svg>',
   audio:'<svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>',
   text:'<svg viewBox="0 0 24 24"><path d="M4 7V5h16v2M12 5v14M9 19h6"/></svg>',
-  done:'<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>'
+  done:'<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>',
+  ai:'<svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>'
 };
+let placed=null;   // 방금 AI 창에서 담은 글 {pid(첫 쪽 id), title, rep}
+const josa=(w,a,b)=>{ const c=String(w).charCodeAt(String(w).length-1); return (c>=0xAC00&&c<=0xD7A3&&(c-0xAC00)%28>0)?a:b; };
 let root, list, curEnd=-1, warn=new Set(), queued=false, timer=null, composing=false;
 
 // 쪽 묶음: 시작 쪽 + 그 쪽에서 「(이어서)」로 이어진 쪽들(한 이야기의 원고)
@@ -84,6 +98,8 @@ function slotNode(e){ const k=e.kind||'image', b=document.createElement('button'
   b.innerHTML=`${IC[k]}<span>눌러서 ${KIND[k]} 넣기</span>`; return b; }
 function groupNode(g){ const s=document.createElement('section'); s.className='ms-grp'; s.dataset.g=state.pages[g.start].id;
   s.innerHTML=`<div class="ms-pno">${g.start+1}${g.end>g.start?'~'+(g.end+1):''}쪽</div>`;
+  if(placed&&state.pages.slice(g.start,g.end+1).some(p=>p.id===placed.pid)) s.insertAdjacentHTML('beforeend',`<div class="ms-placed" role="status">✓ AI와 쓴 「${esc(placed.title)}」${josa(placed.title,'을','를')} ${placed.rep?'바꿔 담았어요':'담았어요'}. 아래 글을 눌러 바로 고치셔도 돼요.
+    <div class="row"><button type="button" class="ms-small" data-undo>되돌리기</button><button type="button" class="ms-small" data-aiback>AI와 더 고치기</button></div></div>`);
   const mf=mergedFlow(g); const add=n=>s.appendChild(n);
   const put=(e,html)=>{ if(e.type==='text'){ add(txNode(e,html)); if(warn.has(e.id)) s.insertAdjacentHTML('beforeend','<p class="ms-warn">책 쪽에 자리가 모자라 이 글의 뒷부분이 책에 안 보여요. 글을 줄이거나 컴퓨터 편집기에서 칸을 넓혀 주세요.</p>'); }
     else if(e.type==='slot') add(slotNode(e)); else if(e.type==='image'||e.type==='video'||e.type==='audio') add(mediaNode(e)); };
@@ -100,6 +116,7 @@ function render(){ queued=false; if(!list) return;
     [...list.children].forEach(c=>{ if(c!==keep) c.remove(); });
     if(i<0) list.append(...fresh); else { keep.before(...fresh.slice(0,i)); keep.after(...fresh.slice(i+1)); } }
   $('msTitle')!==document.activeElement && ($('msTitle').value=state.title);
+  const ai=!!$('aiTile'); $('msAi').hidden=!ai; $('msAiB').hidden=!ai;   // AI와 쓰기: 편집기에 AI 창이 있을 때만(시험 참여자 · 체험 ?ai=proto)
 }
 const queue = () => { if(!queued){ queued=true; requestAnimationFrame(render); } };
 
@@ -141,14 +158,16 @@ function removePage(id){ const i=state.pages.findIndex(p=>p.id===id); if(i<0||st
 function build(){
   document.head.insertAdjacentHTML('beforeend',`<style id="msCss">${css}</style>`);
   const desk=new URL(location.href); desk.searchParams.delete('ms');
-  root=document.createElement('div'); root.className='ms'; root.id='ms';
+  root=document.createElement('div'); root.className='msr'; root.id='ms';
   root.innerHTML=`<header class="ms-top"><button type="button" id="msBack" aria-label="내 서재로">‹ 내 책</button><span class="ms-save" id="msSave" role="status"></span><button type="button" class="ms-pvbtn" id="msPv">책으로 보기</button></header>
   <p class="ms-trial">🧪 시험 중인 <b>폰 원고 화면</b>이에요. 쪽은 모아가 알아서 나눠요. <a href="${esc(desk.pathname+desk.search)}" id="msDesk">원래 편집기로</a></p>
   <input class="ms-title" id="msTitle" aria-label="책 제목" maxlength="60" placeholder="책 제목" spellcheck="false">
+  <button type="button" class="ms-ai" id="msAi" hidden>${IC.ai}<span><b>AI와 이야기하며 쓰기</b><span>묻는 말에 답하면 AI가 글로 정리해 드려요. 다 되면 「모아에 담기」를 눌러 책에 넣어요.</span></span></button>
   <div id="msList"><p class="ms-load">불러오는 중…</p></div>
   <p class="ms-end">아래 단추로 사진·영상·노래나 새 글을 더할 수 있어요.<br>방금 쓰던 이야기 다음에 들어가요.</p>
   <nav class="ms-tools" id="msTools" aria-label="넣기">
     <button type="button" class="ms-done" id="msDone" hidden>${IC.done}다 썼어요</button>
+    <button type="button" class="ms-aib" id="msAiB" data-ai hidden>${IC.ai}AI와 쓰기</button>
     <button type="button" data-add="image">${IC.image}사진</button><button type="button" data-add="video">${IC.video}영상</button><button type="button" data-add="audio">${IC.audio}노래</button><button type="button" data-add="text">${IC.text}새 글</button>
   </nav>`;
   document.body.appendChild(root); list=$('msList');
@@ -160,12 +179,15 @@ function wire(){
   $('msDone').onclick=()=>document.activeElement?.blur();
   // 쓰는 중에 아래 단추를 눌러도 먼저 글칸이 닫히며 단추 줄이 움직이지 않게(움직이면 누른 단추가 안 눌린다) — 닫는 일은 눌린 뒤에
   $('msTools').addEventListener('mousedown',ev=>{ if(ev.target.closest('button')) ev.preventDefault(); });
-  $('msTools').addEventListener('click',ev=>{ const b=ev.target.closest('[data-add]'); if(!b) return; const a=document.activeElement; if(a&&a.classList.contains('ms-tx')){ commit(a); a.blur(); }
-    b.dataset.add==='text' ? addText() : addMedia(b.dataset.add); });
+  $('msTools').addEventListener('click',ev=>{ if(ev.target.closest('[data-ai]')) return openAI(); const b=ev.target.closest('[data-add]'); if(!b) return; const a=document.activeElement; if(a&&a.classList.contains('ms-tx')){ commit(a); a.blur(); }
+    placed=null; b.dataset.add==='text' ? addText() : addMedia(b.dataset.add); });
+  $('msAi').onclick=openAI;
   list.addEventListener('click',ev=>{ const s=ev.target.closest('[data-slot]'); if(s){ curEnd=findEl(s.dataset.slot)?.pi??curEnd; pickMedia(s.dataset.kind,s.dataset.slot); return; }
     const d=ev.target.closest('[data-del]'); if(d) return removeMedia(d.dataset.del);
-    const r=ev.target.closest('[data-rm]'); if(r) return removePage(r.dataset.rm); });
-  list.addEventListener('focusin',ev=>{ const t=ev.target.closest('.ms-tx'); if(!t) return; const loc=findEl(t.dataset.k); if(loc){ curEnd=loc.pi; state.cur=loc.pi; } $('msDone').hidden=false; });
+    const r=ev.target.closest('[data-rm]'); if(r) return removePage(r.dataset.rm);
+    if(ev.target.closest('[data-undo]')){ placed=null; undo(); return; }   // 담기 전으로(편집기 되돌리기 한 번 — AI 창도 「담을 자리 고르기」로 돌아간다)
+    if(ev.target.closest('[data-aiback]')) return openAI(); });
+  list.addEventListener('focusin',ev=>{ const t=ev.target.closest('.ms-tx'); if(!t) return; placed=null; const loc=findEl(t.dataset.k); if(loc){ curEnd=loc.pi; state.cur=loc.pi; } $('msDone').hidden=false; });
   list.addEventListener('focusout',ev=>{ const t=ev.target.closest('.ms-tx'); if(!t) return; commit(t); $('msDone').hidden=true; queue(); });
   list.addEventListener('input',ev=>{ const t=ev.target.closest('.ms-tx'); if(!t) return; clearTimeout(timer); if(!composing) timer=setTimeout(()=>commit(t),800); });
   list.addEventListener('compositionstart',()=>{ composing=true; clearTimeout(timer); });
@@ -182,13 +204,22 @@ function wire(){
   $('msSave').onclick=()=>{ const t=$('save').textContent; if(t) toast(t); };
   new MutationObserver(mirror).observe($('save'),{childList:true,characterData:true,subtree:true,attributes:true}); mirror();
   // 키보드가 올라오면 아래 도구 줄을 키보드 바로 위로
-  const vv=window.visualViewport; if(vv){ const place=()=>{ const off=Math.max(0,innerHeight-vv.height-vv.offsetTop); $('msTools').style.transform=off>1?`translateY(${-off}px)`:''; }; vv.addEventListener('resize',place); vv.addEventListener('scroll',place); }
+  const vv=window.visualViewport; if(vv){ const place=()=>{ const off=Math.max(0,innerHeight-vv.height-vv.offsetTop); $('msTools').style.transform=off>1?`translateY(${-off}px)`:'';
+      const p=$('aiPanel'); if(p) Object.assign(p.style,off>1||vv.offsetTop>0?{top:vv.offsetTop+'px',height:vv.height+'px',bottom:'auto'}:{top:'',height:'',bottom:''}); };   // AI 창도 키보드 위까지만(입력칸이 가려지지 않게)
+    vv.addEventListener('resize',place); vv.addEventListener('scroll',place); }
   // 편집기가 쪽 목록을 다시 그릴 때(사진 넣기 끝·저장 불러오기·되돌리기 등) 원고 화면도 따라 그린다
   const rt=renderThumbs; renderThumbs=function(){ rt.apply(this,arguments); queue(); };
 }
-window.MS={ start(){
+// AI와 쓰기: 편집기의 AI 창(ai-proto.js)을 폰 화면 전체로 연다. 처음이면 편집기와 같은 동의 화면부터
+function openAI(){ const a=document.activeElement; if(a&&a.classList.contains('ms-tx')){ commit(a); a.blur(); } const t=$('aiTile'); t&&t.click(); }
+// AI 창에서 「모아에 담기」·「바꿔 담기」를 누르면: 창을 닫고 원고 화면에서 담긴 글을 보여 준다
+function onPlaced(pid,title,rep){ placed={pid,title,rep}; const x=$('aiClose'); x&&x.click(); render();
+  const i=state.pages.findIndex(p=>p.id===pid), g=i>=0&&groupAt(i), s=g&&list.querySelector(`.ms-grp[data-g="${state.pages[g.start].id}"]`);
+  s&&s.scrollIntoView({block:'start'}); }
+window.MS={ onPlaced, start(){
   if(!root){ build(); wire(); }
   if($('center').querySelector('.fatal')){ document.body.classList.remove('ms'); root.hidden=true; return; }   // 열 수 없는 책·로그인 필요 안내는 편집기 화면 그대로
   endEdit(); state.zoom=1; render();
+  document.addEventListener('moa-ai-ready',queue);   // AI 창은 회원 정보를 읽은 뒤에 붙는다 → 붙으면 「AI와 쓰기」를 보인다
 } };
 })();

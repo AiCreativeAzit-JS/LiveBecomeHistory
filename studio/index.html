@@ -1731,11 +1731,11 @@ async function boot(){
 async function loadAI(){
   if(!ONLINE){ if(QS.get('ai')!=='proto') return; }
   else { if(!sb||!user) return; const {data}=await sb.from('profiles').select('ai_enabled').eq('id',user.id).maybeSingle(); if(!data||!data.ai_enabled) return; window.MOA_AI_REAL=true; }
-  const s=document.createElement('script'); s.src='ai-proto.js?v=20261101a'; document.body.appendChild(s); }
+  const s=document.createElement('script'); s.src='ai-proto.js?v=20261102b'; document.body.appendChild(s); }
 const booting=boot();
 if(ONLINE) booting.then(loadAI); else loadAI();   // 체험 편집기는 바로(「지난번 체험하던 책」 질문과 함께), 로그인 편집기는 회원 정보를 읽은 뒤
 // 폰 원고 화면(시험판): 주소에 ms=1이 있을 때만. 책을 다 불러온 뒤에 연다
-if(QS.get('ms')==='1'){ const s=document.createElement('script'); s.src='ms.js?v=20261102a'; s.onload=()=>booting.then(()=>window.MS&&MS.start()); document.body.appendChild(s); }
+if(QS.get('ms')==='1'){ const s=document.createElement('script'); s.src='ms.js?v=20261102b'; s.onload=()=>booting.then(()=>window.MS&&MS.start()); document.body.appendChild(s); }
 </script>
 </body>
 </html>

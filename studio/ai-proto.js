@@ -274,7 +274,8 @@ addEventListener('resize',()=>{ if(ui.open) setAiw(aiw,false); });
 setAiw(aiw,false);
 
 /* ═══════════════ 열기 · 닫기 ═══════════════ */
-function relayout(){ state.zoom=fitZoom(); redrawCanvas(); }   // 가운데 지면 폭이 바뀌었으니 확대 비율을 다시 맞춘다
+const MSQ=document.body.classList.contains('ms')?'&ms=1':'';   // 폰 원고 화면(?ms=1)에서 열었으면 주소를 바꿔도 그 화면 그대로
+function relayout(){ if(document.body.classList.contains('ms')){ state.zoom=1; return; } state.zoom=fitZoom(); redrawCanvas(); }   // 폰 원고 화면에서는 지면을 그리지 않는다   // 가운데 지면 폭이 바뀌었으니 확대 비율을 다시 맞춘다
 function openPanel(){
   if(!consented()){ $('aiConsent').hidden=false; $('aiConsent').querySelector('[data-con=ok]').focus(); return; }
   endEdit(); ui.open=true; panel.hidden=false; app.classList.add('ai-on'); layoutFor(); relayout(); render(true);
@@ -282,7 +283,7 @@ function openPanel(){
 function closePanel(){ ui.open=false; panel.hidden=true; app.classList.remove('ai-on','ai-wide'); marks(); relayout(); $('aiTile').focus({preventScroll:true}); }
 function layoutFor(){ app.classList.toggle('ai-wide',!!cur&&(cur.step==='place'||cur.step==='done')); }   // 담기 때는 쪽 목록을 펼친다
 // 체험 화면에 서가 견본 책(다른 분의 책)이 펼쳐져 있으면, 내 글은 빈 책에서 쓰도록 빈 책으로 다시 연다(대표 의견 2026-10-26)
-function onTile(){ if(sampleTitle && QS.get('blank')!=='1'){ location.href='?blank=1&ai=proto&aiopen=1'; return; } openPanel(); }
+function onTile(){ if(sampleTitle && QS.get('blank')!=='1'){ location.href='?blank=1&ai=proto&aiopen=1'+MSQ; return; } openPanel(); }
 $('aiTile').onclick=onTile; $('aiClose').onclick=closePanel;
 // 「빈 책으로 시작하기 / 견본 책 보기」 안내 띠의 링크도 시제품 주소(?ai=proto)를 유지한다
 $('demoBar').addEventListener('click',ev=>{ const a=ev.target.closest('a'); if(!a) return; const u=new URL(a.href); u.searchParams.set('ai','proto'); a.href=u.href; },true);
@@ -290,7 +291,7 @@ if(QS.get('aiopen')==='1') (async()=>{ const until=async f=>{ while(!f()) await 
   await new Promise(r=>setTimeout(r,0));   // 이 파일을 다 읽은 뒤에 연다(아래 그리기 함수·상수가 준비되도록)
   await until(()=>document.querySelector('#canvas .pg'));
   if(window.DemoDraft&&await DemoDraft.get()){ await until(()=>!$('draftDlg').hidden); await until(()=>$('draftDlg').hidden); }   // 「지난번 체험하던 책이 있어요」를 먼저 고르게
-  window.history.replaceState(null,'',location.pathname+'?blank=1&ai=proto'); openPanel(); toast('견본 책 대신 빈 책에서 시작해요'); })();   // history 는 편집기의 되돌리기 기록 이름이라 window.history
+  window.history.replaceState(null,'',location.pathname+'?blank=1&ai=proto'+MSQ); openPanel(); toast('견본 책 대신 빈 책에서 시작해요'); })();   // history 는 편집기의 되돌리기 기록 이름이라 window.history
 $('aiConsent').addEventListener('click',ev=>{ const b=ev.target.closest('[data-con]'); if(ev.target.id!=='aiConsent'&&!b) return;
   $('aiConsent').hidden=true;
   if(b&&b.dataset.con==='ok'){ ui.agreed=true; if(REAL) sb.from('ai_consents').insert({user_id:user.id,version:'2026-10-27'}).then(r=>{ if(r.error) console.error(r.error); }); try{ localStorage.setItem('moa-ai-proto-consent','1'); }catch(e){} openPanel(); } else $('aiTile').focus(); });
@@ -438,7 +439,7 @@ function doPlace(s){
     if(emptyId){ state.pages.splice(state.pages.findIndex(p=>p.id===emptyId),1); healFlow(); }
     at=state.pages.indexOf(pg); s.inserted={ids:chainIds(at),swapped:!!emptyId,titleId:pg.els[0].id,bodyId:pg.els[1].id,rep:0}; }
   s.placed.push(s.inserted); s.undone=null; state.cur=at; state.sel=null; reach(s,'done'); budget=Math.max(0,budget-1);
-  renderAll(); render(true); toast(`${rangeOf(s)}에 담았어요 · 되돌리기 한 번이면 원래대로예요`);
+  renderAll(); render(true); toast(`${rangeOf(s)}에 담았어요 · 되돌리기 한 번이면 원래대로예요`); window.MS&&MS.onPlaced&&MS.onPlaced(s.inserted.ids[0],s.rev.title,0);
 }
 // 바꿔 담기: 담았던 쪽의 제목·본문 글만 새 글로(새 쪽을 만들지 않음). 이어진 쪽은 비운 뒤 글 흐름이 다시 채우고, 사진 같은 다른 것은 그대로
 function replaceWriting(s){
@@ -449,7 +450,7 @@ function replaceWriting(s){
   bodyEl.html=(titleEl?'':`${esc(s.rev.title)}<br><br>`)+docHTML(s.rev); bodyEl.cont=false;
   for(let i=i0;flowsInto(i);i++){ const t=flowEl(i+1); if(t){ t.html=''; t.cont=false; } }
   settle(i0); Object.assign(p,{ids:chainIds(i0),rep:p.rep+1}); s.inserted=p; state.cur=i0; state.sel=null; reach(s,'done');
-  renderAll(); render(true); toast(`${rangeOf(s)} 글을 바꿔 담았어요 · 되돌리기 한 번이면 원래대로예요`);
+  renderAll(); render(true); toast(`${rangeOf(s)} 글을 바꿔 담았어요 · 되돌리기 한 번이면 원래대로예요`); window.MS&&MS.onPlaced&&MS.onPlaced(p.ids[0],s.rev.title,p.rep);
 }
 // 지면에 담긴 지금 글(담은 뒤 직접 고친 것 포함)을 원고로 읽는다 → 「퇴고 대화 이어 하기」의 바탕
 const toText=html=>{ const d=document.createElement('div'); d.innerHTML=sanitizeText(html).replace(/<br\s*\/?>/gi,'\n').replace(/<\/(div|p)>/gi,'\n'); return d.textContent; };
@@ -677,5 +678,6 @@ if(REAL){
     ui.agreed=!!c;
     (th||[]).forEach(r=>{ if(r.topic_key==='_kept'){ kept.push(...(r.state.kept||[])); seq=Math.max(seq,r.state.seq||0); sid=Math.max(sid,r.state.sid||0); } else sessions[r.topic_key]={...r.state,busy:false,dirty:false}; }); })();
 }
+window.MOA_AI_READY=true; document.dispatchEvent(new Event('moa-ai-ready'));   // 폰 원고 화면(ms.js)이 「AI와 쓰기」 단추를 보이게
 window.__aiProto={sessions,kept,get cur(){ return cur; },get calls(){ return aiCalls; },get won(){ return wonAll; },ui,docText,PIECES};   // 자동 시험용
 })();
