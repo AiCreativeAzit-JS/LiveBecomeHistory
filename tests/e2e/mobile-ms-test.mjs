@@ -55,7 +55,7 @@ ok('폰: 본문 18px · 제목 22px · 작은 설명도 18px', look.body==='18px
 ok('폰: 아래 도구 단추 3개(사진 · 새 글 · 더 보기) · 44px 이상', look.tools.length===3 && look.tools.every(h=>h>=44), JSON.stringify(look.tools));
 ok('폰: 「말로 쓰셔도 돼요」 안내 · 위 줄 「도움」', await pg.locator('#msTip').isVisible() && await pg.locator('#msHelp').isVisible());
 await tap(pg,'#msHelp');
-ok('도움: 아래에서 판이 올라옴(말로 쓰기 · 저장 · 오픈채팅)', await st(pg,()=>{ const d=document.querySelector('#msSheet:not([hidden]) [data-sheet=help]:not([hidden])'); return !!d && /마이크/.test(d.textContent) && /오픈채팅/.test(d.textContent); }));
+ok('도움: 아래에서 판이 올라옴(말로 쓰기 · 저장 · 오픈채팅)', await st(pg,()=>{ const d=document.querySelector('#msSheet:not([hidden]) [data-sheet=help]:not([hidden])'); return !!d && /마이크|말로 하기/.test(d.textContent) && /오픈채팅/.test(d.textContent); }));
 await tap(pg,'#msSheet [data-sheetx]');
 await tap(pg,'#msTipX');
 ok('「알겠어요」 → 안내 닫힘 · 다시 열어도 안 보임', await st(pg,()=>document.getElementById('msTip').hidden && localStorage.getItem('moa-ms-tip')==='1'));
@@ -157,6 +157,9 @@ await ctx.close();
 
 // ── 5. AI와 쓰기(체험 ?ai=proto · 가짜 답): 원고 화면 → AI 창 전체 화면 → 대화 → 모아에 담기 → 원고 화면에 담긴 글 ──
 { const c=await mk(devices['iPhone 13'],{login:false}); const p=watch(await c.newPage()); const out=[]; p.on('request',r=>{ if(!/localhost|fonts.(googleapis|gstatic)/.test(r.url())) out.push(r.url()); });
+  // 「말로 하기」 시험용 가짜 음성 인식(브라우저의 webkitSpeechRecognition 자리). 시험이 onresult 를 직접 불러 「말한 것」을 넣는다
+  await c.addInitScript(()=>{ window.__sr=[]; window.SpeechRecognition=window.webkitSpeechRecognition=class{ constructor(){ window.__sr.push(this); } start(){ this.started=true; } abort(){ this.aborted=true; } }; });
+  const say=(t,fin=true)=>st(p,([t,fin])=>{ const r=__sr[__sr.length-1], res=[{transcript:t}]; res.isFinal=fin; r.onresult({results:[res]}); },[t,fin]);
   await p.goto(`${U}/studio/?blank=1&ms=1&ai=proto`); await p.waitForSelector('.ms-grp'); await p.waitForSelector('#msAi:not([hidden])');
   await st(p,()=>{ window.__aiFast=true; });
   const tb=await st(p,()=>[...document.querySelectorAll('#msTools button:not([hidden])')].map(x=>({t:x.innerText.trim(),h:Math.round(x.getBoundingClientRect().height)})));
@@ -170,7 +173,23 @@ await ctx.close();
   ok('AI: 창이 폰 화면 전체 · 글자 18px · 뒤 원고는 안 밀림', pl.w===pl.iw && pl.h===pl.ih && pl.fs==='18px' && pl.lock==='hidden', JSON.stringify(pl));
   const idle=()=>p.waitForFunction(()=>{ const s=window.__aiProto&&__aiProto.cur; return !s||!s.busy; });
   const act=async(a,x='')=>{ await p.click(`#aiPanel [data-act="${a}"]${x}`); await idle(); };
-  await act('topic','[data-id=w1]'); for(let k=0;k<5;k++){ await act('sample'); await act('send'); }
+  await act('topic','[data-id=w1]');
+  // 말로 하기(AI 답 칸): 누르면 듣기 · 말하는 동안 글자가 바로 칸에 · 다시 누르면 끝
+  ok('말로 하기: 답 칸 아래 「🎤 말로 하기」', await p.locator('#aiMic').isVisible() && (await p.locator('#aiMic').innerText()).includes('말로 하기'));
+  await p.click('#aiMic');
+  ok('말로 하기 누름 → 「■ 그만 말하기」 · 듣는 중', (await p.locator('#aiMic').innerText()).includes('그만 말하기') && await st(p,()=>__sr.length>0 && __sr[__sr.length-1].started && MoaVoice.active()));
+  await say('바닷가 마을', false); const mid=await p.locator('#aiIn').inputValue();
+  await say('바닷가 마을이었어요'); const fin=await st(p,()=>({v:document.getElementById('aiIn').value, inp:__aiProto.cur.input}));
+  ok('말하는 동안 글자가 칸에 · 끝나면 그대로 남고 보낼 글로 잡힘', mid==='바닷가 마을' && fin.v==='바닷가 마을이었어요' && fin.inp==='바닷가 마을이었어요', JSON.stringify({mid,fin}));
+  await p.click('#aiMic');
+  ok('다시 누르면 듣기 끝 · 「🎤 말로 하기」로', !(await st(p,()=>MoaVoice.active())) && (await p.locator('#aiMic').innerText()).includes('말로 하기'));
+  // 키보드가 올라온 것처럼(글칸에 커서 + 보이는 높이가 줄어듦): 위 칸은 접히고 보내기가 화면 안에
+  await p.fill('#aiIn',''); await p.focus('#aiIn'); await p.setViewportSize({width:390,height:400}); await p.waitForTimeout(400);
+  const kb=await st(p,()=>{ const s=document.querySelector('#aiFoot [data-act=send]').getBoundingClientRect(); return {kb:document.body.classList.contains('kb'), bottom:Math.round(s.bottom), h:innerHeight, vh:Math.round(visualViewport.height), top:getComputedStyle(document.querySelector('.aip-top')).display, idk:getComputedStyle(document.querySelector('#aiFoot [data-act=idk]')).display, mic:!!document.querySelector('#aiMic')&&getComputedStyle(document.querySelector('#aiMic')).display!=='none'}; });
+  ok('키보드가 올라오면: 위 칸·다른 단추 접힘 · 보내기와 말로 하기는 화면 안', kb.kb && kb.top==='none' && kb.idk==='none' && kb.mic && kb.bottom<=Math.min(kb.h,kb.vh), JSON.stringify(kb));
+  await p.setViewportSize({width:390,height:664}); await st(p,()=>document.activeElement.blur()); await p.waitForTimeout(400);
+  ok('키보드가 내려가면 다시 펼침', await st(p,()=>!document.body.classList.contains('kb') && getComputedStyle(document.querySelector('.aip-top')).display!=='none'));
+  for(let k=0;k<5;k++){ await act('sample'); await act('send'); }
   await act('scene','[data-i="0"]'); await act('draft'); await act('revise'); await act('sample'); await act('send'); await act('forgot');
   ok('AI: 폰에서도 생각하기 → 초고 → 퇴고본까지', await st(p,()=>__aiProto.cur.step==='revise'&&!!__aiProto.cur.rev));
   const top=await st(p,()=>({lab:document.querySelector('#aiSteps .lab')?.textContent, dot:Math.round(document.querySelector('#aiSteps li').getBoundingClientRect().height), cost:document.getElementById('aiCalls').hidden, help:!document.getElementById('aiHelp').hidden}));
@@ -205,6 +224,15 @@ await ctx.close();
   ok('AI(가짜 답): 바깥으로 나간 요청 없음', out.length===0, out.join());
   await p.setViewportSize({width:320,height:640}); await p.waitForTimeout(200);
   ok('AI 단추가 붙어도 320px 가로 넘침 없음', await st(p,()=>document.documentElement.scrollWidth<=innerWidth && [...document.querySelectorAll('#msTools button:not([hidden])')].every(b=>b.scrollWidth<=b.clientWidth+1)));
+  // 말로 하기(원고 글칸): 글칸을 누르면 아래 줄 위에 뜨고, 한 마디가 끝날 때마다 커서 자리에 들어가 책에 저장된다
+  const mk2=await st(p,()=>{ const t=[...document.querySelectorAll('.ms-tx')].find(n=>!n.classList.contains('h')); return t.dataset.k; });
+  ok('원고: 글칸을 누르기 전에는 「말로 하기」 없음', await st(p,()=>document.getElementById('msMic').hidden));
+  await tap(p,`.ms-tx[data-k="${mk2}"]`);
+  ok('원고: 글칸을 누르면 「🎤 말로 하기」가 뜸', await p.locator('#msMic').isVisible());
+  await p.click('#msMic'); await say('그해 여름은 유난히 더웠다'); await p.click('#msMic'); await p.waitForTimeout(900);
+  ok('원고: 말한 글이 글칸 끝에 들어가 책에 저장 · 듣기 끝', await st(p,k=>{ const e=state.pages.flatMap(x=>x.els).find(x=>x.id===k); return plain(e.html).includes('그해 여름은 유난히 더웠다') && !MoaVoice.active(); },mk2));
+  await tap(p,'#msDone');
+  ok('원고: 다 썼어요 → 「말로 하기」 숨김', await st(p,()=>document.getElementById('msMic').hidden));
   await c.close(); }
 
 // ── 4. 체험(로그인 없음) 빈 책 · 로그인 필요한 내 책 ──

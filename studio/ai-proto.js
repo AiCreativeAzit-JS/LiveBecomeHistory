@@ -240,6 +240,20 @@ body.ms .aip-steps li{flex:none;width:10px;height:10px;padding:0;border-radius:5
 body.ms .aip-steps li.done{background:var(--brand)} body.ms .aip-steps li.on{width:26px;background:var(--brand)}
 body.ms .aip-steps li.lab{width:auto;height:auto;background:none;font-size:15px;color:var(--brand-2);margin-left:6px;overflow:visible}
 .aip-left{font-size:14.5px;color:var(--muted);text-align:center;margin:-2px 0 0}
+.microw{display:flex;align-items:center;gap:10px;margin:2px 0 0}
+.mic{min-height:48px;padding:0 16px;border-radius:999px;border:1.5px solid var(--brand)!important;background:#fff;color:var(--brand-2);font-size:17px;font-weight:700;white-space:nowrap}
+.mic.on{background:#B03A2E;border-color:#B03A2E!important;color:#fff;animation:micP 1.4s infinite}
+@keyframes micP{0%,100%{box-shadow:0 0 0 0 rgba(176,58,46,.45)}50%{box-shadow:0 0 0 8px rgba(176,58,46,0)}}
+.micst{font-size:15px;color:#B03A2E;font-weight:700}
+.mic{display:inline-flex;align-items:center;gap:6px}
+.mic-ic{flex:none;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.mic-ic .fill{fill:currentColor;stroke:none}
+/* 폰에서 키보드가 올라온 동안(body.kb, ms.js가 붙인다): 위 칸·안내 문구·다른 단추는 접고 답 칸 · 말로 하기 · 보내기만(보내기가 키보드에 가리지 않게) */
+body.ms.kb .aip-top,body.ms.kb .aip-status,body.ms.kb .aip-foot .sensnote,body.ms.kb #aiFixLeft{display:none}
+body.ms.kb .aip-foot{padding:6px 10px;gap:6px}
+body.ms.kb .aip-foot button:not([data-act=send]):not([data-act=mic]){display:none}
+body.ms.kb .aip-foot .arow{display:block}
+body.ms.kb .aip textarea{min-height:0;max-height:26vh}
 `;
 document.head.insertAdjacentHTML('beforeend',`<style id="aiProtoCss">${css}</style>`);
 const app=$('app');
@@ -312,6 +326,7 @@ $('aiConsent').addEventListener('keydown',ev=>{ if(ev.key==='Escape'){ $('aiCons
 
 /* ═══════════════ 그리기 ═══════════════ */
 function render(top){
+  if(window.MoaVoice&&MoaVoice.active()) MoaVoice.stop(true);   // 답 칸을 새로 그리면 듣던 칸이 사라진다 → 듣기도 끝
   if(!ui.open) return;
   const s=cur, at=s?STEP_N[s.step]:-1;
   $('aiSteps').innerHTML=STEPS.map(([k,n],i)=>`<li class="${i<at?'done':i===at?'on':''}"${i===at?' aria-current="step"':''}>${i<at?'✓ ':''}${n}</li>`).join('')
@@ -370,10 +385,25 @@ function sampleText(s){ const S=scriptOf(s); if(!S) return '';
   return ''; }
 const COARSE=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
 const SENDHOW=COARSE?'다 쓰시면 아래 「보내기」를 눌러 주세요.':'엔터는 줄바꿈, Ctrl+Enter는 보내기예요.';   // 폰(손가락)에는 Ctrl 키가 없다
-const SAY=COARSE?' 🎤 키보드 마이크로 말해도 돼요.':'';   // 폰 키보드 받아쓰기는 AI 비용 0원
-const HINT={think:'여기에 답을 적어 주세요. '+SENDHOW+SAY,ask:'기억나는 것을 적어 주세요. '+SENDHOW+SAY,
+// 「말로 하기」: 폰(손가락 화면)이고 브라우저에 음성 인식이 있으면 답 칸 아래에 단추(lib/voice.js · AI 비용 0원). 없으면 키보드 마이크 안내
+const MIC=()=>COARSE&&!!(window.MoaVoice&&MoaVoice.supported);
+const SAY=()=>MIC()?' 「말로 하기」를 눌러 말씀하셔도 돼요.':COARSE?' 키보드의 마이크로 말해도 돼요.':'';
+// 마이크 · 멈춤 아이콘(이모지 대신 선 그림, 대표 의견 2026-11-02)
+const MICIC='<svg class="mic-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>', STOPIC='<svg class="mic-ic" viewBox="0 0 24 24" aria-hidden="true"><rect class="fill" x="7" y="7" width="10" height="10" rx="2"/></svg>';
+const HINT={get think(){ return '여기에 답을 적어 주세요. '+SENDHOW+SAY(); }, get ask(){ return '기억나는 것을 적어 주세요. '+SENDHOW+SAY(); },
   fix:'고치고 싶은 것을 말씀해 주세요. 예: 아버지 이야기는 빼 주세요 · 이 문장은 제가 한 말이 아니에요'};
-const box=(ph,v)=>`<div class="sensnote" style="font-size:12.5px;color:var(--muted,#667);margin:0 0 6px;line-height:1.5">🔒 주민등록번호·계좌·카드번호 같은 개인정보는 적지 마세요. 적으면 AI로 보내지지 않아요.</div><textarea id="aiIn" data-k="input" aria-label="${esc(ph)}" placeholder="${esc(ph)}">${esc(v)}</textarea>`;
+const box=(ph,v)=>`<div class="sensnote" style="font-size:12.5px;color:var(--muted,#667);margin:0 0 6px;line-height:1.5">🔒 주민등록번호·계좌·카드번호 같은 개인정보는 적지 마세요. 적으면 AI로 보내지지 않아요.</div><textarea id="aiIn" data-k="input" aria-label="${esc(ph)}" placeholder="${esc(ph)}">${esc(v)}</textarea>`
+  +(MIC()?`<div class="microw"><button type="button" class="mic" id="aiMic" data-act="mic" aria-pressed="false">${MICIC}말로 하기</button><span class="micst" id="aiMicSt" role="status"></span></div>`:'');
+// 말로 하기 켜기·끄기. 처음 한 번은 목소리가 어디로 가는지 알린다(처리방침과 같은 말)
+function micState(st){ const b=$('aiMic'), t=$('aiMicSt'); const live=st==='on';
+  if(b){ b.classList.toggle('on',live); b.setAttribute('aria-pressed',String(live)); b.innerHTML=live?STOPIC+'그만 말하기':MICIC+'말로 하기'; }
+  if(t) t.textContent=live?'듣고 있어요. 말씀하세요':'';
+  if(st==='denied') toast(window.isSecureContext?'마이크를 쓸 수 없어요. 휴대폰에 「허용」을 눌러 주세요':'이 주소에서는 마이크를 쓸 수 없어요(보안 주소 https에서만 돼요)');
+  if(st==='error') toast('말을 글자로 바꾸지 못했어요. 인터넷 연결을 확인해 주세요'); }
+function toggleMic(){ if(!window.MoaVoice) return; if(MoaVoice.active()){ MoaVoice.stop(); return; }
+  let seen=false; try{ seen=localStorage.getItem('moa-mic-note')==='1'; localStorage.setItem('moa-mic-note','1'); }catch(e){}
+  if(!seen) toast('말씀은 휴대폰의 음성 인식(구글·애플)이 글자로 바꿔요. 모아는 목소리를 저장하지 않아요');
+  MoaVoice.start($('aiIn'),micState); }
 function footView(s){
   if(s.step==='think'){
     if(s.chosen!=null) return `<button class="ab pri" type="button" data-act="draft">초고 쓰기</button>`;
@@ -583,9 +613,13 @@ function againTalk(s){ const base=pageDoc(s); if(!base){ toast('담은 쪽을 �
 
 /* ═══════════════ 누르기 ═══════════════ */
 panel.addEventListener('input',ev=>{ const k=ev.target.dataset.k; if(k&&cur) cur[k]=ev.target.value; if(ev.target.id==='aiOwn') ui.own=ev.target.value; });
+// 키보드가 올라와 있을 때 아래 단추를 누르면 글칸이 먼저 닫히며 단추가 움직여 안 눌린다 → 누르는 순간 글칸을 닫지 않게(닫는 일은 눌린 뒤에)
+foot.addEventListener('mousedown',ev=>{ if(ev.target.closest('button')&&document.body.classList.contains('kb')) ev.preventDefault(); });
 panel.addEventListener('click',ev=>{
   const b=ev.target.closest('[data-act]'); if(!b||b.disabled) return; const s=cur, a=b.dataset.act;
+  if(a!=='mic'&&window.MoaVoice&&MoaVoice.active()) MoaVoice.stop();   // 다른 단추(보내기 등)를 누르면 듣기를 끝낸다
   ({
+    mic:()=>toggleMic(),
     topic:()=>startTopic(topicOf(b.dataset.id)), pack:()=>{ ui.view='pack'; render(true); }, packmore:()=>{ ui.pack++; render(true); },
     own:()=>{ ui.view='own'; render(true); $('aiOwn').focus(); }, home:()=>{ ui.view='topics'; render(true); },
     ownstart:()=>{ const t=ui.own.trim(); if(!t){ toast('쓰고 싶은 글감을 적어 주세요'); $('aiOwn').focus(); return; }

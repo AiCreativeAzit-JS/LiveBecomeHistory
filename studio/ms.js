@@ -19,6 +19,10 @@ body.ms .aip{visibility:visible;position:fixed;inset:0;z-index:80;border:0}
 .ms-save{flex:1;min-width:0;font-size:14px;color:#5F5D54;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ms-save[data-state=err],.ms-save[data-state=conflict],.ms-save[data-state=auth],.ms-save[data-state=perm]{color:#B03A2E;font-weight:700}
 .ms-top #msHelp{padding:0 12px}
+.ms-tools .ms-mic{position:absolute;right:12px;bottom:calc(100% + 10px);flex:none;max-width:none;min-height:54px;flex-direction:row;gap:6px;padding:0 20px;border-radius:999px;border:2px solid #0F5B48;background:#fff;color:#0F5B48;font-size:17px;font-weight:800;box-shadow:0 4px 14px rgba(11,51,36,.18)}
+.ms-tools .ms-mic svg{width:22px;height:22px} .ms-tools .ms-mic svg .fill,.ms-sheet svg .fill{fill:currentColor;stroke:none}
+.ms-tip svg,.ms-hl svg{width:1.15em;height:1.15em;vertical-align:-0.22em;fill:none;stroke:#0F5B48;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ms-tools .ms-mic.on{background:#B03A2E;border-color:#B03A2E;color:#fff}
 .ms-tip{margin:12px 0 0;padding:12px 14px;border-radius:12px;background:#EEF5F1;border:1px solid #CFE3D8;font-size:16px;line-height:1.65;color:#23413A}
 .ms-tip[hidden]{display:none}
 .ms-tip .ms-small{display:block;margin:8px 0 0 auto;min-height:44px}
@@ -79,10 +83,13 @@ const IC={
   audio:'<svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>',
   text:'<svg viewBox="0 0 24 24"><path d="M4 7V5h16v2M12 5v14M9 19h6"/></svg>',
   done:'<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>',
+  mic:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
+  stop:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect class="fill" x="7" y="7" width="10" height="10" rx="2"/></svg>',
   more:'<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>',
   desk:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
   ai:'<svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>'
 };
+const MIC=!!(window.MoaVoice&&MoaVoice.supported)&&matchMedia('(pointer:coarse)').matches;   // 「말로 하기」를 보일까(폰 · 브라우저에 음성 인식이 있을 때)
 let placed=null;   // 방금 AI 창에서 담은 글 {pid(첫 쪽 id), title, rep}
 const josa=(w,a,b)=>{ const c=String(w).charCodeAt(String(w).length-1); return (c>=0xAC00&&c<=0xD7A3&&(c-0xAC00)%28>0)?a:b; };
 let root, list, curEnd=-1, warn=new Set(), queued=false, timer=null, composing=false;
@@ -179,12 +186,13 @@ function build(){
   root=document.createElement('div'); root.className='msr'; root.id='ms';
   const oc=window.MOA_OPENCHAT_URL||'';
   root.innerHTML=`<header class="ms-top"><button type="button" id="msBack" aria-label="내 서재로">‹ 내 책</button><span class="ms-save" id="msSave" role="status"></span><button type="button" id="msHelp" aria-label="막힐 때 도움">도움</button><button type="button" class="ms-pvbtn" id="msPv">책으로 보기</button></header>
-  <p class="ms-tip" id="msTip"${tipSeen()?' hidden':''}>🎤 <b>말로 쓰셔도 돼요.</b> 글칸을 누른 뒤 키보드의 <b>마이크 단추</b>를 누르고 말씀하시면 글자로 적혀요. <button type="button" class="ms-small" id="msTipX">알겠어요</button></p>
+  <p class="ms-tip" id="msTip"${tipSeen()?' hidden':''}>${IC.mic} <b>말로 쓰셔도 돼요.</b> ${MIC?'글칸을 누르면 나오는 <b>「${IC.mic}말로 하기」</b>를 누르고 말씀하시면 글자로 적혀요.':'글칸을 누른 뒤 키보드의 <b>마이크 단추</b>를 누르고 말씀하시면 글자로 적혀요.'} <button type="button" class="ms-small" id="msTipX">알겠어요</button></p>
   <input class="ms-title" id="msTitle" aria-label="책 제목" maxlength="60" placeholder="책 제목" spellcheck="false">
   <button type="button" class="ms-ai" id="msAi" hidden>${IC.ai}<span><b>AI와 이야기하며 쓰기</b><span id="msAiSub">묻는 말에 답하면 AI가 글로 정리해 드려요. 다 되면 「모아에 담기」를 눌러 책에 넣어요.</span></span></button>
   <div id="msList"><p class="ms-load">불러오는 중…</p></div>
   <p class="ms-end">아래 단추로 사진이나 새 글을 더할 수 있어요. 영상·노래는 「더 보기」에 있어요.<br>방금 쓰던 이야기 다음에 들어가요.</p>
   <nav class="ms-tools" id="msTools" aria-label="넣기">
+    <button type="button" class="ms-mic" id="msMic" hidden aria-pressed="false">${IC.mic}말로 하기</button>
     <button type="button" class="ms-done" id="msDone" hidden>${IC.done}다 썼어요</button>
     <button type="button" class="ms-aib" id="msAiB" data-ai hidden>${IC.ai}AI와 쓰기</button>
     <button type="button" data-add="image">${IC.image}사진</button><button type="button" data-add="text">${IC.text}새 글</button><button type="button" data-more>${IC.more}더 보기</button>
@@ -195,7 +203,7 @@ function build(){
       <button type="button" class="ms-row" data-add="audio">${IC.audio}<span><b>노래·목소리 넣기</b><small>녹음해 둔 소리를 골라요</small></span></button>
       <a class="ms-row" href="${esc(desk.pathname+desk.search)}" id="msDesk">${IC.desk}<span><b>컴퓨터 화면으로 보기</b><small>쪽 모양을 손으로 짜는 화면이에요. 컴퓨터에서 쓰기 좋아요</small></span></a></div>
     <div data-sheet="help"><h3>막히면 이렇게 하세요</h3>
-      <p class="ms-hl">🎤 <b>글자 치기가 어려우면</b> 글칸을 누른 뒤 키보드의 마이크 단추를 누르고 말씀하세요.</p>
+      <p class="ms-hl">${IC.mic} <b>글자 치기가 어려우면</b> ${MIC?'글칸을 누르면 나오는 「말로 하기」를 누르고 말씀하세요. 다 말씀하시면 「그만 말하기」를 눌러요. 말씀은 휴대폰의 음성 인식(구글·애플)이 글자로 바꾸고, 모아는 목소리를 저장하지 않아요.':'글칸을 누른 뒤 키보드의 마이크 단추를 누르고 말씀하세요.'}</p>
       <p class="ms-hl">✓ <b>저장은 저절로 돼요.</b> 위에 「저장됨」이 보이면 그대로 닫으셔도 괜찮아요.</p>
       <p class="ms-hl">💬 <b>그래도 막히면</b> 카카오톡 오픈채팅방에 물어보세요. 강사가 답해 드려요.</p>
       ${oc?`<a class="ms-big" href="${esc(oc)}" target="_blank" rel="noopener">오픈채팅방 열기</a>`:'<p class="ms-hl" style="background:none;padding:0 2px">오픈채팅방은 첫 수업에서 알려 드려요.</p>'}</div>
@@ -205,6 +213,15 @@ function build(){
 }
 // 「말로 쓰기」 안내는 한 번 「알겠어요」를 누르면 이 기기에서는 다시 안 보인다(저장이 막힌 브라우저면 매번 보임)
 function tipSeen(){ try{ return localStorage.getItem('moa-ms-tip')==='1'; }catch(e){ return false; } }
+// 「말로 하기」(lib/voice.js): 원고 글칸을 쓰는 동안 아래 줄 위에 뜬다. 한 마디가 끝날 때마다 커서 자리에 글이 들어간다(AI 비용 0원)
+function micState(st){ const b=$('msMic'), live=st==='on'; b.classList.toggle('on',live); b.setAttribute('aria-pressed',String(live)); b.innerHTML=live?IC.stop+'그만 말하기':IC.mic+'말로 하기';
+  if(st==='denied') toast(window.isSecureContext?'마이크를 쓸 수 없어요. 휴대폰에 「허용」을 눌러 주세요':'이 주소에서는 마이크를 쓸 수 없어요(보안 주소 https에서만 돼요)');
+  if(st==='error') toast('말을 글자로 바꾸지 못했어요. 인터넷 연결을 확인해 주세요'); }
+function toggleMic(){ if(MoaVoice.active()){ MoaVoice.stop(); return; }
+  const a=document.activeElement; if(!a||!a.classList.contains('ms-tx')){ toast('먼저 글칸을 눌러 주세요'); return; }
+  let seen=false; try{ seen=localStorage.getItem('moa-mic-note')==='1'; localStorage.setItem('moa-mic-note','1'); }catch(e){}
+  if(!seen) toast('말씀은 휴대폰의 음성 인식(구글·애플)이 글자로 바꿔요. 모아는 목소리를 저장하지 않아요');
+  MoaVoice.start(a,micState); }
 function openSheet(k){ const sh=$('msSheet'); sh.querySelectorAll('[data-sheet]').forEach(d=>d.hidden=d.dataset.sheet!==k); sh.hidden=false; sh.querySelector('button,a')?.focus(); }
 const closeSheet=()=>{ $('msSheet').hidden=true; };
 function doAdd(kind){ const a=document.activeElement; if(a&&a.classList.contains('ms-tx')){ commit(a); a.blur(); }
@@ -216,7 +233,9 @@ function wire(){
   $('msDone').onclick=()=>document.activeElement?.blur();
   // 쓰는 중에 아래 단추를 눌러도 먼저 글칸이 닫히며 단추 줄이 움직이지 않게(움직이면 누른 단추가 안 눌린다) — 닫는 일은 눌린 뒤에
   $('msTools').addEventListener('mousedown',ev=>{ if(ev.target.closest('button')) ev.preventDefault(); });
-  $('msTools').addEventListener('click',ev=>{ if(ev.target.closest('[data-ai]')) return openAI();
+  $('msTools').addEventListener('click',ev=>{ if(ev.target.closest('#msMic')) return toggleMic();
+    if(window.MoaVoice&&MoaVoice.active()) MoaVoice.stop();
+    if(ev.target.closest('[data-ai]')) return openAI();
     if(ev.target.closest('[data-more]')){ const a=document.activeElement; if(a&&a.classList.contains('ms-tx')){ commit(a); a.blur(); } return openSheet('more'); }
     const b=ev.target.closest('[data-add]'); if(b) doAdd(b.dataset.add); });
   // 아래에서 올라오는 판(더 보기 · 도움): 바깥이나 「닫기」를 누르면 닫힌다
@@ -231,8 +250,8 @@ function wire(){
     const r=ev.target.closest('[data-rm]'); if(r) return removePage(r.dataset.rm);
     if(ev.target.closest('[data-undo]')){ placed=null; undo(); return; }   // 담기 전으로(편집기 되돌리기 한 번 — AI 창도 「담을 자리 고르기」로 돌아간다)
     if(ev.target.closest('[data-aiback]')) return openAI(); });
-  list.addEventListener('focusin',ev=>{ const t=ev.target.closest('.ms-tx'); if(!t) return; placed=null; const loc=findEl(t.dataset.k); if(loc){ curEnd=loc.pi; state.cur=loc.pi; } $('msDone').hidden=false; });
-  list.addEventListener('focusout',ev=>{ const t=ev.target.closest('.ms-tx'); if(!t) return; commit(t); $('msDone').hidden=true; queue(); });
+  list.addEventListener('focusin',ev=>{ const t=ev.target.closest('.ms-tx'); if(!t) return; placed=null; const loc=findEl(t.dataset.k); if(loc){ curEnd=loc.pi; state.cur=loc.pi; } $('msDone').hidden=false; $('msMic').hidden=!MIC; });
+  list.addEventListener('focusout',ev=>{ const t=ev.target.closest('.ms-tx'); if(!t) return; if(MIC&&MoaVoice.active()) MoaVoice.stop(); commit(t); $('msDone').hidden=true; $('msMic').hidden=true; queue(); });
   list.addEventListener('input',ev=>{ const t=ev.target.closest('.ms-tx'); if(!t) return; clearTimeout(timer); if(!composing) timer=setTimeout(()=>commit(t),800); });
   list.addEventListener('compositionstart',()=>{ composing=true; clearTimeout(timer); });
   list.addEventListener('compositionend',ev=>{ composing=false; const t=ev.target.closest&&ev.target.closest('.ms-tx'); if(t){ clearTimeout(timer); timer=setTimeout(()=>commit(t),800); } });
@@ -248,9 +267,18 @@ function wire(){
   $('msSave').onclick=()=>{ const t=$('save').textContent; if(t) toast(t); };
   new MutationObserver(mirror).observe($('save'),{childList:true,characterData:true,subtree:true,attributes:true}); mirror();
   // 키보드가 올라오면 아래 도구 줄을 키보드 바로 위로
-  const vv=window.visualViewport; if(vv){ const place=()=>{ const off=Math.max(0,innerHeight-vv.height-vv.offsetTop); $('msTools').style.transform=off>1?`translateY(${-off}px)`:'';
-      const p=$('aiPanel'); if(p) Object.assign(p.style,off>1||vv.offsetTop>0?{top:vv.offsetTop+'px',height:vv.height+'px',bottom:'auto'}:{top:'',height:'',bottom:''}); };   // AI 창도 키보드 위까지만(입력칸이 가려지지 않게)
-    vv.addEventListener('resize',place); vv.addEventListener('scroll',place); }
+  // 키보드가 올라와 있으면 body.kb: AI 창은 답 칸 · 말로 하기 · 보내기만 남기고 접는다(보내기가 키보드에 가리지 않게, ai-proto.js CSS)
+  //  키보드는 직접 알 수 없어서, 글칸에 커서가 있고 보이는 높이가 가장 컸을 때의 80% 아래로 줄면 올라온 것으로 본다
+  const vv=window.visualViewport; if(vv){ let maxH=vv.height;
+    const editing=()=>{ const a=document.activeElement; return !!a&&(a.tagName==='TEXTAREA'||(a.tagName==='INPUT'&&a.type==='text')||a.isContentEditable); };
+    const place=()=>{ const off=Math.max(0,innerHeight-vv.height-vv.offsetTop); $('msTools').style.transform=off>1?`translateY(${-off}px)`:'';
+      const p=$('aiPanel'); if(p) Object.assign(p.style,off>1||vv.offsetTop>0?{top:vv.offsetTop+'px',height:vv.height+'px',bottom:'auto'}:{top:'',height:'',bottom:''});   // AI 창도 키보드 위까지만(입력칸이 가려지지 않게)
+      if(!editing()) maxH=Math.max(maxH,vv.height);
+      const kb=editing()&&vv.height<maxH*0.8;
+      if(kb!==document.body.classList.contains('kb')){ document.body.classList.toggle('kb',kb); const bd=$('aiBody'); if(bd) bd.scrollTop=bd.scrollHeight; } };
+    vv.addEventListener('resize',place); vv.addEventListener('scroll',place);
+    document.addEventListener('focusin',()=>setTimeout(place,60)); document.addEventListener('focusout',()=>setTimeout(place,120));
+    window.addEventListener('orientationchange',()=>setTimeout(()=>{ maxH=vv.height; place(); },400)); }
   // 편집기가 쪽 목록을 다시 그릴 때(사진 넣기 끝·저장 불러오기·되돌리기 등) 원고 화면도 따라 그린다
   const rt=renderThumbs; renderThumbs=function(){ rt.apply(this,arguments); queue(); };
 }
