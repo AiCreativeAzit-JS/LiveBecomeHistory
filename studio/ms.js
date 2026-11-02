@@ -18,6 +18,20 @@ body.ms .aip{visibility:visible;position:fixed;inset:0;z-index:80;border:0}
 .ms-top .ms-pvbtn{background:#0F5B48;border-color:#0F5B48;color:#fff}
 .ms-save{flex:1;min-width:0;font-size:14px;color:#5F5D54;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ms-save[data-state=err],.ms-save[data-state=conflict],.ms-save[data-state=auth],.ms-save[data-state=perm]{color:#B03A2E;font-weight:700}
+.ms-top #msHelp{padding:0 12px}
+.ms-tip{margin:12px 0 0;padding:12px 14px;border-radius:12px;background:#EEF5F1;border:1px solid #CFE3D8;font-size:16px;line-height:1.65;color:#23413A}
+.ms-tip[hidden]{display:none}
+.ms-tip .ms-small{display:block;margin:8px 0 0 auto;min-height:44px}
+.ms-sheet{position:fixed;inset:0;z-index:95;background:rgba(20,30,25,.38);display:flex;align-items:flex-end;justify-content:center}
+.ms-sheet[hidden],.ms-sheet [data-sheet][hidden]{display:none}
+.ms-sheet-in{width:100%;max-width:680px;max-height:88vh;overflow-y:auto;background:#FBF8F1;border-radius:20px 20px 0 0;padding:18px 16px calc(16px + env(safe-area-inset-bottom));font-family:'Noto Sans KR',system-ui,sans-serif;color:#1B2B25;box-sizing:border-box}
+.ms-sheet h3{margin:0 0 12px;font-size:21px;color:#0B3324}
+.ms-row{display:flex;align-items:center;gap:14px;width:100%;min-height:64px;margin:0 0 10px;padding:12px 14px;font:inherit;text-align:left;text-decoration:none;color:#0B3324;background:#fff;border:1px solid #D9D2BA;border-radius:14px;box-sizing:border-box}
+.ms-row svg{flex:none;width:28px;height:28px;fill:none;stroke:#0F5B48;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ms-row b{display:block;font-size:18px} .ms-row small{display:block;font-size:14.5px;color:#5F5D54;line-height:1.5}
+.ms-hl{margin:0 0 10px;padding:12px 14px;border-radius:12px;background:#fff;font-size:17px;line-height:1.65}
+.ms-big{display:block;width:100%;min-height:56px;margin:4px 0 0;font:inherit;font-size:18px;font-weight:800;line-height:56px;text-align:center;text-decoration:none;color:#fff;background:#0F5B48;border:0;border-radius:14px;box-sizing:border-box}
+.ms-big.ghost{color:#0B3324;background:#fff;border:1px solid #D9D2BA;margin-top:12px;line-height:54px}
 .ms-trial{margin:12px 0 0;padding:10px 12px;border-radius:12px;background:#F1ECDD;font-size:15px;line-height:1.6;color:#4A473F}
 .ms-trial a{color:#0F5B48;font-weight:700}
 .ms-title{display:block;width:100%;margin:14px 0 4px;font:inherit;font-size:24px;font-weight:800;line-height:1.4;border:0;border-bottom:2px solid #E4DCC8;background:transparent;padding:10px 2px;color:#0B3324;outline:none;border-radius:0}
@@ -65,6 +79,8 @@ const IC={
   audio:'<svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>',
   text:'<svg viewBox="0 0 24 24"><path d="M4 7V5h16v2M12 5v14M9 19h6"/></svg>',
   done:'<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>',
+  more:'<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>',
+  desk:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
   ai:'<svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>'
 };
 let placed=null;   // 방금 AI 창에서 담은 글 {pid(첫 쪽 id), title, rep}
@@ -116,7 +132,9 @@ function render(){ queued=false; if(!list) return;
     [...list.children].forEach(c=>{ if(c!==keep) c.remove(); });
     if(i<0) list.append(...fresh); else { keep.before(...fresh.slice(0,i)); keep.after(...fresh.slice(i+1)); } }
   $('msTitle')!==document.activeElement && ($('msTitle').value=state.title);
-  const ai=!!$('aiTile'); $('msAi').hidden=!ai; $('msAiB').hidden=!ai;   // AI와 쓰기: 편집기에 AI 창이 있을 때만(시험 참여자 · 체험 ?ai=proto)
+  const ai=!!$('aiTile'); $('msAi').hidden=!ai; $('msAiB').hidden=!ai;
+  const W=window.AIP&&AIP.week();   // 이번 주 글감을 첫 화면 큰 칸에 바로 보인다(고를 것 없이 「눌러서 시작」)
+  if(W) $('msAiSub').textContent=`이번 주 글감 「${W.title}」 · ${W.status==='쓰는 중'?'쓰던 이야기를 이어서 해요.':'묻는 말에 답하면 AI가 글로 정리해 드려요.'}`;   // AI와 쓰기: 편집기에 AI 창이 있을 때만(시험 참여자 · 체험 ?ai=proto)
 }
 const queue = () => { if(!queued){ queued=true; requestAnimationFrame(render); } };
 
@@ -159,19 +177,38 @@ function build(){
   document.head.insertAdjacentHTML('beforeend',`<style id="msCss">${css}</style>`);
   const desk=new URL(location.href); desk.searchParams.delete('ms');
   root=document.createElement('div'); root.className='msr'; root.id='ms';
-  root.innerHTML=`<header class="ms-top"><button type="button" id="msBack" aria-label="내 서재로">‹ 내 책</button><span class="ms-save" id="msSave" role="status"></span><button type="button" class="ms-pvbtn" id="msPv">책으로 보기</button></header>
-  <p class="ms-trial">🧪 시험 중인 <b>폰 원고 화면</b>이에요. 쪽은 모아가 알아서 나눠요. <a href="${esc(desk.pathname+desk.search)}" id="msDesk">원래 편집기로</a></p>
+  const oc=window.MOA_OPENCHAT_URL||'';
+  root.innerHTML=`<header class="ms-top"><button type="button" id="msBack" aria-label="내 서재로">‹ 내 책</button><span class="ms-save" id="msSave" role="status"></span><button type="button" id="msHelp" aria-label="막힐 때 도움">도움</button><button type="button" class="ms-pvbtn" id="msPv">책으로 보기</button></header>
+  <p class="ms-tip" id="msTip"${tipSeen()?' hidden':''}>🎤 <b>말로 쓰셔도 돼요.</b> 글칸을 누른 뒤 키보드의 <b>마이크 단추</b>를 누르고 말씀하시면 글자로 적혀요. <button type="button" class="ms-small" id="msTipX">알겠어요</button></p>
   <input class="ms-title" id="msTitle" aria-label="책 제목" maxlength="60" placeholder="책 제목" spellcheck="false">
-  <button type="button" class="ms-ai" id="msAi" hidden>${IC.ai}<span><b>AI와 이야기하며 쓰기</b><span>묻는 말에 답하면 AI가 글로 정리해 드려요. 다 되면 「모아에 담기」를 눌러 책에 넣어요.</span></span></button>
+  <button type="button" class="ms-ai" id="msAi" hidden>${IC.ai}<span><b>AI와 이야기하며 쓰기</b><span id="msAiSub">묻는 말에 답하면 AI가 글로 정리해 드려요. 다 되면 「모아에 담기」를 눌러 책에 넣어요.</span></span></button>
   <div id="msList"><p class="ms-load">불러오는 중…</p></div>
-  <p class="ms-end">아래 단추로 사진·영상·노래나 새 글을 더할 수 있어요.<br>방금 쓰던 이야기 다음에 들어가요.</p>
+  <p class="ms-end">아래 단추로 사진이나 새 글을 더할 수 있어요. 영상·노래는 「더 보기」에 있어요.<br>방금 쓰던 이야기 다음에 들어가요.</p>
   <nav class="ms-tools" id="msTools" aria-label="넣기">
     <button type="button" class="ms-done" id="msDone" hidden>${IC.done}다 썼어요</button>
     <button type="button" class="ms-aib" id="msAiB" data-ai hidden>${IC.ai}AI와 쓰기</button>
-    <button type="button" data-add="image">${IC.image}사진</button><button type="button" data-add="video">${IC.video}영상</button><button type="button" data-add="audio">${IC.audio}노래</button><button type="button" data-add="text">${IC.text}새 글</button>
-  </nav>`;
+    <button type="button" data-add="image">${IC.image}사진</button><button type="button" data-add="text">${IC.text}새 글</button><button type="button" data-more>${IC.more}더 보기</button>
+  </nav>
+  <div class="ms-sheet" id="msSheet" hidden><div class="ms-sheet-in" role="dialog" aria-modal="true" aria-labelledby="msSheetT">
+    <div data-sheet="more"><h3 id="msSheetT">더 넣기</h3>
+      <button type="button" class="ms-row" data-add="video">${IC.video}<span><b>영상 넣기</b><small>휴대폰에 있는 영상을 골라요</small></span></button>
+      <button type="button" class="ms-row" data-add="audio">${IC.audio}<span><b>노래·목소리 넣기</b><small>녹음해 둔 소리를 골라요</small></span></button>
+      <a class="ms-row" href="${esc(desk.pathname+desk.search)}" id="msDesk">${IC.desk}<span><b>컴퓨터 화면으로 보기</b><small>쪽 모양을 손으로 짜는 화면이에요. 컴퓨터에서 쓰기 좋아요</small></span></a></div>
+    <div data-sheet="help"><h3>막히면 이렇게 하세요</h3>
+      <p class="ms-hl">🎤 <b>글자 치기가 어려우면</b> 글칸을 누른 뒤 키보드의 마이크 단추를 누르고 말씀하세요.</p>
+      <p class="ms-hl">✓ <b>저장은 저절로 돼요.</b> 위에 「저장됨」이 보이면 그대로 닫으셔도 괜찮아요.</p>
+      <p class="ms-hl">💬 <b>그래도 막히면</b> 카카오톡 오픈채팅방에 물어보세요. 강사가 답해 드려요.</p>
+      ${oc?`<a class="ms-big" href="${esc(oc)}" target="_blank" rel="noopener">오픈채팅방 열기</a>`:'<p class="ms-hl" style="background:none;padding:0 2px">오픈채팅방은 첫 수업에서 알려 드려요.</p>'}</div>
+    <button type="button" class="ms-big ghost" data-sheetx>닫기</button>
+  </div></div>`;
   document.body.appendChild(root); list=$('msList');
 }
+// 「말로 쓰기」 안내는 한 번 「알겠어요」를 누르면 이 기기에서는 다시 안 보인다(저장이 막힌 브라우저면 매번 보임)
+function tipSeen(){ try{ return localStorage.getItem('moa-ms-tip')==='1'; }catch(e){ return false; } }
+function openSheet(k){ const sh=$('msSheet'); sh.querySelectorAll('[data-sheet]').forEach(d=>d.hidden=d.dataset.sheet!==k); sh.hidden=false; sh.querySelector('button,a')?.focus(); }
+const closeSheet=()=>{ $('msSheet').hidden=true; };
+function doAdd(kind){ const a=document.activeElement; if(a&&a.classList.contains('ms-tx')){ commit(a); a.blur(); }
+  placed=null; kind==='text' ? addText() : addMedia(kind); }
 function wire(){
   $('msBack').onclick=()=>{ document.activeElement?.blur(); $('back').click(); };
   $('msPv').onclick=()=>{ document.activeElement?.blur(); openPV(); };
@@ -179,8 +216,15 @@ function wire(){
   $('msDone').onclick=()=>document.activeElement?.blur();
   // 쓰는 중에 아래 단추를 눌러도 먼저 글칸이 닫히며 단추 줄이 움직이지 않게(움직이면 누른 단추가 안 눌린다) — 닫는 일은 눌린 뒤에
   $('msTools').addEventListener('mousedown',ev=>{ if(ev.target.closest('button')) ev.preventDefault(); });
-  $('msTools').addEventListener('click',ev=>{ if(ev.target.closest('[data-ai]')) return openAI(); const b=ev.target.closest('[data-add]'); if(!b) return; const a=document.activeElement; if(a&&a.classList.contains('ms-tx')){ commit(a); a.blur(); }
-    placed=null; b.dataset.add==='text' ? addText() : addMedia(b.dataset.add); });
+  $('msTools').addEventListener('click',ev=>{ if(ev.target.closest('[data-ai]')) return openAI();
+    if(ev.target.closest('[data-more]')){ const a=document.activeElement; if(a&&a.classList.contains('ms-tx')){ commit(a); a.blur(); } return openSheet('more'); }
+    const b=ev.target.closest('[data-add]'); if(b) doAdd(b.dataset.add); });
+  // 아래에서 올라오는 판(더 보기 · 도움): 바깥이나 「닫기」를 누르면 닫힌다
+  $('msSheet').addEventListener('click',ev=>{ if(ev.target.id==='msSheet'||ev.target.closest('[data-sheetx]')) return closeSheet();
+    const b=ev.target.closest('[data-add]'); if(b){ closeSheet(); doAdd(b.dataset.add); } });
+  $('msSheet').addEventListener('keydown',ev=>{ if(ev.key==='Escape') closeSheet(); });
+  $('msHelp').onclick=()=>{ document.activeElement?.blur(); openSheet('help'); };
+  $('msTipX').onclick=()=>{ $('msTip').hidden=true; try{ localStorage.setItem('moa-ms-tip','1'); }catch(e){} };
   $('msAi').onclick=openAI;
   list.addEventListener('click',ev=>{ const s=ev.target.closest('[data-slot]'); if(s){ curEnd=findEl(s.dataset.slot)?.pi??curEnd; pickMedia(s.dataset.kind,s.dataset.slot); return; }
     const d=ev.target.closest('[data-del]'); if(d) return removeMedia(d.dataset.del);
@@ -216,7 +260,7 @@ function openAI(){ const a=document.activeElement; if(a&&a.classList.contains('m
 function onPlaced(pid,title,rep){ placed={pid,title,rep}; const x=$('aiClose'); x&&x.click(); render();
   const i=state.pages.findIndex(p=>p.id===pid), g=i>=0&&groupAt(i), s=g&&list.querySelector(`.ms-grp[data-g="${state.pages[g.start].id}"]`);
   s&&s.scrollIntoView({block:'start'}); }
-window.MS={ onPlaced, start(){
+window.MS={ onPlaced, help:()=>openSheet('help'), start(){
   if(!root){ build(); wire(); }
   if($('center').querySelector('.fatal')){ document.body.classList.remove('ms'); root.hidden=true; return; }   // 열 수 없는 책·로그인 필요 안내는 편집기 화면 그대로
   endEdit(); state.zoom=1; render();

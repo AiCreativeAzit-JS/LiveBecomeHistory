@@ -52,7 +52,13 @@ const look=await st(pg,()=>({sw:document.documentElement.scrollWidth,w:innerWidt
 ok('폰: 가로 넘침 없음(390)', look.sw===look.w, JSON.stringify(look));
 ok('폰: 컴퓨터용 편집기는 숨김', look.app==='none');
 ok('폰: 본문 18px · 제목 22px · 작은 설명도 18px', look.body==='18px'&&look.head==='22px'&&look.cap==='18px', JSON.stringify(look));
-ok('폰: 아래 도구 단추 4개 · 44px 이상', look.tools.length===4 && look.tools.every(h=>h>=44), JSON.stringify(look.tools));
+ok('폰: 아래 도구 단추 3개(사진 · 새 글 · 더 보기) · 44px 이상', look.tools.length===3 && look.tools.every(h=>h>=44), JSON.stringify(look.tools));
+ok('폰: 「말로 쓰셔도 돼요」 안내 · 위 줄 「도움」', await pg.locator('#msTip').isVisible() && await pg.locator('#msHelp').isVisible());
+await tap(pg,'#msHelp');
+ok('도움: 아래에서 판이 올라옴(말로 쓰기 · 저장 · 오픈채팅)', await st(pg,()=>{ const d=document.querySelector('#msSheet:not([hidden]) [data-sheet=help]:not([hidden])'); return !!d && /마이크/.test(d.textContent) && /오픈채팅/.test(d.textContent); }));
+await tap(pg,'#msSheet [data-sheetx]');
+await tap(pg,'#msTipX');
+ok('「알겠어요」 → 안내 닫힘 · 다시 열어도 안 보임', await st(pg,()=>document.getElementById('msTip').hidden && localStorage.getItem('moa-ms-tip')==='1'));
 ok('폰: 쪽 묶음 3개 · 책 제목', look.grps===3 && look.title==='원고 화면 시험', JSON.stringify(look));
 ok('폰: 손으로 짠 쪽은 위→아래 순서(옆 글·사진·설명)', await st(pg,()=>[...document.querySelectorAll('.ms-grp')[2].querySelectorAll('.ms-tx,.ms-media,.ms-slot')].map(n=>n.dataset.k||n.className).join('|'))==='side|ms-media|cap');
 const keepPhoto=JSON.stringify(PHOTO), photoNow=()=>st(pg,()=>{ const e=state.pages.find(p=>p.name==='손으로 짠 쪽').els.find(x=>x.id==='ph1'); return JSON.stringify({id:e.id,type:e.type,x:e.x,y:e.y,w:e.w,h:e.h,name:e.name,media_id:e.media_id}); });
@@ -118,7 +124,9 @@ await st(pg,i=>document.querySelector(`.ms-grp[data-g="${state.pages[i].id}"] [d
 ok('빈 쪽 지우기', await st(pg,()=>!state.pages.some(p=>p.name==='사진 페이지')));
 // 파일 고르기를 그냥 닫으면 방금 만든 빈 쪽을 치운다
 const n1=await st(pg,()=>state.pages.length);
-const [fc2]=await Promise.all([pg.waitForEvent('filechooser',{timeout:5000}), tap(pg,'#msTools [data-add=video]')]);
+await tap(pg,'#msTools [data-more]');
+ok('더 보기: 영상 · 노래 · 컴퓨터 화면으로', await st(pg,()=>{ const d=document.querySelector('#msSheet:not([hidden]) [data-sheet=more]:not([hidden])'); return !!d && !!d.querySelector('[data-add=video]') && !!d.querySelector('[data-add=audio]') && !!d.querySelector('#msDesk'); }));
+const [fc2]=await Promise.all([pg.waitForEvent('filechooser',{timeout:5000}), tap(pg,'#msSheet [data-add=video]')]);
 ok('영상: 고르기 전 빈 영상 쪽', await st(pg,()=>state.pages.some(p=>p.name==='영상 페이지')));
 await st(pg,()=>document.getElementById('file').dispatchEvent(new Event('cancel'))); await pg.waitForTimeout(300);
 ok('고르기 취소: 빈 영상 쪽 치움', await st(pg,n=>state.pages.length===n && !state.pages.some(p=>p.name==='영상 페이지'),n1));
@@ -152,7 +160,8 @@ await ctx.close();
   await p.goto(`${U}/studio/?blank=1&ms=1&ai=proto`); await p.waitForSelector('.ms-grp'); await p.waitForSelector('#msAi:not([hidden])');
   await st(p,()=>{ window.__aiFast=true; });
   const tb=await st(p,()=>[...document.querySelectorAll('#msTools button:not([hidden])')].map(x=>({t:x.innerText.trim(),h:Math.round(x.getBoundingClientRect().height)})));
-  ok('AI: 원고 화면 위 「AI와 이야기하며 쓰기」 · 아래 줄 첫 단추 「AI와 쓰기」', tb.length===5 && tb[0].t==='AI와 쓰기' && tb.every(x=>x.h>=44), JSON.stringify(tb));
+  ok('AI: 원고 화면 위 「AI와 이야기하며 쓰기」 · 아래 줄 첫 단추 「AI와 쓰기」', tb.length===4 && tb[0].t==='AI와 쓰기' && tb.every(x=>x.h>=44), JSON.stringify(tb));
+  ok('AI: 첫 화면 큰 칸에 이번 주 글감', (await p.locator('#msAiSub').innerText()).includes('이번 주 글감 「내 생애 최고의 순간」'));
   const n0=await st(p,()=>state.pages.length);
   await tap(p,'#msAi'); await p.waitForSelector('#aiConsent:not([hidden])');
   ok('AI: 처음이면 동의 화면부터', await p.locator('#aiConsent').isVisible() && !(await p.locator('#aiPanel').isVisible()));
@@ -164,6 +173,8 @@ await ctx.close();
   await act('topic','[data-id=w1]'); for(let k=0;k<5;k++){ await act('sample'); await act('send'); }
   await act('scene','[data-i="0"]'); await act('draft'); await act('revise'); await act('sample'); await act('send'); await act('forgot');
   ok('AI: 폰에서도 생각하기 → 초고 → 퇴고본까지', await st(p,()=>__aiProto.cur.step==='revise'&&!!__aiProto.cur.rev));
+  const top=await st(p,()=>({lab:document.querySelector('#aiSteps .lab')?.textContent, dot:Math.round(document.querySelector('#aiSteps li').getBoundingClientRect().height), cost:document.getElementById('aiCalls').hidden, help:!document.getElementById('aiHelp').hidden}));
+  ok('AI(폰): 단계 탭 대신 진행 점 · 「퇴고 · 3/4」 · 비용 어림 줄 숨김 · 도움 단추', top.lab==='퇴고 · 3/4' && top.dot<=12 && top.cost && top.help, JSON.stringify(top));
   const title=await st(p,()=>__aiProto.cur.rev.title), revText=await st(p,()=>__aiProto.docText(__aiProto.cur.rev).replace(/\s+/g,''));
   await act('place'); await act('insert'); await p.waitForTimeout(300);
   const document_top=await st(p,()=>Math.round(document.querySelector('.ms-top').getBoundingClientRect().bottom));

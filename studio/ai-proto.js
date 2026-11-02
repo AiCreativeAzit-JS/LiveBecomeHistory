@@ -117,6 +117,11 @@ const reach=(s,k)=>{ s.step=k; s.updated=Date.now(); };
 const topicOf=id=>id===WEEK.id?WEEK:PACK.find(p=>p.id===id)||kept.find(k=>k.id===id)||(sessions[id]&&sessions[id].topic);
 const scriptOf=s=>SCRIPT[s.topic.id]||null;
 const status=id=>{ const s=sessions[id]; return !s?'아직':s.placed.length?'담음':'쓰는 중'; };
+window.AIP={ week:()=>({title:WEEK.title,status:status(WEEK.id)}) };   // 폰 원고 화면(ms.js) 첫 화면에 이번 주 글감을 보이려고
+// 폰 원고 화면(?ms=1) 안에서 열렸는가: 단계 탭 대신 진행 점, 대표님 확인용 비용 줄은 숨김(?cost=1이면 보임), 도움 단추
+const PHONE=()=>document.body.classList.contains('ms');
+// 퇴고본이 나온 뒤 「AI에게 고쳐 달라는 말」은 글 한 편에 두 번까지(한 번 약 50~60원, Opus 기준 어림). 그 뒤는 담은 원고에서 직접 고치기(0원)
+const REV_FIX_MAX=2, fixLeft=s=>REV_FIX_MAX-(s.revFix||0);
 const consented=()=>{ if(REAL) return !!ui.agreed; try{ return localStorage.getItem('moa-ai-proto-consent')==='1'; }catch(e){ return !!ui.agreed; } };
 
 /* 원고 = {kind:'draft'|'rev', title, ver, sents:[{id,p(문단),t,…}]} · 이번 판에서 고친 문장은 chg:true(카드에서 색으로) */
@@ -227,6 +232,14 @@ body.aip-dragging{cursor:col-resize!important;user-select:none!important}
 #aiConsent .pnote{font-size:15px;color:#7A5B0C;background:#FFF3DC;border-radius:10px;padding:8px 12px;margin:0 0 14px}
 #aiConsent .arow .ab{min-height:48px}
 @media(max-width:1000px){ .aip{position:fixed;inset:0;z-index:80;border:none} }   /* 좁은 화면: AI 창은 전체 화면 */
+.aip-help{margin-left:auto;min-width:44px;padding:0 12px;border-radius:10px;font-size:16px;font-weight:600;border:1px solid var(--line)!important;background:#fff}
+.aip-help[hidden]{display:none} .aip-help:not([hidden])+.aip-x{margin-left:0}
+/* 폰 원고 화면: 생각하기·초고·퇴고·담기 네 칸 대신 진행 점 넷 + 지금 단계 이름 하나 */
+body.ms .aip-steps{justify-content:center;align-items:center;gap:7px;padding:10px 12px 6px}
+body.ms .aip-steps li{flex:none;width:10px;height:10px;padding:0;border-radius:5px;background:var(--line);font-size:0;overflow:hidden}
+body.ms .aip-steps li.done{background:var(--brand)} body.ms .aip-steps li.on{width:26px;background:var(--brand)}
+body.ms .aip-steps li.lab{width:auto;height:auto;background:none;font-size:15px;color:var(--brand-2);margin-left:6px;overflow:visible}
+.aip-left{font-size:14.5px;color:var(--muted);text-align:center;margin:-2px 0 0}
 `;
 document.head.insertAdjacentHTML('beforeend',`<style id="aiProtoCss">${css}</style>`);
 const app=$('app');
@@ -234,7 +247,7 @@ document.querySelector('.right .tiles').insertAdjacentHTML('beforeend',
   `<button class="tile aitile" id="aiTile" type="button"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span style="text-align:left"><b>AI와 쓰기</b> <span class="pro">시제품</span><br><span>이야기를 나누며 한 편 써요</span></span></button>`);
 app.insertAdjacentHTML('beforeend',`<aside class="aip" id="aiPanel" aria-label="AI와 쓰기" hidden>
   <div class="aip-rs" id="aiRs" role="separator" aria-orientation="vertical" tabindex="0" aria-label="AI 창 너비 조절" title="끌어서 너비를 바꿔요 · 왼쪽 오른쪽 방향키로도 바꿔요 · 두 번 누르면 처음 너비로"></div>
-  <div class="aip-head"><b>AI와 쓰기</b><span class="aip-pro" title="AI 답은 미리 써 둔 가짜 답이에요. 아무 데도 보내지 않아요">시제품 · 가짜 답</span><button class="aip-x" id="aiClose" type="button" title="AI 창 닫기(대화는 그대로 있어요)">닫기 ✕</button></div>
+  <div class="aip-head"><b>AI와 쓰기</b><span class="aip-pro" title="AI 답은 미리 써 둔 가짜 답이에요. 아무 데도 보내지 않아요">시제품 · 가짜 답</span><button class="aip-help" id="aiHelp" type="button" hidden aria-label="막힐 때 도움">도움</button><button class="aip-x" id="aiClose" type="button" title="AI 창 닫기(대화는 그대로 있어요)">닫기 ✕</button></div>
   <div class="aip-top"><ol class="aip-steps" id="aiSteps"></ol><div class="aip-sub" id="aiSub"></div><div class="aip-pieces" id="aiPieces"></div></div>
   <div class="aip-body" id="aiBody"></div><div id="aiLive" class="sr" aria-live="polite"></div>
   <div class="aip-foot" id="aiFoot"></div>
@@ -284,7 +297,7 @@ function closePanel(){ ui.open=false; panel.hidden=true; app.classList.remove('a
 function layoutFor(){ app.classList.toggle('ai-wide',!!cur&&(cur.step==='place'||cur.step==='done')); }   // 담기 때는 쪽 목록을 펼친다
 // 체험 화면에 서가 견본 책(다른 분의 책)이 펼쳐져 있으면, 내 글은 빈 책에서 쓰도록 빈 책으로 다시 연다(대표 의견 2026-10-26)
 function onTile(){ if(sampleTitle && QS.get('blank')!=='1'){ location.href='?blank=1&ai=proto&aiopen=1'+MSQ; return; } openPanel(); }
-$('aiTile').onclick=onTile; $('aiClose').onclick=closePanel;
+$('aiTile').onclick=onTile; $('aiClose').onclick=closePanel; $('aiHelp').onclick=()=>window.MS&&MS.help();
 // 「빈 책으로 시작하기 / 견본 책 보기」 안내 띠의 링크도 시제품 주소(?ai=proto)를 유지한다
 $('demoBar').addEventListener('click',ev=>{ const a=ev.target.closest('a'); if(!a) return; const u=new URL(a.href); u.searchParams.set('ai','proto'); a.href=u.href; },true);
 if(QS.get('aiopen')==='1') (async()=>{ const until=async f=>{ while(!f()) await new Promise(r=>setTimeout(r,150)); };
@@ -301,7 +314,9 @@ $('aiConsent').addEventListener('keydown',ev=>{ if(ev.key==='Escape'){ $('aiCons
 function render(top){
   if(!ui.open) return;
   const s=cur, at=s?STEP_N[s.step]:-1;
-  $('aiSteps').innerHTML=STEPS.map(([k,n],i)=>`<li class="${i<at?'done':i===at?'on':''}"${i===at?' aria-current="step"':''}>${i<at?'✓ ':''}${n}</li>`).join('');
+  $('aiSteps').innerHTML=STEPS.map(([k,n],i)=>`<li class="${i<at?'done':i===at?'on':''}"${i===at?' aria-current="step"':''}>${i<at?'✓ ':''}${n}</li>`).join('')
+    +(PHONE()?`<li class="lab" aria-hidden="true">${!s?'글감 고르기':at>=4?'담았어요':`${STEPS[at][1]} · ${at+1}/4`}</li>`:'');
+  $('aiHelp').hidden=!PHONE(); if(!REAL) $('aiCalls').hidden=PHONE()&&QS.get('cost')!=='1';   // 비용 어림 줄은 대표님 확인용: 폰 화면에서는 ?cost=1일 때만
   $('aiSub').innerHTML = s ? `<b title="글감: ${esc(s.topic.title)}">${esc(s.topic.title)}</b><button type="button" class="aip-tl" data-act="topics" title="다른 글감 고르기(이 대화는 그대로 남아요)">글감 목록</button>` : `<b>글감 고르기</b>`;
   $('aiPieces').innerHTML = s&&s.step==='think'&&!s.scenes ? `이야기 조각 ${PIECES.map(p=>`<span class="${s.covered.includes(p)?'on':''}">${s.covered.includes(p)?'✓ ':''}${p}</span>`).join('')}` : '';
   $('aiLeft').textContent=`글 약 ${budget}편 더`;
@@ -353,8 +368,10 @@ function sampleText(s){ const S=scriptOf(s); if(!S) return '';
   if(s.step==='draft') return s.draft&&S.draftReq[s.reqAt.draft]||'';
   if(s.step==='revise'){ if(s.asking){ const q=s.revQs[s.revAt]; return q&&q.a||''; } return s.rev&&(s.placed.length?S.againReq[s.reqAt.again]:S.revReq[s.reqAt.rev])||''; }
   return ''; }
-const SENDHOW=(window.matchMedia&&matchMedia('(pointer:coarse)').matches)?'다 쓰시면 아래 「보내기」를 눌러 주세요.':'엔터는 줄바꿈, Ctrl+Enter는 보내기예요.';   // 폰(손가락)에는 Ctrl 키가 없다
-const HINT={think:'여기에 답을 적어 주세요. '+SENDHOW,ask:'기억나는 것을 적어 주세요. '+SENDHOW,
+const COARSE=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
+const SENDHOW=COARSE?'다 쓰시면 아래 「보내기」를 눌러 주세요.':'엔터는 줄바꿈, Ctrl+Enter는 보내기예요.';   // 폰(손가락)에는 Ctrl 키가 없다
+const SAY=COARSE?' 🎤 키보드 마이크로 말해도 돼요.':'';   // 폰 키보드 받아쓰기는 AI 비용 0원
+const HINT={think:'여기에 답을 적어 주세요. '+SENDHOW+SAY,ask:'기억나는 것을 적어 주세요. '+SENDHOW+SAY,
   fix:'고치고 싶은 것을 말씀해 주세요. 예: 아버지 이야기는 빼 주세요 · 이 문장은 제가 한 말이 아니에요'};
 const box=(ph,v)=>`<div class="sensnote" style="font-size:12.5px;color:var(--muted,#667);margin:0 0 6px;line-height:1.5">🔒 주민등록번호·계좌·카드번호 같은 개인정보는 적지 마세요. 적으면 AI로 보내지지 않아요.</div><textarea id="aiIn" data-k="input" aria-label="${esc(ph)}" placeholder="${esc(ph)}">${esc(v)}</textarea>`;
 function footView(s){
@@ -366,17 +383,20 @@ function footView(s){
   if(s.step==='draft') return `${box(HINT.fix,s.input)}<div class="arow"><button class="ab" type="button" data-act="send">보내기</button><button class="ab pri" type="button" data-act="revise">퇴고로 넘어가기</button></div>`;
   if(s.step==='revise'){ if(!s.rev&&!s.asking) return '';
     if(s.asking) return `${box(HINT.ask,s.input)}<div class="arow"><button class="ab" type="button" data-act="forgot">기억 안 나요</button><button class="ab pri" type="button" data-act="send">답하기</button></div>`;
-    if(placedOK(s)) return `${box(HINT.fix,s.input)}<button class="ab" type="button" data-act="send">보내기</button>
+    // 퇴고본이 나온 뒤 AI에게 고쳐 달라는 말은 두 번까지. 다 쓰면 입력칸 대신 「담은 뒤 직접 고치기」 안내
+    const left=fixLeft(s), ask=left>0?`${box(HINT.fix,s.input)}<p class="aip-left" id="aiFixLeft">AI에게 고쳐 달라고 하기 ${left}번 남았어요</p>`
+      :`<p class="note" id="aiFixLeft">AI에게 고쳐 달라고 하는 것은 글 한 편에 ${REV_FIX_MAX}번까지예요. 남은 곳은 ${placedOK(s)?'원고에서':'담은 뒤 원고에서'} 직접 고쳐 주세요.</p>`;
+    if(placedOK(s)) return `${ask}${left>0?'<button class="ab" type="button" data-act="send">보내기</button>':''}
       <div class="arow"><button class="ab" type="button" data-act="keepas">그대로 두기</button><button class="ab pri" type="button" data-act="replace">바꿔 담기</button></div>`;
-    return `${box(HINT.fix,s.input)}<div class="arow"><button class="ab" type="button" data-act="send">보내기</button><button class="ab pri" type="button" data-act="place">모아에 담기</button></div>`; }
+    return `${ask}${left>0?'<div class="arow"><button class="ab" type="button" data-act="send">보내기</button><button class="ab pri" type="button" data-act="place">모아에 담기</button></div>':'<button class="ab pri" type="button" data-act="place">모아에 담기</button>'}`; }
   if(s.step==='place') return `<button class="ab pri" type="button" data-act="insert">${s.place.mode==='fill'?'빈 쪽에 담기':'담기'}</button><button class="ab" type="button" data-act="back-rev">퇴고 대화로 돌아가기</button>`;
-  return `<button class="ab pri" type="button" data-act="next">다음 글감 고르기</button><div class="arow"><button class="ab" type="button" data-act="again">퇴고 대화 이어 하기</button><button class="ab" type="button" data-act="undo">되돌리기</button></div>`;
+  return `<button class="ab pri" type="button" data-act="next">다음 글감 고르기</button>${fixLeft(s)>0?'<div class="arow"><button class="ab" type="button" data-act="again">퇴고 대화 이어 하기</button><button class="ab" type="button" data-act="undo">되돌리기</button></div>':'<button class="ab" type="button" data-act="undo">되돌리기</button>'}`;
 }
 // 대화 끝에 붙는 단계 화면: 담을 자리 고르기 · 담은 뒤
 function stageView(s){
   if(s.step==='done'){ const p=s.inserted, t=s.rev.title;
     return `<div class="aidone"><b>✓ 담았어요</b>${rangeOf(s)}에 「${esc(t)}」${josa(t,'을','를')} ${p.rep?'바꿔 담았어요.':p.filled?'빈 쪽에 담았어요.':'새 쪽으로 넣었어요.'}${p.swapped?' 빈 쪽은 지웠어요.':''} 다른 쪽은 그대로예요.</div>
-      <p class="note">이제 이 글은 ${CALL} 원고예요. 지면에서 직접 고치실 수 있어요. AI와 더 고치고 싶으면 「퇴고 대화 이어 하기」를 눌러 주세요. 되돌리기 한 번이면 담기 전으로 돌아가요.</p>`; }
+      <p class="note">이제 이 글은 ${CALL} 원고예요. 지면에서 직접 고치실 수 있어요. ${fixLeft(s)>0?'AI와 더 고치고 싶으면 「퇴고 대화 이어 하기」를 눌러 주세요. ':''}되돌리기 한 번이면 담기 전으로 돌아가요.</p>`; }
   if(s.step!=='place') return '';
   const e=firstEmpty(), opt=(m,b,sub)=>`<button type="button" class="popt${s.place.mode===m?' on':''}" data-act="pmode" data-m="${m}" aria-pressed="${s.place.mode===m}"><b>${b}</b><span>${sub}</span></button>`;
   const pg=i=>`${i}쪽 「${esc(state.pages[i-1].name)}」`;
@@ -572,14 +592,18 @@ panel.addEventListener('click',ev=>{
       const sens=window.moaSensitive?window.moaSensitive(t):[]; if(sens.length){ toast(`${sens.join('·')}처럼 보이는 내용이 있어서 시작하지 않았어요. 지우고 다시 눌러 주세요`); return; }
       ui.own=''; ui.view='topics'; startTopic({id:'o'+(++seq),label:'내가 정한 글감',title:t,first:'이 이야기에서 가장 먼저 떠오르는 장면은 무엇인가요?'}); },
     keepdel:()=>{ const i=kept.findIndex(k=>k.id===b.dataset.id); if(i>=0) kept.splice(i,1); toast('남겨 둔 장면을 지웠어요'); render(); },
-    send:()=>send('me'), idk:()=>send('idk'), forgot:()=>send('forgot'), sum:()=>{ if(!s.busy){ call(s); summarize(s); } },
+    send:()=>{ if(s&&s.step==='revise'&&!s.asking&&s.rev){   // 퇴고본 뒤 「고쳐 주세요」는 두 번까지 센다(빈 글·개인정보로 막힌 말은 세지 않음)
+        if(fixLeft(s)<=0){ toast('AI 고치기는 다 쓰셨어요. 원고에서 직접 고쳐 주세요'); render(); return; }
+        const t=s.input.trim(), sens=t&&window.moaSensitive?window.moaSensitive(t):[]; if(t&&!sens.length) s.revFix=(s.revFix||0)+1; }
+      send('me'); },
+    idk:()=>send('idk'), forgot:()=>send('forgot'), sum:()=>{ if(!s.busy){ call(s); summarize(s); } },
     sample:()=>{ s.input=sampleText(s); render(); const t=$('aiIn'); if(t){ t.focus(); t.setSelectionRange(t.value.length,t.value.length); } },
     scene:()=>choose(s,+b.dataset.i), draft:()=>writeDraft(s), revise:()=>toRevise(s),
     place:()=>{ reach(s,'place'); s.place.mode=firstEmpty()>=0?'fill':'after'; render(true); },
     pmode:()=>{ s.place.mode=b.dataset.m; render(); }, insert:()=>doPlace(s), 'back-rev':()=>{ reach(s,'revise'); render(); },
     replace:()=>replaceWriting(s), keepas:()=>{ reach(s,'done'); render(); toast('담은 글은 그대로 두었어요'); }, again:()=>againTalk(s),
     undo:()=>{ const p=s.inserted, last=p&&p.before&&p.before.at===history.length; undo(); if(last&&placedOK(s)){ Object.assign(p,{ids:p.before.ids,rep:p.before.rep}); delete p.before; render(); toast('되돌렸어요 · 바꿔 담기 전 글로 돌아갔어요'); } },   // 새로 담은 것을 되돌리면 쪽 목록 감시(syncPlaced)가 알린다
-    'prop-yes':()=>{ const m=s.msgs[+b.dataset.k]; if(!m||!m.act||m.act.done||s.busy) return; const x=m.act; x.done=true; render();
+    'prop-yes':()=>{ const m=s.msgs[+b.dataset.k]; if(!m||!m.act||m.act.done||s.busy) return; const x=m.act; x.done=true; if(s.step==='revise') s.revFix=(s.revFix||0)+1; render();
       fixByTalk(s,x.which,'네, 그렇게 바꿔 주세요.',{note:'[어르신이 방금 제안을 승인하셨습니다] '+x.text}); },
     'prop-no':()=>{ const m=s.msgs[+b.dataset.k]; if(!m||!m.act||m.act.done) return; m.act.done=true; s.msgs.push({who:'ai',text:'알겠어요, 지금 그대로 둘게요.'}); render(); },
     restore:()=>{ const m=s.msgs[+b.dataset.k]; if(!m||!m.act||m.act.done||s.busy) return; const x=m.act; x.done=true; const now=x.which==='draft'?s.draft:s.rev, back=copy(x.prev); back.ver=now.ver+1;

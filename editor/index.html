@@ -102,6 +102,9 @@
   .homeico:hover{background:var(--green);color:#fff}
   .brandwrap{display:flex;align-items:center;min-width:0}
   .brandwrap .brand{white-space:nowrap}
+  .ptop-go{display:block;margin:4px 0 12px;padding:16px 18px;border-radius:16px;border:2px solid #0F5B48;background:#E8F3EE;color:#0B3324;text-decoration:none}
+  .ptop-go span{display:block;font-size:15px;color:#3D5A4F} .ptop-go b{display:block;font-size:22px;margin:2px 0 6px;line-height:1.4} .ptop-go em{display:inline-block;font-style:normal;font-size:18px;font-weight:800;background:#0F5B48;color:#fff;border-radius:12px;padding:10px 18px}
+  .ptop-help{margin:0 0 16px;padding:12px 14px;border-radius:12px;background:#FFF7E0;color:#5c4a14;font-size:16px;line-height:1.6} .ptop-help a{color:#0B3324;font-weight:800;white-space:nowrap} .ptop-help small{font-size:14px;color:#7a6a3a}
   .trybox{margin:18px 0 0;padding:14px 16px;border-radius:12px;background:#FFF7E0;color:#5c4a14;font-size:14.5px;line-height:1.6}.trybox a{color:#0B3324;font-weight:700;white-space:nowrap}
   .brandhome{color:inherit;text-decoration:none}.brandhome:hover{text-decoration:underline;text-decoration-color:var(--gold-deep);text-underline-offset:4px}
   @media (max-width:420px){.brandwrap .brand span{display:none}}
@@ -344,6 +347,7 @@ async function viewLibrary(){
     <button class="gold" id="nb">＋ 새 책 만들기</button></div>
     <div class="libtabs" role="tablist"><button role="tab" data-tab="books">📚 내 책 <span id="cBooks"></span></button><button role="tab" data-tab="trash">🗑 휴지통 <span id="cTrash"></span></button></div>
     <div id="pending"></div>
+    <div id="phoneTop"></div>
     <div id="demoImport"></div>
     <div id="list" class="books">불러오는 중…</div>
     <div class="acct">${window.MOA_VERSION?`<span style="font-size:11px;color:#9AA7A1;margin-right:8px">판 ${esc(MOA_VERSION)}</span>`:''}<button type="button" class="link" id="me">내 정보(이름·비밀번호)</button> · <a href="../privacy/">개인정보 처리방침</a> · <a href="../terms/">이용약관</a> · <button type="button" class="link" id="quit">회원 탈퇴</button></div>`;
@@ -374,6 +378,7 @@ async function viewLibrary(){
       viewLibrary(); };
     return;
   }
+  showPhoneTop(live);
   if(!live.length){ list.innerHTML='<p class="note">아직 책이 없어요. “새 책 만들기”를 눌러 첫 페이지를 시작해 보세요.</p>'; return; }
   list.innerHTML = live.map(b=>`<div class="book" tabindex="0" role="button" data-id="${b.id}">
     <div class="bk-top"><span>${b.admin_hidden?'<span class="badge warn">관리자에 의해 숨김</span>':b.is_public?'<span class="badge">서가에 공개 중</span>':'<span class="badge off">나만 보기</span>'}</span>
@@ -422,7 +427,16 @@ async function purgeBook(b){
   const {error}=await sb.from('books').delete().eq('id',b.id);
   toast(error?'지우지 못했어요':'완전히 지웠어요');
 }
-const studioURL = id => '../studio/?book='+encodeURIComponent(id);
+// 폰(좁은 화면 + 손가락)에서는 책을 「폰 원고 화면」(studio ?ms=1)으로 연다. 컴퓨터는 그대로 편집기
+const PHONE = matchMedia('(max-width:600px)').matches && matchMedia('(pointer:coarse)').matches;
+const MSQ = PHONE ? '&ms=1' : '';
+const studioURL = id => '../studio/?book='+encodeURIComponent(id)+MSQ;
+// 폰 내 서재 맨 위: 가장 최근에 쓰던 책 「이어 쓰기」 하나와 막힐 때 물어볼 곳(오픈채팅방). 집에서 혼자 열어도 고를 것이 없게
+function showPhoneTop(live){
+  const box=document.getElementById('phoneTop'); if(!box) return; if(!PHONE||libTab!=='books'){ box.innerHTML=''; return; }
+  const b=live.find(x=>x.format==='pages'), oc=window.MOA_OPENCHAT_URL;
+  box.innerHTML=(b?`<a class="ptop-go" href="${esc(studioURL(b.id))}"><span>쓰는 중인 책</span><b>${esc(b.title)}</b><em>이어 쓰기 ›</em></a>`:'')
+    +`<div class="ptop-help">막히면 카카오톡 오픈채팅방에 물어보세요. 강사가 답해 드려요.${oc?` <a href="${esc(oc)}" target="_blank" rel="noopener">오픈채팅방 열기</a>`:'<br><small>오픈채팅방은 첫 수업에서 알려 드려요.</small>'}</div>`; }
 // 가입 승인제(레드팀 D1): 승인 전에는 책을 만들고 저장할 수 없다(DB 규칙이 막는다). 화면에서도 미리 알려 주고 「새 책 만들기」를 잠근다
 function showPending(pending){
   const box=document.getElementById('pending'), nb=document.getElementById('nb'); if(!box||!nb) return;
@@ -437,7 +451,7 @@ async function showDemoImport(){ const box=document.getElementById('demoImport')
   document.getElementById('diGo').onclick=()=>{ location.href='../studio/?new=1&import=demo'; };
   document.getElementById('diDel').onclick=async()=>{ if(!confirm('이 기기에 남은 체험 책을 지울까요?\n(지우면 되돌릴 수 없어요)')) return; await DemoDraft.clear(); box.innerHTML=''; toast('체험 책을 지웠어요'); }; }
 function newBook(){ // 책은 스튜디오에서 처음 저장할 때 만들어진다(들어갔다 그냥 나오면 생기지 않음)
-  location.href = '../studio/?new=1';
+  location.href = '../studio/?new=1'+MSQ;
 }
 
 /* ───────── 편집기 ───────── */

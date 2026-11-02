@@ -127,6 +127,7 @@ ok('말로 「원래대로」 → 퇴고본 2판에 말씀하신 표현이 살�
 ok('퇴고 단계 버튼: 보내기 · 모아에 담기', await pg.locator('#aiPanel [data-act=send]').count()===1 && await pg.locator('#aiPanel [data-act=place]').count()===1);
 ok('2차 기능(노래 만들기·가사)은 보이지 않음', !/노래|가사/.test(await pg.locator('#aiPanel').innerText()));
 const revBefore=c.rev.t;
+ok('퇴고 고치기 상한: 한 번 고친 뒤 「1번 남았어요」', (await pg.locator('#aiFixLeft').innerText()).includes('1번 남았어요'));
 
 // 담기 — 빈 쪽(견본 「첫 번째 이야기」)이 있으면 두 가지 중에 고른다
 await act('place');
@@ -168,6 +169,7 @@ await sample();   // 끝 문장은 여운이 남게
 c=await C();
 ok('이어 한 퇴고: 말로 고치기 → 새 판 · AI 1번(담긴 글만 보내 약 100원 아래)', c.rev.t.includes('눈 오는 날이면, 지금도 그 사람들 얼굴이 생각난다.') && c.calls===c0+1 && c.won-w0>20 && c.won-w0<100);
 console.log('  이어 한 퇴고 1번 어림 비용:',Math.round(c.won-w0),'원');
+ok('퇴고 고치기 두 번을 다 쓰면: 입력칸·보내기 대신 「직접 고쳐 주세요」 · 바꿔 담기는 그대로', await pg.locator('#aiIn').count()===0 && await pg.locator('#aiPanel [data-act=send]').count()===0 && (await pg.locator('#aiFixLeft').innerText()).includes('2번까지') && await pg.locator('#aiPanel [data-act=replace]').count()===1);
 await shot('퇴고이어하기');
 await act('replace');
 const rp=await st(()=>({n:state.pages.length, txt:state.pages[1].els.map(e=>e.html).join(' '), rep:__aiProto.cur.inserted.rep}));
