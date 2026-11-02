@@ -186,7 +186,7 @@ function build(){
   root=document.createElement('div'); root.className='msr'; root.id='ms';
   const oc=window.MOA_OPENCHAT_URL||'';
   root.innerHTML=`<header class="ms-top"><button type="button" id="msBack" aria-label="내 서재로">‹ 내 책</button><span class="ms-save" id="msSave" role="status"></span><button type="button" id="msHelp" aria-label="막힐 때 도움">도움</button><button type="button" class="ms-pvbtn" id="msPv">책으로 보기</button></header>
-  <p class="ms-tip" id="msTip"${tipSeen()?' hidden':''}>${IC.mic} <b>말로 쓰셔도 돼요.</b> ${MIC?'글칸을 누르면 나오는 <b>「${IC.mic}말로 하기」</b>를 누르고 말씀하시면 글자로 적혀요.':'글칸을 누른 뒤 키보드의 <b>마이크 단추</b>를 누르고 말씀하시면 글자로 적혀요.'} <button type="button" class="ms-small" id="msTipX">알겠어요</button></p>
+  <p class="ms-tip" id="msTip"${tipSeen()?' hidden':''}>${IC.mic} <b>말로 쓰셔도 돼요.</b> ${MIC?'글칸을 누르면 나오는 <b>「'+IC.mic+'말로 하기」</b>를 누르고 말씀하시면 글자로 적혀요.':'글칸을 누른 뒤 키보드의 <b>마이크 단추</b>를 누르고 말씀하시면 글자로 적혀요.'} <button type="button" class="ms-small" id="msTipX">알겠어요</button></p>
   <input class="ms-title" id="msTitle" aria-label="책 제목" maxlength="60" placeholder="책 제목" spellcheck="false">
   <button type="button" class="ms-ai" id="msAi" hidden>${IC.ai}<span><b>AI와 이야기하며 쓰기</b><span id="msAiSub">묻는 말에 답하면 AI가 글로 정리해 드려요. 다 되면 「모아에 담기」를 눌러 책에 넣어요.</span></span></button>
   <div id="msList"><p class="ms-load">불러오는 중…</p></div>
@@ -214,7 +214,7 @@ function build(){
 // 「말로 쓰기」 안내는 한 번 「알겠어요」를 누르면 이 기기에서는 다시 안 보인다(저장이 막힌 브라우저면 매번 보임)
 function tipSeen(){ try{ return localStorage.getItem('moa-ms-tip')==='1'; }catch(e){ return false; } }
 // 「말로 하기」(lib/voice.js): 원고 글칸을 쓰는 동안 아래 줄 위에 뜬다. 한 마디가 끝날 때마다 커서 자리에 글이 들어간다(AI 비용 0원)
-function micState(st){ const b=$('msMic'), live=st==='on'; b.classList.toggle('on',live); b.setAttribute('aria-pressed',String(live)); b.innerHTML=live?IC.stop+'그만 말하기':IC.mic+'말로 하기';
+function micState(st){ const b=$('msMic'), live=st==='on'; if(b){ b.classList.toggle('on',live); b.setAttribute('aria-pressed',String(live)); b.innerHTML=live?IC.stop+'그만 말하기':IC.mic+'말로 하기'; }
   if(st==='denied') toast(window.isSecureContext?'마이크를 쓸 수 없어요. 휴대폰에 「허용」을 눌러 주세요':'이 주소에서는 마이크를 쓸 수 없어요(보안 주소 https에서만 돼요)');
   if(st==='error') toast('말을 글자로 바꾸지 못했어요. 인터넷 연결을 확인해 주세요'); }
 function toggleMic(){ if(MoaVoice.active()){ MoaVoice.stop(); return; }
